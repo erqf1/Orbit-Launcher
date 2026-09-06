@@ -1,0 +1,40 @@
+{
+  "name": "erqf-launcher",
+  "version": "0.1.0",
+  "description": "Custom Minecraft launcher",
+  "main": "./out/main/index.js",
+  "private": true,
+  "author": "",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview"
+  },
+  "dependencies": {
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
+  },
+  "overrides": {
+    "qs": "^6.16.0",
+    "tough-cookie": "^6.0.2",
+    "form-data": "^4.0.6",
+    "adm-zip": "^0.6.0"
+  }
+}
