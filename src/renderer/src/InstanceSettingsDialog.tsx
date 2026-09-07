@@ -11,10 +11,15 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
   const [javaOptions, setJavaOptions] = useState<JavaInstallation[]>([])
   const [loadingJava, setLoadingJava] = useState(true)
   const [javaPath, setJavaPath] = useState(instance.javaPath ?? '')
+  const [jvmArgs, setJvmArgs] = useState(instance.jvmArgs ?? '')
+  const [mcArgs, setMcArgs] = useState(instance.mcArgs ?? '')
   const [memoryMin, setMemoryMin] = useState(instance.memoryMin)
   const [memoryMax, setMemoryMax] = useState(instance.memoryMax)
   const [windowWidth, setWindowWidth] = useState(instance.windowWidth?.toString() ?? '')
   const [windowHeight, setWindowHeight] = useState(instance.windowHeight?.toString() ?? '')
+  const [fullscreen, setFullscreen] = useState(instance.fullscreen)
+  const [closeOnLaunch, setCloseOnLaunch] = useState(instance.closeOnLaunch)
+  const [autoJoinServer, setAutoJoinServer] = useState(instance.autoJoinServer ?? '')
 
   useEffect(() => {
     let cancelled = false
@@ -48,16 +53,25 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
     if (!memoryValid) return
     onSave(instance.id, {
       javaPath: javaPath || null,
+      jvmArgs: jvmArgs.trim() || null,
+      mcArgs: mcArgs.trim() || null,
       memoryMin,
       memoryMax,
       windowWidth: windowWidth ? Number(windowWidth) : null,
-      windowHeight: windowHeight ? Number(windowHeight) : null
+      windowHeight: windowHeight ? Number(windowHeight) : null,
+      fullscreen,
+      closeOnLaunch,
+      autoJoinServer: autoJoinServer.trim() || null
     })
   }
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form
+        className="modal modal-wide"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
         <h2>Einstellungen: {instance.name}</h2>
 
         <label>
@@ -94,6 +108,29 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
           </p>
         )}
 
+        <label>
+          Zusätzliche Java-Argumente
+          <input
+            value={jvmArgs}
+            onChange={(e) => setJvmArgs(e.target.value)}
+            placeholder="z.B. -XX:+UseG1GC"
+          />
+        </label>
+
+        <label>
+          Zusätzliche Spiel-Argumente
+          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
+        </label>
+
+        <label>
+          Server automatisch beitreten
+          <input
+            value={autoJoinServer}
+            onChange={(e) => setAutoJoinServer(e.target.value)}
+            placeholder="host:port (optional)"
+          />
+        </label>
+
         <div className="field-row">
           <label>
             Fensterbreite
@@ -102,6 +139,7 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
               value={windowWidth}
               onChange={(e) => setWindowWidth(e.target.value)}
               placeholder="Standard"
+              disabled={fullscreen}
             />
           </label>
           <label>
@@ -111,9 +149,28 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
               value={windowHeight}
               onChange={(e) => setWindowHeight(e.target.value)}
               placeholder="Standard"
+              disabled={fullscreen}
             />
           </label>
         </div>
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={fullscreen}
+            onChange={(e) => setFullscreen(e.target.checked)}
+          />
+          Vollbild starten
+        </label>
+
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={closeOnLaunch}
+            onChange={(e) => setCloseOnLaunch(e.target.checked)}
+          />
+          Launcher-Fenster ausblenden, während diese Instanz läuft
+        </label>
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>

@@ -142,9 +142,21 @@ button:not(:disabled):hover {
   border-radius: 10px;
   padding: 24px;
   width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.modal-wide {
+  width: 420px;
+}
+
+.checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
 }
 
 .modal h2 {
@@ -256,4 +268,37 @@ button:not(:disabled):hover {
   white-space: pre-wrap;
   font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 12px;
+}
+
+.launch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.launch-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.launch-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.launch-tab.active {
+  border-color: #4c8f5e;
+  background: #23342a;
+}
+
+.launch-tab-close {
+  opacity: 0.6;
+}
+
+.launch-tab-close:hover {
+  opacity: 1;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
+import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceSettingsDialog from './InstanceSettingsDialog'
 import ModBrowserDialog from './ModBrowserDialog'
 import type { Instance, InstanceSettingsPatch, LoaderType } from './types'
@@ -10,15 +11,24 @@ interface Profile {
   id: string
 }
 
+interface LaunchSession {
+  launchId: string
+  instanceId: string
+  logs: string[]
+  closed: boolean
+  exitCode: number | null
+}
+
 function App(): React.JSX.Element {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
   const [instances, setInstances] = useState<Instance[]>([])
-  const [launchingId, setLaunchingId] = useState<string | null>(null)
+  const [launches, setLaunches] = useState<Record<string, LaunchSession>>({})
+  const [selectedLaunchId, setSelectedLaunchId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null)
   const [modsInstanceId, setModsInstanceId] = useState<string | null>(null)
-  const [logs, setLogs] = useState<string[]>([])
+  const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshInstances = useCallback(() => {
@@ -32,9 +42,35 @@ function App(): React.JSX.Element {
     })
   }, [refreshInstances])
 
+  // Log/progress events can arrive before launch() resolves back to us (MCLC
+  // emits them from inside the download phase, before the handler returns),
+  // so sessions are created lazily from the event stream itself rather than
+  // only when we get the launchId back - both carry launchId + instanceId.
   useEffect(() => {
-    const offLog = window.api.onLog((line) => setLogs((prev) => [...prev, line]))
-    const offClosed = window.api.onClosed(() => setLaunchingId(null))
+    const offLog = window.api.onLog(({ launchId, instanceId, line }) => {
+      setLaunches((prev) => {
+        const existing = prev[launchId] ?? {
+          launchId,
+          instanceId,
+          logs: [],
+          closed: false,
+          exitCode: null
+        }
+        return { ...prev, [launchId]: { ...existing, logs: [...existing.logs, line] } }
+      })
+    })
+    const offClosed = window.api.onClosed(({ launchId, instanceId, code }) => {
+      setLaunches((prev) => {
+        const existing = prev[launchId] ?? {
+          launchId,
+          instanceId,
+          logs: [],
+          closed: false,
+          exitCode: null
+        }
+        return { ...prev, [launchId]: { ...existing, closed: true, exitCode: code } }
+      })
+    })
     return () => {
       offLog()
       offClosed()
@@ -56,14 +92,21 @@ function App(): React.JSX.Element {
 
   async function handlePlay(id: string): Promise<void> {
     setError(null)
-    setLogs([])
-    setLaunchingId(id)
     try {
-      await window.api.launch(id)
+      const { launchId } = await window.api.launch(id)
+      setSelectedLaunchId(launchId)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      setLaunchingId(null)
     }
+  }
+
+  function dismissLaunch(launchId: string): void {
+    setLaunches((prev) => {
+      const next = { ...prev }
+      delete next[launchId]
+      return next
+    })
+    if (selectedLaunchId === launchId) setSelectedLaunchId(null)
   }
 
   // Errors intentionally propagate to the caller (the dialog) instead of
@@ -77,6 +120,17 @@ function App(): React.JSX.Element {
   ): Promise<void> {
     await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
     setShowCreate(false)
+    refreshInstances()
+  }
+
+  async function handleCloneAsVersion(
+    id: string,
+    mcVersion: string,
+    loader: LoaderType,
+    loaderVersion?: string
+  ): Promise<void> {
+    await window.api.cloneInstanceAsVersion(id, { mcVersion, loader, loaderVersion })
+    setCloneAsVersionInstanceId(null)
     refreshInstances()
   }
 
@@ -99,6 +153,10 @@ function App(): React.JSX.Element {
   async function handleDelete(id: string): Promise<void> {
     const instance = instances.find((i) => i.id === id)
     const label = instance ? instance.name : 'diese Instanz'
+    if (instanceHasActiveLaunch(id)) {
+      setError(`"${label}" läuft gerade und kann nicht gelöscht werden.`)
+      return
+    }
     const sure = window.confirm(
       `"${label}" wirklich löschen? Das entfernt auch Welten/Mods dieser Instanz unwiderruflich.`
     )
@@ -107,8 +165,19 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
+  function instanceHasActiveLaunch(instanceId: string): boolean {
+    return Object.values(launches).some((l) => l.instanceId === instanceId && !l.closed)
+  }
+
+  function activeLaunchCount(instanceId: string): number {
+    return Object.values(launches).filter((l) => l.instanceId === instanceId && !l.closed).length
+  }
+
   const settingsInstance = instances.find((i) => i.id === settingsInstanceId) ?? null
   const modsInstance = instances.find((i) => i.id === modsInstanceId) ?? null
+  const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
+  const launchList = Object.values(launches).sort((a, b) => (a.launchId < b.launchId ? 1 : -1))
+  const selectedLaunch = selectedLaunchId ? launches[selectedLaunchId] : undefined
 
   return (
     <div className="app">
@@ -132,12 +201,13 @@ function App(): React.JSX.Element {
           <InstanceCard
             key={instance.id}
             instance={instance}
-            isLaunching={launchingId === instance.id}
-            playDisabled={!profile || launchingId !== null}
-            manageDisabled={launchingId === instance.id}
+            activeLaunches={activeLaunchCount(instance.id)}
+            playDisabled={!profile}
+            manageDisabled={instanceHasActiveLaunch(instance.id)}
             onPlay={handlePlay}
             onRename={handleRename}
             onClone={handleClone}
+            onCloneAsVersion={setCloneAsVersionInstanceId}
             onDelete={handleDelete}
             onOpenSettings={setSettingsInstanceId}
             onOpenMods={setModsInstanceId}
@@ -165,7 +235,44 @@ function App(): React.JSX.Element {
         <ModBrowserDialog instance={modsInstance} onClose={() => setModsInstanceId(null)} />
       )}
 
-      <pre className="log">{logs.join('\n')}</pre>
+      {cloneAsVersionInstance && (
+        <CloneAsVersionDialog
+          instance={cloneAsVersionInstance}
+          onCancel={() => setCloneAsVersionInstanceId(null)}
+          onClone={handleCloneAsVersion}
+        />
+      )}
+
+      {launchList.length > 0 && (
+        <div className="launch-panel">
+          <div className="launch-tabs">
+            {launchList.map((l) => {
+              const instanceName =
+                instances.find((i) => i.id === l.instanceId)?.name ?? l.instanceId
+              return (
+                <button
+                  key={l.launchId}
+                  className={`launch-tab${l.launchId === selectedLaunchId ? ' active' : ''}`}
+                  onClick={() => setSelectedLaunchId(l.launchId)}
+                >
+                  {instanceName}
+                  {l.closed ? ` (beendet: ${l.exitCode})` : ' (läuft)'}
+                  <span
+                    className="launch-tab-close"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      dismissLaunch(l.launchId)
+                    }}
+                  >
+                    ×
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
+        </div>
+      )}
     </div>
   )
 }

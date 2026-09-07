@@ -14,8 +14,13 @@ export interface Instance {
   memoryMin: string
   memoryMax: string
   javaPath: string | null
+  jvmArgs: string | null
+  mcArgs: string | null
   windowWidth: number | null
   windowHeight: number | null
+  fullscreen: boolean
+  closeOnLaunch: boolean
+  autoJoinServer: string | null
   createdAt: string
   lastPlayed: string | null
 }
@@ -24,8 +29,31 @@ export interface InstanceSettingsPatch {
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
+  jvmArgs?: string | null
+  mcArgs?: string | null
   windowWidth?: number | null
   windowHeight?: number | null
+  fullscreen?: boolean
+  closeOnLaunch?: boolean
+  autoJoinServer?: string | null
+}
+
+export interface CloneAsVersionInput {
+  mcVersion: string
+  loader: LoaderType
+  loaderVersion?: string
+}
+
+export interface LaunchLogEvent {
+  launchId: string
+  instanceId: string
+  line: string
+}
+
+export interface LaunchClosedEvent {
+  launchId: string
+  instanceId: string
+  code: number
 }
 
 export interface JavaInstallation {

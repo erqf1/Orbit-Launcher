@@ -12,7 +12,25 @@ interface LoginResult {
 }
 
 interface LaunchResult {
-  started: boolean
+  launchId: string
+}
+
+export interface LaunchLogEvent {
+  launchId: string
+  instanceId: string
+  line: string
+}
+
+export interface LaunchProgressEvent {
+  launchId: string
+  instanceId: string
+  progress: unknown
+}
+
+export interface LaunchClosedEvent {
+  launchId: string
+  instanceId: string
+  code: number
 }
 
 export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
@@ -27,8 +45,13 @@ export interface Instance {
   memoryMin: string
   memoryMax: string
   javaPath: string | null
+  jvmArgs: string | null
+  mcArgs: string | null
   windowWidth: number | null
   windowHeight: number | null
+  fullscreen: boolean
+  closeOnLaunch: boolean
+  autoJoinServer: string | null
   createdAt: string
   lastPlayed: string | null
 }
@@ -37,8 +60,19 @@ export interface InstanceSettingsPatch {
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
+  jvmArgs?: string | null
+  mcArgs?: string | null
   windowWidth?: number | null
   windowHeight?: number | null
+  fullscreen?: boolean
+  closeOnLaunch?: boolean
+  autoJoinServer?: string | null
+}
+
+export interface CloneAsVersionInput {
+  mcVersion: string
+  loader: LoaderType
+  loaderVersion?: string
 }
 
 export interface JavaInstallation {
@@ -104,6 +138,8 @@ const api = {
     ipcRenderer.invoke('instances:rename', id, name),
   deleteInstance: (id: string): Promise<void> => ipcRenderer.invoke('instances:delete', id),
   cloneInstance: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clone', id),
+  cloneInstanceAsVersion: (id: string, input: CloneAsVersionInput): Promise<Instance> =>
+    ipcRenderer.invoke('instances:cloneAsVersion', id, input),
   updateInstanceSettings: (id: string, patch: InstanceSettingsPatch): Promise<Instance> =>
     ipcRenderer.invoke('instances:updateSettings', id, patch),
 
@@ -123,10 +159,11 @@ const api = {
   removeMod: (instanceId: string, filename: string): Promise<void> =>
     ipcRenderer.invoke('mods:remove', instanceId, filename),
 
-  onLog: (callback: (line: string) => void): (() => void) => onEvent('launch:log', callback),
-  onProgress: (callback: (progress: unknown) => void): (() => void) =>
+  onLog: (callback: (event: LaunchLogEvent) => void): (() => void) => onEvent('launch:log', callback),
+  onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>
     onEvent('launch:progress', callback),
-  onClosed: (callback: (code: number) => void): (() => void) => onEvent('launch:closed', callback)
+  onClosed: (callback: (event: LaunchClosedEvent) => void): (() => void) =>
+    onEvent('launch:closed', callback)
 }
 
 contextBridge.exposeInMainWorld('api', api)

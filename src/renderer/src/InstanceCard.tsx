@@ -3,12 +3,13 @@ import type { Instance } from './types'
 
 interface Props {
   instance: Instance
-  isLaunching: boolean
+  activeLaunches: number
   playDisabled: boolean
   manageDisabled: boolean
   onPlay: (id: string) => void
   onRename: (id: string, name: string) => void
   onClone: (id: string) => void
+  onCloneAsVersion: (id: string) => void
   onDelete: (id: string) => void
   onOpenSettings: (id: string) => void
   onOpenMods: (id: string) => void
@@ -17,12 +18,13 @@ interface Props {
 function InstanceCard(props: Props): React.JSX.Element {
   const {
     instance,
-    isLaunching,
+    activeLaunches,
     playDisabled,
     manageDisabled,
     onPlay,
     onRename,
     onClone,
+    onCloneAsVersion,
     onDelete,
     onOpenSettings,
     onOpenMods
@@ -68,20 +70,25 @@ function InstanceCard(props: Props): React.JSX.Element {
       </div>
 
       <div className="instance-meta">
-        {instance.lastPlayed
-          ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
-          : 'Noch nie gestartet'}
+        {activeLaunches > 0
+          ? `${activeLaunches}× läuft gerade`
+          : instance.lastPlayed
+            ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
+            : 'Noch nie gestartet'}
       </div>
 
       <div className="instance-actions">
         <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
-          {isLaunching ? 'Läuft…' : 'Play'}
+          Play
         </button>
         <button onClick={() => setEditing(true)} disabled={manageDisabled}>
           Umbenennen
         </button>
         <button onClick={() => onClone(instance.id)} disabled={manageDisabled}>
           Duplizieren
+        </button>
+        <button onClick={() => onCloneAsVersion(instance.id)} disabled={manageDisabled}>
+          Duplizieren als…
         </button>
         <button
           onClick={() => onOpenMods(instance.id)}

@@ -19,8 +19,13 @@ export interface Instance {
   memoryMin: string
   memoryMax: string
   javaPath: string | null
+  jvmArgs: string | null
+  mcArgs: string | null
   windowWidth: number | null
   windowHeight: number | null
+  fullscreen: boolean
+  closeOnLaunch: boolean
+  autoJoinServer: string | null
   createdAt: string
   lastPlayed: string | null
 }
@@ -29,8 +34,13 @@ export interface InstanceSettingsPatch {
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
+  jvmArgs?: string | null
+  mcArgs?: string | null
   windowWidth?: number | null
   windowHeight?: number | null
+  fullscreen?: boolean
+  closeOnLaunch?: boolean
+  autoJoinServer?: string | null
 }
 
 export interface CreateInstanceInput {
@@ -38,6 +48,25 @@ export interface CreateInstanceInput {
   mcVersion: string
   loader: LoaderType
   loaderVersion?: string
+}
+
+export interface CloneAsVersionInput {
+  mcVersion: string
+  loader: LoaderType
+  loaderVersion?: string
+}
+
+async function installLoaderProfile(
+  root: string,
+  loader: LoaderType,
+  mcVersion: string,
+  loaderVersion: string | undefined
+): Promise<string | null> {
+  if (loader === 'vanilla') return null
+  if (!loaderVersion) throw new Error('Bitte eine Loader-Version auswählen.')
+  return loader === 'fabric'
+    ? installFabricProfile(root, mcVersion, loaderVersion)
+    : installQuiltProfile(root, mcVersion, loaderVersion)
 }
 
 const SUBFOLDERS = ['mods', 'saves', 'resourcepacks', 'shaderpacks', 'config', 'screenshots']
@@ -81,15 +110,7 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
 
   let customVersionId: string | null = null
   try {
-    if (input.loader === 'fabric' || input.loader === 'quilt') {
-      if (!input.loaderVersion) {
-        throw new Error('Bitte eine Loader-Version auswählen.')
-      }
-      customVersionId =
-        input.loader === 'fabric'
-          ? await installFabricProfile(root, input.mcVersion, input.loaderVersion)
-          : await installQuiltProfile(root, input.mcVersion, input.loaderVersion)
-    }
+    customVersionId = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
   } catch (err) {
     // Don't leave an empty, untracked instance folder behind on disk if the
     // loader profile fetch fails (e.g. no internet, bad version/loader combo).
@@ -107,8 +128,13 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     memoryMin: '2G',
     memoryMax: '4G',
     javaPath: null,
+    jvmArgs: null,
+    mcArgs: null,
     windowWidth: null,
     windowHeight: null,
+    fullscreen: false,
+    closeOnLaunch: false,
+    autoJoinServer: null,
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
@@ -165,6 +191,48 @@ export function cloneInstance(id: string): Instance {
   return clone
 }
 
+// Like cloneInstance, but targets a different Minecraft version/loader: the
+// source's files (mods, saves, settings) are copied as a starting point, then
+// a fresh loader profile is installed for the new version/loader combo. The
+// caller resolves loaderVersion the same way instance creation does (list
+// available loader versions for the target mcVersion, let the user pick).
+export async function cloneInstanceAsVersion(
+  id: string,
+  input: CloneAsVersionInput
+): Promise<Instance> {
+  const source = getInstance(id)
+  if (!source) throw new Error('Instanz nicht gefunden.')
+
+  const newId = randomUUID()
+  const root = getInstanceRoot(newId)
+  cpSync(getInstanceRoot(source.id), root, { recursive: true, force: true })
+
+  let customVersionId: string | null
+  try {
+    customVersionId = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
+  } catch (err) {
+    rmSync(root, { recursive: true, force: true })
+    throw err
+  }
+
+  const clone: Instance = {
+    ...source,
+    id: newId,
+    name: `${source.name} (${input.mcVersion})`,
+    mcVersion: input.mcVersion,
+    loader: input.loader,
+    loaderVersion: input.loaderVersion ?? null,
+    customVersionId,
+    createdAt: new Date().toISOString(),
+    lastPlayed: null
+  }
+
+  const instances = readAll()
+  instances.push(clone)
+  writeAll(instances)
+  return clone
+}
+
 export function markLaunched(id: string): void {
   const instances = readAll()
   const instance = instances.find((i) => i.id === id)
@@ -179,6 +247,9 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:rename', (_event, id: string, name: string) => renameInstance(id, name))
   ipcMain.handle('instances:delete', (_event, id: string) => deleteInstance(id))
   ipcMain.handle('instances:clone', (_event, id: string) => cloneInstance(id))
+  ipcMain.handle('instances:cloneAsVersion', (_event, id: string, input: CloneAsVersionInput) =>
+    cloneInstanceAsVersion(id, input)
+  )
   ipcMain.handle('instances:updateSettings', (_event, id: string, patch: InstanceSettingsPatch) =>
     updateInstanceSettings(id, patch)
   )

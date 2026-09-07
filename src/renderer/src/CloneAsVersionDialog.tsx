@@ -1,33 +1,36 @@
 import { useState } from 'react'
 import VersionLoaderFields from './VersionLoaderFields'
-import type { LoaderType } from './types'
+import type { Instance, LoaderType } from './types'
 
 interface Props {
+  instance: Instance
   onCancel: () => void
-  onCreate: (
-    name: string,
+  onClone: (
+    id: string,
     mcVersion: string,
     loader: LoaderType,
     loaderVersion?: string
   ) => Promise<void>
 }
 
-function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element {
-  const [name, setName] = useState('Neue Instanz')
-  const [mcVersion, setMcVersion] = useState('')
-  const [loader, setLoader] = useState<LoaderType>('vanilla')
+// Duplicates an instance's files/settings but targets a different Minecraft
+// version (and, if desired, a different loader) - useful for e.g. moving a
+// modded instance forward to a new release without losing the old one.
+function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX.Element {
+  const [mcVersion, setMcVersion] = useState(instance.mcVersion)
+  const [loader, setLoader] = useState<LoaderType>(instance.loader)
   const [loaderVersion, setLoaderVersion] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
-    if (!name.trim() || !mcVersion) return
+    if (!mcVersion) return
     if (loader !== 'vanilla' && !loaderVersion) return
     setError(null)
     setSubmitting(true)
     try {
-      await onCreate(name.trim(), mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
+      await onClone(instance.id, mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -35,18 +38,16 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
     }
   }
 
-  const canSubmit =
-    !submitting && !!mcVersion && (loader === 'vanilla' || !!loaderVersion)
+  const canSubmit = !submitting && !!mcVersion && (loader === 'vanilla' || !!loaderVersion)
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-        <h2>Neue Instanz</h2>
-
-        <label>
-          Name
-          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-        </label>
+        <h2>"{instance.name}" duplizieren als…</h2>
+        <p className="instance-meta">
+          Mods, Welten und Einstellungen werden übernommen; der Loader wird für die neue Version neu
+          installiert.
+        </p>
 
         <VersionLoaderFields
           mcVersion={mcVersion}
@@ -65,7 +66,7 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
             Abbrechen
           </button>
           <button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Erstelle…' : 'Erstellen'}
+            {submitting ? 'Dupliziere…' : 'Duplizieren'}
           </button>
         </div>
       </form>
@@ -73,4 +74,4 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
   )
 }
 
-export default CreateInstanceDialog
+export default CloneAsVersionDialog
