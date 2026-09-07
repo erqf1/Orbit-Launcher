@@ -15,7 +15,7 @@ export function useMinecraftVersions(): {
     window.api
       .listVersions()
       .then((list) => {
-        if (!cancelled) setVersions(list.filter((v) => v.type === 'release'))
+        if (!cancelled) setVersions(list)
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))

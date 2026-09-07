@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useLoaderVersions, useMinecraftVersions } from './useVersionPicker'
-import type { LoaderType } from './types'
+import type { LoaderType, MinecraftVersionSummary } from './types'
 
 interface Props {
   mcVersion: string
@@ -12,8 +12,35 @@ interface Props {
   onError?: (message: string) => void
 }
 
+// Mojang's manifest type field - "snapshot" also covers April Fools joke
+// versions (e.g. 3D Shareware, 22w13oneblock), there's no separate type
+// for those.
+const VERSION_TYPE_ORDER = ['release', 'snapshot', 'old_beta', 'old_alpha']
+const VERSION_TYPE_LABELS: Record<string, string> = {
+  release: 'Release',
+  snapshot: 'Snapshot (inkl. Scherzversionen)',
+  old_beta: 'Beta',
+  old_alpha: 'Alpha'
+}
+
+function groupVersions(
+  versions: MinecraftVersionSummary[]
+): Array<{ label: string; items: MinecraftVersionSummary[] }> {
+  const groups = VERSION_TYPE_ORDER.map((type) => ({
+    label: VERSION_TYPE_LABELS[type],
+    items: versions.filter((v) => v.type === type)
+  })).filter((g) => g.items.length > 0)
+
+  const known = new Set(VERSION_TYPE_ORDER)
+  const other = versions.filter((v) => !known.has(v.type))
+  if (other.length > 0) groups.push({ label: 'Andere', items: other })
+
+  return groups
+}
+
 // Shared by CreateInstanceDialog and CloneAsVersionDialog: a Minecraft
-// version picker, a loader picker, and a loader-version picker that
+// version picker (every version Mojang publishes - release, snapshot,
+// beta, alpha), a loader picker, and a loader-version picker that
 // automatically re-queries whenever the first two change.
 function VersionLoaderFields(props: Props): React.JSX.Element {
   const {
@@ -35,7 +62,11 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
 
   useEffect(() => {
     if (!loadingVersions && versions.length > 0 && !mcVersion) {
-      onMcVersionChange(versions[0].id)
+      // Default to the latest stable release even though every version is
+      // selectable - most people creating an instance want that, not
+      // whatever snapshot happens to sort first.
+      const defaultVersion = versions.find((v) => v.type === 'release') ?? versions[0]
+      onMcVersionChange(defaultVersion.id)
     }
   }, [loadingVersions, versions])
 
@@ -60,6 +91,8 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
     if (loaderVersionsError) onError?.(loaderVersionsError)
   }, [loaderVersionsError, onError])
 
+  const groupedVersions = groupVersions(versions)
+
   return (
     <>
       <label>
@@ -68,10 +101,14 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
           <p>Lade Versionen…</p>
         ) : (
           <select value={mcVersion} onChange={(e) => onMcVersionChange(e.target.value)}>
-            {versions.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.id}
-              </option>
+            {groupedVersions.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.items.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.id}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         )}
