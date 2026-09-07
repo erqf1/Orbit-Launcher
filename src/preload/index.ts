@@ -26,8 +26,24 @@ export interface Instance {
   customVersionId: string | null
   memoryMin: string
   memoryMax: string
+  javaPath: string | null
+  windowWidth: number | null
+  windowHeight: number | null
   createdAt: string
   lastPlayed: string | null
+}
+
+export interface InstanceSettingsPatch {
+  memoryMin?: string
+  memoryMax?: string
+  javaPath?: string | null
+  windowWidth?: number | null
+  windowHeight?: number | null
+}
+
+export interface JavaInstallation {
+  path: string
+  version: string
 }
 
 export interface CreateInstanceInput {
@@ -67,6 +83,10 @@ const api = {
     ipcRenderer.invoke('instances:rename', id, name),
   deleteInstance: (id: string): Promise<void> => ipcRenderer.invoke('instances:delete', id),
   cloneInstance: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clone', id),
+  updateInstanceSettings: (id: string, patch: InstanceSettingsPatch): Promise<Instance> =>
+    ipcRenderer.invoke('instances:updateSettings', id, patch),
+
+  detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
 
   listVersions: (): Promise<MinecraftVersionSummary[]> => ipcRenderer.invoke('versions:list'),
   listLoaderVersions: (loader: 'fabric' | 'quilt', mcVersion: string): Promise<LoaderVersionSummary[]> =>

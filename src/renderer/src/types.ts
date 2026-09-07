@@ -13,8 +13,24 @@ export interface Instance {
   customVersionId: string | null
   memoryMin: string
   memoryMax: string
+  javaPath: string | null
+  windowWidth: number | null
+  windowHeight: number | null
   createdAt: string
   lastPlayed: string | null
+}
+
+export interface InstanceSettingsPatch {
+  memoryMin?: string
+  memoryMax?: string
+  javaPath?: string | null
+  windowWidth?: number | null
+  windowHeight?: number | null
+}
+
+export interface JavaInstallation {
+  path: string
+  version: string
 }
 
 export interface MinecraftVersionSummary {

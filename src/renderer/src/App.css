@@ -160,6 +160,15 @@ button:not(:disabled):hover {
   color: #9aa1ad;
 }
 
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row label {
+  flex: 1;
+}
+
 .modal input,
 .modal select {
   padding: 8px;

@@ -5,6 +5,7 @@ import { registerLaunchHandlers } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
 import { registerVersionHandlers } from './versions/versionManifest'
 import { registerLoaderHandlers } from './loaders'
+import { registerJavaHandlers } from './java/javaManager'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
   registerInstanceHandlers()
   registerVersionHandlers()
   registerLoaderHandlers()
+  registerJavaHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -10,11 +10,21 @@ interface Props {
   onRename: (id: string, name: string) => void
   onClone: (id: string) => void
   onDelete: (id: string) => void
+  onOpenSettings: (id: string) => void
 }
 
 function InstanceCard(props: Props): React.JSX.Element {
-  const { instance, isLaunching, playDisabled, manageDisabled, onPlay, onRename, onClone, onDelete } =
-    props
+  const {
+    instance,
+    isLaunching,
+    playDisabled,
+    manageDisabled,
+    onPlay,
+    onRename,
+    onClone,
+    onDelete,
+    onOpenSettings
+  } = props
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
 
@@ -70,6 +80,9 @@ function InstanceCard(props: Props): React.JSX.Element {
         </button>
         <button onClick={() => onClone(instance.id)} disabled={manageDisabled}>
           Duplizieren
+        </button>
+        <button onClick={() => onOpenSettings(instance.id)} disabled={manageDisabled}>
+          Einstellungen
         </button>
         <button onClick={() => onDelete(instance.id)} disabled={manageDisabled}>
           Löschen

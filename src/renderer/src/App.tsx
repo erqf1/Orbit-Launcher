@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
-import type { Instance, LoaderType } from './types'
+import InstanceSettingsDialog from './InstanceSettingsDialog'
+import type { Instance, InstanceSettingsPatch, LoaderType } from './types'
 
 interface Profile {
   name: string
@@ -14,6 +15,7 @@ function App(): React.JSX.Element {
   const [instances, setInstances] = useState<Instance[]>([])
   const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -88,6 +90,12 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
+  async function handleSaveSettings(id: string, patch: InstanceSettingsPatch): Promise<void> {
+    await window.api.updateInstanceSettings(id, patch)
+    setSettingsInstanceId(null)
+    refreshInstances()
+  }
+
   async function handleDelete(id: string): Promise<void> {
     const instance = instances.find((i) => i.id === id)
     const label = instance ? instance.name : 'diese Instanz'
@@ -98,6 +106,8 @@ function App(): React.JSX.Element {
     await window.api.deleteInstance(id)
     refreshInstances()
   }
+
+  const settingsInstance = instances.find((i) => i.id === settingsInstanceId) ?? null
 
   return (
     <div className="app">
@@ -128,6 +138,7 @@ function App(): React.JSX.Element {
             onRename={handleRename}
             onClone={handleClone}
             onDelete={handleDelete}
+            onOpenSettings={setSettingsInstanceId}
           />
         ))}
 
@@ -138,6 +149,14 @@ function App(): React.JSX.Element {
 
       {showCreate && (
         <CreateInstanceDialog onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+      )}
+
+      {settingsInstance && (
+        <InstanceSettingsDialog
+          instance={settingsInstance}
+          onCancel={() => setSettingsInstanceId(null)}
+          onSave={handleSaveSettings}
+        />
       )}
 
       <pre className="log">{logs.join('\n')}</pre>

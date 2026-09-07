@@ -36,7 +36,11 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       memory: {
         max: instance.memoryMax,
         min: instance.memoryMin
-      }
+      },
+      ...(instance.javaPath ? { javaPath: instance.javaPath } : {}),
+      ...(instance.windowWidth && instance.windowHeight
+        ? { window: { width: instance.windowWidth, height: instance.windowHeight } }
+        : {})
     })
 
     markLaunched(instance.id)

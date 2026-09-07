@@ -18,8 +18,19 @@ export interface Instance {
   customVersionId: string | null
   memoryMin: string
   memoryMax: string
+  javaPath: string | null
+  windowWidth: number | null
+  windowHeight: number | null
   createdAt: string
   lastPlayed: string | null
+}
+
+export interface InstanceSettingsPatch {
+  memoryMin?: string
+  memoryMax?: string
+  javaPath?: string | null
+  windowWidth?: number | null
+  windowHeight?: number | null
 }
 
 export interface CreateInstanceInput {
@@ -88,6 +99,9 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     customVersionId,
     memoryMin: '2G',
     memoryMax: '4G',
+    javaPath: null,
+    windowWidth: null,
+    windowHeight: null,
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
@@ -103,6 +117,15 @@ export function renameInstance(id: string, name: string): Instance {
   const instance = instances.find((i) => i.id === id)
   if (!instance) throw new Error('Instanz nicht gefunden.')
   instance.name = name
+  writeAll(instances)
+  return instance
+}
+
+export function updateInstanceSettings(id: string, patch: InstanceSettingsPatch): Instance {
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+  Object.assign(instance, patch)
   writeAll(instances)
   return instance
 }
@@ -149,4 +172,7 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:rename', (_event, id: string, name: string) => renameInstance(id, name))
   ipcMain.handle('instances:delete', (_event, id: string) => deleteInstance(id))
   ipcMain.handle('instances:clone', (_event, id: string) => cloneInstance(id))
+  ipcMain.handle('instances:updateSettings', (_event, id: string, patch: InstanceSettingsPatch) =>
+    updateInstanceSettings(id, patch)
+  )
 }
