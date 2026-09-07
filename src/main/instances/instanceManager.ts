@@ -80,14 +80,21 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
   }
 
   let customVersionId: string | null = null
-  if (input.loader === 'fabric' || input.loader === 'quilt') {
-    if (!input.loaderVersion) {
-      throw new Error('Bitte eine Loader-Version auswählen.')
+  try {
+    if (input.loader === 'fabric' || input.loader === 'quilt') {
+      if (!input.loaderVersion) {
+        throw new Error('Bitte eine Loader-Version auswählen.')
+      }
+      customVersionId =
+        input.loader === 'fabric'
+          ? await installFabricProfile(root, input.mcVersion, input.loaderVersion)
+          : await installQuiltProfile(root, input.mcVersion, input.loaderVersion)
     }
-    customVersionId =
-      input.loader === 'fabric'
-        ? await installFabricProfile(root, input.mcVersion, input.loaderVersion)
-        : await installQuiltProfile(root, input.mcVersion, input.loaderVersion)
+  } catch (err) {
+    // Don't leave an empty, untracked instance folder behind on disk if the
+    // loader profile fetch fails (e.g. no internet, bad version/loader combo).
+    rmSync(root, { recursive: true, force: true })
+    throw err
   }
 
   const instance: Instance = {

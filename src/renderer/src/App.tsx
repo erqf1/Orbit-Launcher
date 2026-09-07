@@ -66,20 +66,18 @@ function App(): React.JSX.Element {
     }
   }
 
+  // Errors intentionally propagate to the caller (the dialog) instead of
+  // being caught here - the dialog is a modal, so App's own error banner
+  // would be hidden behind it. The dialog shows the error itself.
   async function handleCreate(
     name: string,
     mcVersion: string,
     loader: LoaderType,
     loaderVersion?: string
   ): Promise<void> {
-    setError(null)
-    try {
-      await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
-      setShowCreate(false)
-      refreshInstances()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
+    await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
+    setShowCreate(false)
+    refreshInstances()
   }
 
   async function handleRename(id: string, name: string): Promise<void> {

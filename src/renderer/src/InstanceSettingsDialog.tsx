@@ -31,8 +31,21 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
     }
   }, [])
 
+  const memoryPattern = /^\d+[MG]$/i
+  const toMebibytes = (value: string): number => {
+    const match = value.match(memoryPattern)
+    if (!match) return NaN
+    const amount = Number(value.slice(0, -1))
+    return value.at(-1)?.toUpperCase() === 'G' ? amount * 1024 : amount
+  }
+  const memoryValid =
+    memoryPattern.test(memoryMin) &&
+    memoryPattern.test(memoryMax) &&
+    toMebibytes(memoryMin) <= toMebibytes(memoryMax)
+
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault()
+    if (!memoryValid) return
     onSave(instance.id, {
       javaPath: javaPath || null,
       memoryMin,
@@ -74,6 +87,13 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
           </label>
         </div>
 
+        {!memoryValid && (
+          <p className="error">
+            Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
+            überschreiten.
+          </p>
+        )}
+
         <div className="field-row">
           <label>
             Fensterbreite
@@ -99,7 +119,9 @@ function InstanceSettingsDialog({ instance, onCancel, onSave }: Props): React.JS
           <button type="button" onClick={onCancel}>
             Abbrechen
           </button>
-          <button type="submit">Speichern</button>
+          <button type="submit" disabled={!memoryValid}>
+            Speichern
+          </button>
         </div>
       </form>
     </div>

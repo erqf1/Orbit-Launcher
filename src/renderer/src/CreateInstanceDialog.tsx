@@ -3,7 +3,12 @@ import type { LoaderType, LoaderVersionSummary, MinecraftVersionSummary } from '
 
 interface Props {
   onCancel: () => void
-  onCreate: (name: string, mcVersion: string, loader: LoaderType, loaderVersion?: string) => void
+  onCreate: (
+    name: string,
+    mcVersion: string,
+    loader: LoaderType,
+    loaderVersion?: string
+  ) => Promise<void>
 }
 
 function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element {
@@ -16,6 +21,7 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
   const [loaderVersion, setLoaderVersion] = useState('')
   const [loadingLoaderVersions, setLoadingLoaderVersions] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -65,15 +71,26 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
     }
   }, [loader, mcVersion])
 
-  function handleSubmit(e: React.FormEvent): void {
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     if (!name.trim() || !mcVersion) return
     if (loader !== 'vanilla' && !loaderVersion) return
-    onCreate(name.trim(), mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
+    setError(null)
+    setSubmitting(true)
+    try {
+      await onCreate(name.trim(), mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const canSubmit =
-    !loadingVersions && !!mcVersion && (loader === 'vanilla' || (!loadingLoaderVersions && !!loaderVersion))
+    !submitting &&
+    !loadingVersions &&
+    !!mcVersion &&
+    (loader === 'vanilla' || (!loadingLoaderVersions && !!loaderVersion))
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -136,7 +153,7 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
             Abbrechen
           </button>
           <button type="submit" disabled={!canSubmit}>
-            Erstellen
+            {submitting ? 'Erstelle…' : 'Erstellen'}
           </button>
         </div>
       </form>
