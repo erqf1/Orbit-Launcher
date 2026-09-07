@@ -184,9 +184,12 @@ function App(): React.JSX.Element {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Erqf Launcher</h1>
+        <div className="brand">
+          <span className="brand-mark">E</span>
+          <h1>Erqf Launcher</h1>
+        </div>
         {!profile ? (
-          <button onClick={handleLogin} disabled={loggingIn}>
+          <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
             {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
           </button>
         ) : (

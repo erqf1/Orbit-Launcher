@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import OverflowMenu from './OverflowMenu'
 import type { Instance } from './types'
 
 interface Props {
@@ -44,64 +45,62 @@ function InstanceCard(props: Props): React.JSX.Element {
 
   return (
     <div className="instance-card">
-      <div className="instance-card-header">
-        {editing ? (
-          <input
-            className="rename-input"
-            value={draftName}
-            autoFocus
-            onChange={(e) => setDraftName(e.target.value)}
-            onBlur={confirmRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') confirmRename()
-              if (e.key === 'Escape') {
-                setDraftName(instance.name)
-                setEditing(false)
-              }
-            }}
+      {activeLaunches > 0 && <span className="running-badge">{activeLaunches}×</span>}
+
+      <div className={`loader-stripe loader-${instance.loader}`} />
+
+      <div className="instance-card-body">
+        <div className="instance-card-header">
+          {editing ? (
+            <input
+              className="rename-input"
+              value={draftName}
+              autoFocus
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={confirmRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRename()
+                if (e.key === 'Escape') {
+                  setDraftName(instance.name)
+                  setEditing(false)
+                }
+              }}
+            />
+          ) : (
+            <h3 onDoubleClick={() => setEditing(true)}>{instance.name}</h3>
+          )}
+          <OverflowMenu
+            disabled={manageDisabled}
+            items={[
+              { label: 'Umbenennen', onClick: () => setEditing(true) },
+              { label: 'Duplizieren', onClick: () => onClone(instance.id) },
+              { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
+              {
+                label: 'Mods',
+                onClick: () => onOpenMods(instance.id),
+                disabled: instance.loader === 'vanilla'
+              },
+              { label: 'Einstellungen', onClick: () => onOpenSettings(instance.id) },
+              { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
+            ]}
           />
-        ) : (
-          <h3 onDoubleClick={() => setEditing(true)}>{instance.name}</h3>
-        )}
+        </div>
+
         <span className="instance-version">
           {instance.mcVersion}
           {instance.loader !== 'vanilla' && ` · ${instance.loader}`}
         </span>
-      </div>
 
-      <div className="instance-meta">
-        {activeLaunches > 0
-          ? `${activeLaunches}× läuft gerade`
-          : instance.lastPlayed
-            ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
-            : 'Noch nie gestartet'}
-      </div>
+        <div className="instance-meta">
+          {activeLaunches > 0
+            ? `Läuft gerade`
+            : instance.lastPlayed
+              ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
+              : 'Noch nie gestartet'}
+        </div>
 
-      <div className="instance-actions">
         <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
           Play
-        </button>
-        <button onClick={() => setEditing(true)} disabled={manageDisabled}>
-          Umbenennen
-        </button>
-        <button onClick={() => onClone(instance.id)} disabled={manageDisabled}>
-          Duplizieren
-        </button>
-        <button onClick={() => onCloneAsVersion(instance.id)} disabled={manageDisabled}>
-          Duplizieren als…
-        </button>
-        <button
-          onClick={() => onOpenMods(instance.id)}
-          disabled={manageDisabled || instance.loader === 'vanilla'}
-          title={instance.loader === 'vanilla' ? 'Vanilla-Instanzen unterstützen keine Mods' : undefined}
-        >
-          Mods
-        </button>
-        <button onClick={() => onOpenSettings(instance.id)} disabled={manageDisabled}>
-          Einstellungen
-        </button>
-        <button onClick={() => onDelete(instance.id)} disabled={manageDisabled}>
-          Löschen
         </button>
       </div>
     </div>
