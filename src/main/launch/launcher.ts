@@ -1,29 +1,20 @@
-import { ipcMain, app, BrowserWindow } from 'electron'
-import { join } from 'path'
+import { ipcMain, BrowserWindow } from 'electron'
 import { Client } from 'minecraft-launcher-core'
 import { getMclcAuthorization } from '../auth/msmcAuth'
-
-let cachedLatestRelease: string | null = null
-
-// Phase 1 always launches the current latest vanilla release rather than a
-// hardcoded version string, so the launcher doesn't go stale over time.
-async function getLatestReleaseVersion(): Promise<string> {
-  if (cachedLatestRelease) return cachedLatestRelease
-  const res = await fetch('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')
-  const manifest = (await res.json()) as { latest: { release: string } }
-  cachedLatestRelease = manifest.latest.release
-  return cachedLatestRelease
-}
+import { getInstance, getInstanceRoot, markLaunched } from '../instances/instanceManager'
 
 export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
-  ipcMain.handle('launch:start', async () => {
+  ipcMain.handle('launch:start', async (_event, instanceId: string) => {
     const authorization = getMclcAuthorization()
     if (!authorization) {
       throw new Error('Bitte zuerst mit Microsoft anmelden.')
     }
 
-    const version = await getLatestReleaseVersion()
-    const root = join(app.getPath('userData'), 'instances', 'default')
+    const instance = getInstance(instanceId)
+    if (!instance) {
+      throw new Error('Instanz nicht gefunden.')
+    }
+
     const launcher = new Client()
 
     launcher.on('debug', (e: string) => mainWindow.webContents.send('launch:log', String(e)))
@@ -36,17 +27,19 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       // TS version won't structurally accept a plain string for — but a JSON
       // string is exactly what MCLC's README shows and what msmc produces.
       authorization: authorization as unknown as Parameters<InstanceType<typeof Client>['launch']>[0]['authorization'],
-      root,
+      root: getInstanceRoot(instance.id),
       version: {
-        number: version,
+        number: instance.mcVersion,
         type: 'release'
       },
       memory: {
-        max: '4G',
-        min: '2G'
+        max: instance.memoryMax,
+        min: instance.memoryMin
       }
     })
 
-    return { started: true, version }
+    markLaunched(instance.id)
+
+    return { started: true }
   })
 }

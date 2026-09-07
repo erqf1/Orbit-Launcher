@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import InstanceCard from './InstanceCard'
+import CreateInstanceDialog from './CreateInstanceDialog'
+import type { Instance } from './types'
 
 interface Profile {
   name: string
@@ -8,13 +11,26 @@ interface Profile {
 function App(): React.JSX.Element {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
-  const [launching, setLaunching] = useState(false)
+  const [instances, setInstances] = useState<Instance[]>([])
+  const [launchingId, setLaunchingId] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
   const [logs, setLogs] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  const refreshInstances = useCallback(() => {
+    window.api.listInstances().then(setInstances)
+  }, [])
+
+  useEffect(() => {
+    refreshInstances()
+    window.api.currentAccount().then((result) => {
+      if (result.profile) setProfile(result.profile)
+    })
+  }, [refreshInstances])
+
   useEffect(() => {
     const offLog = window.api.onLog((line) => setLogs((prev) => [...prev, line]))
-    const offClosed = window.api.onClosed(() => setLaunching(false))
+    const offClosed = window.api.onClosed(() => setLaunchingId(null))
     return () => {
       offLog()
       offClosed()
@@ -34,37 +50,90 @@ function App(): React.JSX.Element {
     }
   }
 
-  async function handlePlay(): Promise<void> {
+  async function handlePlay(id: string): Promise<void> {
     setError(null)
-    setLaunching(true)
     setLogs([])
+    setLaunchingId(id)
     try {
-      await window.api.launch()
+      await window.api.launch(id)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      setLaunching(false)
+      setLaunchingId(null)
     }
+  }
+
+  async function handleCreate(name: string, mcVersion: string): Promise<void> {
+    setError(null)
+    try {
+      await window.api.createInstance({ name, mcVersion })
+      setShowCreate(false)
+      refreshInstances()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleRename(id: string, name: string): Promise<void> {
+    await window.api.renameInstance(id, name)
+    refreshInstances()
+  }
+
+  async function handleClone(id: string): Promise<void> {
+    await window.api.cloneInstance(id)
+    refreshInstances()
+  }
+
+  async function handleDelete(id: string): Promise<void> {
+    const instance = instances.find((i) => i.id === id)
+    const label = instance ? instance.name : 'diese Instanz'
+    const sure = window.confirm(
+      `"${label}" wirklich löschen? Das entfernt auch Welten/Mods dieser Instanz unwiderruflich.`
+    )
+    if (!sure) return
+    await window.api.deleteInstance(id)
+    refreshInstances()
   }
 
   return (
     <div className="app">
-      <h1>Erqf Launcher</h1>
-
-      {!profile ? (
-        <button onClick={handleLogin} disabled={loggingIn}>
-          {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
-        </button>
-      ) : (
-        <div className="account">
-          Angemeldet als <strong>{profile.name}</strong>
-        </div>
-      )}
-
-      <button onClick={handlePlay} disabled={!profile || launching}>
-        {launching ? 'Läuft…' : 'Play'}
-      </button>
+      <header className="app-header">
+        <h1>Erqf Launcher</h1>
+        {!profile ? (
+          <button onClick={handleLogin} disabled={loggingIn}>
+            {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
+          </button>
+        ) : (
+          <div className="account">
+            Angemeldet als <strong>{profile.name}</strong>
+          </div>
+        )}
+      </header>
 
       {error && <p className="error">{error}</p>}
+
+      <div className="instance-grid">
+        {instances.map((instance) => (
+          <InstanceCard
+            key={instance.id}
+            instance={instance}
+            isLaunching={launchingId === instance.id}
+            playDisabled={!profile || launchingId !== null}
+            manageDisabled={launchingId === instance.id}
+            onPlay={handlePlay}
+            onRename={handleRename}
+            onClone={handleClone}
+            onDelete={handleDelete}
+          />
+        ))}
+
+        <button className="instance-card new-instance-card" onClick={() => setShowCreate(true)}>
+          + Neue Instanz
+        </button>
+      </div>
+
+      {showCreate && (
+        <CreateInstanceDialog onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+      )}
 
       <pre className="log">{logs.join('\n')}</pre>
     </div>
