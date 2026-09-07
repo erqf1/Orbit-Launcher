@@ -4,12 +4,14 @@ import { Client } from 'minecraft-launcher-core'
 import { getMclcAuthorization } from '../auth/msmcAuth'
 import { getInstance, getInstanceRoot, markLaunched } from '../instances/instanceManager'
 
-// Only one instance may run at a time. An earlier version allowed
-// launching the same (or a different) instance multiple times
-// concurrently - reverted after real-world testing found it "doesn't work
-// well" in practice (shared saves/logs/screenshots folders, a launcher
-// window whose hide/show state had to track multiple in-flight launches).
-let activeLaunch: { launchId: string; instanceId: string } | null = null
+// Different instances may run concurrently, but the same instance can't be
+// launched twice - an earlier version allowed that too and real-world
+// testing found it caused real problems (two processes sharing one
+// instance's saves/logs/screenshots folder). closeOnLaunch can be set on
+// more than one concurrently-running instance, so track *which* launches
+// asked for the window hidden and only re-show once none of them still do.
+const activeInstanceIds = new Set<string>()
+const hideRequesters = new Set<string>()
 
 export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('launch:start', async (_event, instanceId: string) => {
@@ -18,8 +20,8 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       throw new Error('Bitte zuerst mit Microsoft anmelden.')
     }
 
-    if (activeLaunch) {
-      throw new Error('Es läuft bereits eine Instanz. Bitte warten, bis sie beendet ist.')
+    if (activeInstanceIds.has(instanceId)) {
+      throw new Error('Diese Instanz läuft bereits.')
     }
 
     const instance = getInstance(instanceId)
@@ -28,7 +30,7 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     }
 
     const launchId = randomUUID()
-    activeLaunch = { launchId, instanceId }
+    activeInstanceIds.add(instanceId)
     const launcher = new Client()
 
     launcher.on('debug', (e: string) =>
@@ -42,11 +44,15 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     )
     launcher.on('close', (code: number) => {
       mainWindow.webContents.send('launch:closed', { launchId, instanceId, code })
-      activeLaunch = null
-      if (instance.closeOnLaunch && !mainWindow.isDestroyed()) mainWindow.show()
+      activeInstanceIds.delete(instanceId)
+      if (instance.closeOnLaunch) {
+        hideRequesters.delete(launchId)
+        if (hideRequesters.size === 0 && !mainWindow.isDestroyed()) mainWindow.show()
+      }
     })
 
     if (instance.closeOnLaunch) {
+      hideRequesters.add(launchId)
       mainWindow.hide()
     }
 

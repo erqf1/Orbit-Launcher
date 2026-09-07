@@ -526,3 +526,37 @@ button:not(:disabled):hover {
   color: #c9d1d9;
 }
 
+.launch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.launch-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.launch-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.launch-tab.active {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.launch-tab-close {
+  opacity: 0.6;
+}
+
+.launch-tab-close:hover {
+  opacity: 1;
+}
+

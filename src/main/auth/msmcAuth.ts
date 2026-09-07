@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { Auth } from 'msmc'
+import { saveAuthToken, loadAuthToken, clearAuthToken } from './authStore'
 
 export interface LauncherProfile {
   name: string
@@ -44,12 +45,24 @@ function friendlyAuthError(err: unknown): Error {
 }
 
 // Holds the most recently signed-in account for the lifetime of the app.
-// Phase 1 keeps this in memory only (no disk persistence / multi-account yet).
+// The underlying Xbox session is additionally persisted to disk (see
+// authStore.ts) so it survives a restart without a fresh interactive login.
 let currentAuthorization: MclcAuthorization | null = null
 let currentProfile: LauncherProfile | null = null
 
 export function getMclcAuthorization(): MclcAuthorization | null {
   return currentAuthorization
+}
+
+async function applyMinecraftSession(
+  minecraft: Awaited<ReturnType<Awaited<ReturnType<Auth['launch']>>['getMinecraft']>>
+): Promise<LauncherProfile> {
+  if (!minecraft.profile) {
+    throw new Error('Dieses Microsoft-Konto besitzt kein Minecraft: Java Edition.')
+  }
+  currentAuthorization = minecraft.mclc() as unknown as MclcAuthorization
+  currentProfile = { name: minecraft.profile.name, id: minecraft.profile.id }
+  return currentProfile
 }
 
 export function registerAuthHandlers(mainWindow: BrowserWindow): void {
@@ -65,20 +78,34 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
         modal: true
       })
       const minecraft = await xboxManager.getMinecraft()
-      if (!minecraft.profile) {
-        throw new Error('Dieses Microsoft-Konto besitzt kein Minecraft: Java Edition.')
-      }
+      const profile = await applyMinecraftSession(minecraft)
+      saveAuthToken(xboxManager.save())
 
-      currentAuthorization = minecraft.mclc() as unknown as MclcAuthorization
-      currentProfile = { name: minecraft.profile.name, id: minecraft.profile.id }
-
-      return { profile: currentProfile }
+      return { profile }
     } catch (err) {
       throw friendlyAuthError(err)
     }
   })
 
+  // Tries to silently restore a saved session before falling back to "not
+  // signed in" - called once on app start by the renderer. A failed/expired
+  // saved token is treated as a normal "please sign in again", not an error.
   ipcMain.handle('auth:current', async () => {
-    return { profile: currentProfile }
+    if (currentProfile) return { profile: currentProfile }
+
+    const savedToken = loadAuthToken()
+    if (!savedToken) return { profile: null }
+
+    try {
+      const authManager = new Auth('select_account')
+      const xboxManager = await authManager.refresh(savedToken)
+      const minecraft = await xboxManager.getMinecraft()
+      const profile = await applyMinecraftSession(minecraft)
+      saveAuthToken(xboxManager.save())
+      return { profile }
+    } catch {
+      clearAuthToken()
+      return { profile: null }
+    }
   })
 }
