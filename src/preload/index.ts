@@ -112,11 +112,17 @@ export interface ModVersionSummary {
   versionNumber: string
   filename: string
   url: string
+  requiredDependencyProjectIds: string[]
 }
 
 export interface ModFileRef {
   url: string
   filename: string
+}
+
+export interface CuratedMod extends ModSearchResult {
+  category: string
+  compatible: boolean
 }
 
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -158,6 +164,13 @@ const api = {
   listMods: (instanceId: string): Promise<string[]> => ipcRenderer.invoke('mods:list', instanceId),
   removeMod: (instanceId: string, filename: string): Promise<void> =>
     ipcRenderer.invoke('mods:remove', instanceId, filename),
+  getModDependencies: (
+    projectId: string,
+    mcVersion: string,
+    loader: string
+  ): Promise<ModSearchResult[]> => ipcRenderer.invoke('mods:dependencies', projectId, mcVersion, loader),
+  listCuratedMods: (mcVersion: string, loader: string): Promise<CuratedMod[]> =>
+    ipcRenderer.invoke('mods:curated', mcVersion, loader),
 
   onLog: (callback: (event: LaunchLogEvent) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>

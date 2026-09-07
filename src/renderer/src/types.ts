@@ -86,4 +86,10 @@ export interface ModVersionSummary {
   versionNumber: string
   filename: string
   url: string
+  requiredDependencyProjectIds: string[]
+}
+
+export interface CuratedMod extends ModSearchResult {
+  category: string
+  compatible: boolean
 }

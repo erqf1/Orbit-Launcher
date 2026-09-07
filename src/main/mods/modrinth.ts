@@ -19,6 +19,7 @@ export interface ModVersionSummary {
   versionNumber: string
   filename: string
   url: string
+  requiredDependencyProjectIds: string[]
 }
 
 export interface ModFileRef {
@@ -65,6 +66,27 @@ export async function searchMods(
   }))
 }
 
+export async function getProjectInfo(projectId: string): Promise<ModSearchResult> {
+  const res = await fetch(`${MODRINTH_API}/project/${encodeURIComponent(projectId)}`)
+  if (!res.ok) throw new Error(`Mod-Info konnte nicht geladen werden (HTTP ${res.status}).`)
+  const p = (await res.json()) as {
+    id: string
+    slug: string
+    title: string
+    description: string
+    icon_url: string | null
+    downloads: number
+  }
+  return {
+    projectId: p.id,
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    iconUrl: p.icon_url,
+    downloads: p.downloads
+  }
+}
+
 export async function listModVersions(
   projectId: string,
   mcVersion: string,
@@ -78,13 +100,42 @@ export async function listModVersions(
     id: string
     version_number: string
     files: Array<{ url: string; filename: string; primary: boolean }>
+    dependencies: Array<{ project_id: string | null; dependency_type: string }>
   }>
   const summaries: ModVersionSummary[] = []
   for (const v of versions) {
     const file = v.files.find((f) => f.primary) ?? v.files[0]
-    if (file) summaries.push({ id: v.id, versionNumber: v.version_number, filename: file.filename, url: file.url })
+    if (!file) continue
+    const requiredDependencyProjectIds = v.dependencies
+      .filter((d) => d.dependency_type === 'required' && d.project_id)
+      .map((d) => d.project_id as string)
+    summaries.push({
+      id: v.id,
+      versionNumber: v.version_number,
+      filename: file.filename,
+      url: file.url,
+      requiredDependencyProjectIds
+    })
   }
   return summaries
+}
+
+// Resolves the required-dependency project IDs on a mod's best-matching
+// version into full project info, so the UI can show names before
+// installing (rather than the user finding out mid-game via a crash log).
+export async function getRequiredDependencies(
+  projectId: string,
+  mcVersion: string,
+  loader: string
+): Promise<ModSearchResult[]> {
+  const versions = await listModVersions(projectId, mcVersion, loader)
+  const best = versions[0]
+  if (!best || best.requiredDependencyProjectIds.length === 0) return []
+
+  const infos = await Promise.all(
+    best.requiredDependencyProjectIds.map((id) => getProjectInfo(id).catch(() => null))
+  )
+  return infos.filter((info): info is ModSearchResult => info !== null)
 }
 
 export async function installMod(instanceId: string, file: ModFileRef): Promise<void> {
@@ -118,6 +169,11 @@ export function registerModHandlers(): void {
   )
   ipcMain.handle('mods:versions', (_event, projectId: string, mcVersion: string, loader: string) =>
     listModVersions(projectId, mcVersion, loader)
+  )
+  ipcMain.handle(
+    'mods:dependencies',
+    (_event, projectId: string, mcVersion: string, loader: string) =>
+      getRequiredDependencies(projectId, mcVersion, loader)
   )
   ipcMain.handle('mods:install', (_event, instanceId: string, file: ModFileRef) =>
     installMod(instanceId, file)

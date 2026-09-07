@@ -7,6 +7,7 @@ import { registerVersionHandlers } from './versions/versionManifest'
 import { registerLoaderHandlers } from './loaders'
 import { registerJavaHandlers } from './java/javaManager'
 import { registerModHandlers } from './mods/modrinth'
+import { registerCuratedModHandlers } from './mods/curated'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -57,6 +58,7 @@ app.whenReady().then(() => {
   registerLoaderHandlers()
   registerJavaHandlers()
   registerModHandlers()
+  registerCuratedModHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

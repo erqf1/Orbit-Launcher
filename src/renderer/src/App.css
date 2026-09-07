@@ -203,6 +203,36 @@ button:not(:disabled):hover {
   color: #9aa1ad;
 }
 
+.mod-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mod-section-header h3 {
+  margin: 0;
+}
+
+.mod-section-header button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.curated-category h4 {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: #6f7684;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mod-checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  color: #e6e6e6 !important;
+}
+
 .mod-search {
   display: flex;
   gap: 8px;

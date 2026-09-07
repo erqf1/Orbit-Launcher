@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Instance, ModSearchResult } from './types'
+import type { CuratedMod, Instance, ModSearchResult } from './types'
 
 interface Props {
   instance: Instance
@@ -14,6 +14,12 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const [showCurated, setShowCurated] = useState(false)
+  const [curated, setCurated] = useState<CuratedMod[]>([])
+  const [loadingCurated, setLoadingCurated] = useState(false)
+  const [selectedCurated, setSelectedCurated] = useState<Set<string>>(new Set())
+  const [installingBatch, setInstallingBatch] = useState(false)
+
   const refreshInstalled = useCallback(() => {
     window.api.listMods(instance.id).then(setInstalled)
   }, [instance.id])
@@ -21,6 +27,21 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
   useEffect(() => {
     refreshInstalled()
   }, [refreshInstalled])
+
+  // Installs one mod's best-matching version, returning its required
+  // dependencies (not yet installed) so the caller can decide when/how to
+  // prompt for them - a single search install prompts immediately, the
+  // curated batch install aggregates across the whole selection first.
+  async function installOne(projectId: string): Promise<ModSearchResult[]> {
+    const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
+    const best = versions[0]
+    if (!best) {
+      throw new Error('Keine passende Version für diese Minecraft-Version/diesen Loader gefunden.')
+    }
+    await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
+    if (best.requiredDependencyProjectIds.length === 0) return []
+    return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader)
+  }
 
   async function handleSearch(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -41,13 +62,15 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
     setError(null)
     setInstallingId(projectId)
     try {
-      const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
-      if (versions.length === 0) {
-        throw new Error('Keine passende Version für diese Minecraft-Version/diesen Loader gefunden.')
-      }
-      const [best] = versions
-      await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
+      const deps = await installOne(projectId)
       refreshInstalled()
+      if (deps.length > 0) {
+        const names = deps.map((d) => d.title).join(', ')
+        if (window.confirm(`Benötigt außerdem: ${names}. Jetzt mitinstallieren?`)) {
+          for (const dep of deps) await installOne(dep.projectId)
+          refreshInstalled()
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -59,6 +82,61 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
     await window.api.removeMod(instance.id, filename)
     refreshInstalled()
   }
+
+  function toggleCuratedSection(): void {
+    const next = !showCurated
+    setShowCurated(next)
+    if (next && curated.length === 0) {
+      setLoadingCurated(true)
+      setError(null)
+      window.api
+        .listCuratedMods(instance.mcVersion, instance.loader)
+        .then(setCurated)
+        .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+        .finally(() => setLoadingCurated(false))
+    }
+  }
+
+  function toggleSelected(projectId: string): void {
+    setSelectedCurated((prev) => {
+      const next = new Set(prev)
+      if (next.has(projectId)) next.delete(projectId)
+      else next.add(projectId)
+      return next
+    })
+  }
+
+  async function handleInstallSelected(): Promise<void> {
+    setError(null)
+    setInstallingBatch(true)
+    try {
+      const extraDeps = new Map<string, ModSearchResult>()
+      for (const projectId of selectedCurated) {
+        const deps = await installOne(projectId)
+        for (const dep of deps) {
+          if (!selectedCurated.has(dep.projectId)) extraDeps.set(dep.projectId, dep)
+        }
+      }
+      refreshInstalled()
+      if (extraDeps.size > 0) {
+        const names = [...extraDeps.values()].map((d) => d.title).join(', ')
+        if (window.confirm(`Zusätzlich benötigt: ${names}. Jetzt mitinstallieren?`)) {
+          for (const dep of extraDeps.values()) await installOne(dep.projectId)
+          refreshInstalled()
+        }
+      }
+      setSelectedCurated(new Set())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setInstallingBatch(false)
+    }
+  }
+
+  const curatedByCategory = curated.reduce<Record<string, CuratedMod[]>>((acc, mod) => {
+    ;(acc[mod.category] ??= []).push(mod)
+    return acc
+  }, {})
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -84,6 +162,53 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
         </section>
 
         <section>
+          <div className="mod-section-header">
+            <h3>Empfohlene Mods</h3>
+            <button type="button" onClick={toggleCuratedSection}>
+              {showCurated ? 'Verbergen' : 'Anzeigen'}
+            </button>
+          </div>
+
+          {showCurated &&
+            (loadingCurated ? (
+              <p className="instance-meta">Lade Empfehlungen…</p>
+            ) : (
+              <>
+                {Object.entries(curatedByCategory).map(([category, mods]) => (
+                  <div key={category} className="curated-category">
+                    <h4>{category}</h4>
+                    <ul className="mod-list">
+                      {mods.map((mod) => (
+                        <li key={mod.projectId}>
+                          <label className="checkbox-label mod-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedCurated.has(mod.projectId)}
+                              disabled={!mod.compatible || installed.some((f) => f.includes(mod.slug))}
+                              onChange={() => toggleSelected(mod.projectId)}
+                            />
+                            {mod.title}
+                            {!mod.compatible && ' (nicht kompatibel)'}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleInstallSelected}
+                  disabled={selectedCurated.size === 0 || installingBatch}
+                >
+                  {installingBatch
+                    ? 'Installiere…'
+                    : `Ausgewählte installieren (${selectedCurated.size})`}
+                </button>
+              </>
+            ))}
+        </section>
+
+        <section>
           <h3>Modrinth durchsuchen</h3>
           <form className="mod-search" onSubmit={handleSearch}>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Mod-Name…" />
@@ -91,8 +216,6 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
               {searching ? 'Suche…' : 'Suchen'}
             </button>
           </form>
-
-          {error && <p className="error">{error}</p>}
 
           <ul className="mod-list">
             {results.map((hit) => (
@@ -109,6 +232,8 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
             ))}
           </ul>
         </section>
+
+        {error && <p className="error">{error}</p>}
 
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
