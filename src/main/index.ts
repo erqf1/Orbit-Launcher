@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
-import * as fs from 'fs'
 import gracefulFs from 'graceful-fs'
+import { patchCreateWriteStreamForEmfile } from './emfileSafeFs'
 import { registerAuthHandlers } from './auth/msmcAuth'
 import { registerLaunchHandlers } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
@@ -12,26 +12,31 @@ import { registerModHandlers } from './mods/modrinth'
 import { registerCuratedModHandlers } from './mods/curated'
 import { registerPrismImportHandlers } from './importers/prismImport'
 
-// MCLC downloads a modern version's full asset index (thousands of small
-// files) via one unbounded Promise.all over every asset - no concurrency
-// cap. That reliably exceeds the Windows CRT's default open-file-handle
-// limit (EMFILE), crashing the main process. graceful-fs patches Node's
-// shared 'fs' module in place to retry-with-backoff on EMFILE/ENFILE
-// instead of throwing, which fixes this for MCLC's downloads too since it
-// requires the same shared 'fs' module instance.
-//
-// IMPORTANT: gracefulify() itself throws inside Electron's main process
-// ("Cannot redefine property: ReadStream") because Electron's own fs
-// already has non-configurable ReadStream/WriteStream descriptors from
-// its ASAR patching - this call MUST stay wrapped, or the app fails to
-// start at all (confirmed: unwrapped, this crashed on every launch).
-// The readFile/writeFile/appendFile/copyFile/readdir patches are applied
-// before the throw, so they still take effect even though the exception
-// aborts the rest.
+// `require`, not `import * as fs from 'fs'`: the latter produced a
+// read-only ESM namespace object under esbuild's interop, which is what
+// broke earlier attempts at the patches below ("Cannot set property ...
+// which has only a getter") - not anything Electron itself seals.
+// `require` gives the real, mutable CJS module object.
+const fs = require('fs') as typeof import('fs')
+
+// MCLC's asset downloader fires one unbounded Promise.all over every asset
+// in a version's index (thousands of entries for modern MC) with zero
+// concurrency limiting - fs.readFile/writeFile/etc. get EMFILE-retry
+// protection from graceful-fs, and fs.createWriteStream (what the actual
+// downloader uses) gets a proactive concurrency cap from emfileSafeFs -
+// see that file for why a retry-after-failure approach there hung instead
+// of fixing anything. Both wrapped in try/catch defensively: an earlier
+// version of this file left a patch call unguarded and that crashed the
+// app on every single startup, not just during downloads.
 try {
   gracefulFs.gracefulify(fs)
 } catch (err) {
-  console.error('[graceful-fs] partial patch only (this is expected under Electron):', err)
+  console.error('[graceful-fs] gracefulify failed:', err)
+}
+try {
+  patchCreateWriteStreamForEmfile()
+} catch (err) {
+  console.error('[emfileSafeFs] failed to patch createWriteStream:', err)
 }
 
 function createWindow(): BrowserWindow {
