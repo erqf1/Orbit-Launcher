@@ -143,6 +143,7 @@ button:not(:disabled):hover {
 .error {
   color: var(--danger);
   font-size: 13px;
+  white-space: pre-line;
 }
 
 .instance-grid {

@@ -46,18 +46,30 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
     })
   }
 
+  // One failing instance shouldn't lose the rest of a batch import, and
+  // silently doing nothing on failure leaves the user with no idea which
+  // instance(s) had a problem - so every folder is attempted independently,
+  // successes always get reflected (onImported refreshes the list), and the
+  // dialog only closes itself when nothing failed.
   async function handleImport(): Promise<void> {
     setError(null)
     setImporting(true)
-    try {
-      for (const folderName of selected) {
+    const failures: string[] = []
+    let successCount = 0
+    for (const folderName of selected) {
+      try {
         await window.api.importPrismInstance(root, folderName)
+        successCount++
+      } catch (err) {
+        failures.push(`${folderName}: ${err instanceof Error ? err.message : String(err)}`)
       }
-      onImported()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setImporting(false)
+    }
+    setImporting(false)
+    if (successCount > 0) onImported()
+    if (failures.length > 0) {
+      setError(`${failures.length} von ${selected.size} fehlgeschlagen:\n${failures.join('\n')}`)
+    } else {
+      onCancel()
     }
   }
 

@@ -233,13 +233,7 @@ function App(): React.JSX.Element {
       )}
 
       {showPrismImport && (
-        <PrismImportDialog
-          onCancel={() => setShowPrismImport(false)}
-          onImported={() => {
-            setShowPrismImport(false)
-            refreshInstances()
-          }}
-        />
+        <PrismImportDialog onCancel={() => setShowPrismImport(false)} onImported={refreshInstances} />
       )}
 
       {settingsInstance && (

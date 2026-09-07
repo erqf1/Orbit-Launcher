@@ -52,7 +52,7 @@ app.whenReady().then(() => {
   app.setAppUserModelId('com.erqf.launcher')
 
   const mainWindow = createWindow()
-  registerAuthHandlers()
+  registerAuthHandlers(mainWindow)
   registerLaunchHandlers(mainWindow)
   registerInstanceHandlers()
   registerVersionHandlers()
