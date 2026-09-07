@@ -173,6 +173,8 @@ const api = {
   listMods: (instanceId: string): Promise<string[]> => ipcRenderer.invoke('mods:list', instanceId),
   removeMod: (instanceId: string, filename: string): Promise<void> =>
     ipcRenderer.invoke('mods:remove', instanceId, filename),
+  copyMods: (sourceInstanceId: string, targetInstanceId: string, filenames: string[]): Promise<void> =>
+    ipcRenderer.invoke('mods:copyTo', sourceInstanceId, targetInstanceId, filenames),
   getModDependencies: (
     projectId: string,
     mcVersion: string,

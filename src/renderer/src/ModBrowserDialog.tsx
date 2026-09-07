@@ -3,16 +3,22 @@ import type { CuratedMod, Instance, ModSearchResult } from './types'
 
 interface Props {
   instance: Instance
+  allInstances: Instance[]
   onClose: () => void
 }
 
-function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
+function ModBrowserDialog({ instance, allInstances, onClose }: Props): React.JSX.Element {
   const [installed, setInstalled] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ModSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const [selectedInstalled, setSelectedInstalled] = useState<Set<string>>(new Set())
+  const [copyTargetId, setCopyTargetId] = useState('')
+  const [copying, setCopying] = useState(false)
+  const [copyMessage, setCopyMessage] = useState<string | null>(null)
 
   const [showCurated, setShowCurated] = useState(false)
   const [curated, setCurated] = useState<CuratedMod[]>([])
@@ -83,6 +89,40 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
     refreshInstalled()
   }
 
+  function toggleInstalledSelected(filename: string): void {
+    setSelectedInstalled((prev) => {
+      const next = new Set(prev)
+      if (next.has(filename)) next.delete(filename)
+      else next.add(filename)
+      return next
+    })
+  }
+
+  // Only instances with the same loader + Minecraft version are offered as
+  // copy targets - a copied jar isn't re-resolved against Modrinth, so
+  // anything else risks silently dropping in an incompatible mod.
+  const copyTargets = allInstances.filter(
+    (i) => i.id !== instance.id && i.loader === instance.loader && i.mcVersion === instance.mcVersion
+  )
+
+  async function handleCopyMods(): Promise<void> {
+    if (!copyTargetId || selectedInstalled.size === 0) return
+    setError(null)
+    setCopyMessage(null)
+    setCopying(true)
+    try {
+      const targetName = copyTargets.find((i) => i.id === copyTargetId)?.name ?? copyTargetId
+      const count = selectedInstalled.size
+      await window.api.copyMods(instance.id, copyTargetId, [...selectedInstalled])
+      setSelectedInstalled(new Set())
+      setCopyMessage(`${count} Mod(s) nach „${targetName}“ kopiert.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCopying(false)
+    }
+  }
+
   function toggleCuratedSection(): void {
     const next = !showCurated
     setShowCurated(next)
@@ -148,16 +188,50 @@ function ModBrowserDialog({ instance, onClose }: Props): React.JSX.Element {
           {installed.length === 0 ? (
             <p className="instance-meta">Keine Mods installiert.</p>
           ) : (
-            <ul className="mod-list">
-              {installed.map((filename) => (
-                <li key={filename}>
-                  <span>{filename}</span>
-                  <button type="button" onClick={() => handleRemove(filename)}>
-                    Entfernen
+            <>
+              <ul className="mod-list">
+                {installed.map((filename) => (
+                  <li key={filename}>
+                    <label className="checkbox-label mod-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedInstalled.has(filename)}
+                        onChange={() => toggleInstalledSelected(filename)}
+                      />
+                      <span>{filename}</span>
+                    </label>
+                    <button type="button" onClick={() => handleRemove(filename)}>
+                      Entfernen
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {copyTargets.length > 0 ? (
+                <div className="mod-copy-bar">
+                  <select value={copyTargetId} onChange={(e) => setCopyTargetId(e.target.value)}>
+                    <option value="">Zielinstanz wählen…</option>
+                    {copyTargets.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleCopyMods}
+                    disabled={!copyTargetId || selectedInstalled.size === 0 || copying}
+                  >
+                    {copying ? 'Kopiere…' : `Kopieren (${selectedInstalled.size})`}
                   </button>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ) : (
+                <p className="instance-meta">
+                  Keine kompatible Instanz (gleiche Version + Loader) zum Kopieren gefunden.
+                </p>
+              )}
+              {copyMessage && <p className="instance-meta">{copyMessage}</p>}
+            </>
           )}
         </section>
 

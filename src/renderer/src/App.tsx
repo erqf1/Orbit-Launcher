@@ -229,7 +229,11 @@ function App(): React.JSX.Element {
       )}
 
       {modsInstance && (
-        <ModBrowserDialog instance={modsInstance} onClose={() => setModsInstanceId(null)} />
+        <ModBrowserDialog
+          instance={modsInstance}
+          allInstances={instances}
+          onClose={() => setModsInstanceId(null)}
+        />
       )}
 
       {cloneAsVersionInstance && (

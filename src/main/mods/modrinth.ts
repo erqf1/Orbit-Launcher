@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { getInstanceRoot } from '../instances/instanceManager'
 
@@ -163,6 +163,22 @@ export function removeMod(instanceId: string, filename: string): void {
   if (existsSync(target)) rmSync(target)
 }
 
+// Copies already-downloaded jar files directly instead of re-resolving them
+// on Modrinth - callers (the UI) are responsible for only offering instances
+// with a matching loader+version as targets, since a copied jar isn't
+// re-validated for compatibility the way a fresh install would be.
+export function copyMods(sourceInstanceId: string, targetInstanceId: string, filenames: string[]): void {
+  const sourceDir = join(getInstanceRoot(sourceInstanceId), 'mods')
+  const targetDir = join(getInstanceRoot(targetInstanceId), 'mods')
+  mkdirSync(targetDir, { recursive: true })
+  for (const filename of filenames) {
+    assertSafeFilename(filename)
+    const src = join(sourceDir, filename)
+    if (!existsSync(src)) continue
+    copyFileSync(src, join(targetDir, filename))
+  }
+}
+
 export function registerModHandlers(): void {
   ipcMain.handle('mods:search', (_event, query: string, mcVersion: string, loader: string) =>
     searchMods(query, mcVersion, loader)
@@ -181,5 +197,10 @@ export function registerModHandlers(): void {
   ipcMain.handle('mods:list', (_event, instanceId: string) => listInstalledMods(instanceId))
   ipcMain.handle('mods:remove', (_event, instanceId: string, filename: string) =>
     removeMod(instanceId, filename)
+  )
+  ipcMain.handle(
+    'mods:copyTo',
+    (_event, sourceInstanceId: string, targetInstanceId: string, filenames: string[]) =>
+      copyMods(sourceInstanceId, targetInstanceId, filenames)
   )
 }
