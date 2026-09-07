@@ -11,6 +11,7 @@ interface Props {
   onClone: (id: string) => void
   onDelete: (id: string) => void
   onOpenSettings: (id: string) => void
+  onOpenMods: (id: string) => void
 }
 
 function InstanceCard(props: Props): React.JSX.Element {
@@ -23,7 +24,8 @@ function InstanceCard(props: Props): React.JSX.Element {
     onRename,
     onClone,
     onDelete,
-    onOpenSettings
+    onOpenSettings,
+    onOpenMods
   } = props
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
@@ -80,6 +82,13 @@ function InstanceCard(props: Props): React.JSX.Element {
         </button>
         <button onClick={() => onClone(instance.id)} disabled={manageDisabled}>
           Duplizieren
+        </button>
+        <button
+          onClick={() => onOpenMods(instance.id)}
+          disabled={manageDisabled || instance.loader === 'vanilla'}
+          title={instance.loader === 'vanilla' ? 'Vanilla-Instanzen unterstützen keine Mods' : undefined}
+        >
+          Mods
         </button>
         <button onClick={() => onOpenSettings(instance.id)} disabled={manageDisabled}>
           Einstellungen

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
 import InstanceSettingsDialog from './InstanceSettingsDialog'
+import ModBrowserDialog from './ModBrowserDialog'
 import type { Instance, InstanceSettingsPatch, LoaderType } from './types'
 
 interface Profile {
@@ -16,6 +17,7 @@ function App(): React.JSX.Element {
   const [launchingId, setLaunchingId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null)
+  const [modsInstanceId, setModsInstanceId] = useState<string | null>(null)
   const [logs, setLogs] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -108,6 +110,7 @@ function App(): React.JSX.Element {
   }
 
   const settingsInstance = instances.find((i) => i.id === settingsInstanceId) ?? null
+  const modsInstance = instances.find((i) => i.id === modsInstanceId) ?? null
 
   return (
     <div className="app">
@@ -139,6 +142,7 @@ function App(): React.JSX.Element {
             onClone={handleClone}
             onDelete={handleDelete}
             onOpenSettings={setSettingsInstanceId}
+            onOpenMods={setModsInstanceId}
           />
         ))}
 
@@ -157,6 +161,10 @@ function App(): React.JSX.Element {
           onCancel={() => setSettingsInstanceId(null)}
           onSave={handleSaveSettings}
         />
+      )}
+
+      {modsInstance && (
+        <ModBrowserDialog instance={modsInstance} onClose={() => setModsInstanceId(null)} />
       )}
 
       <pre className="log">{logs.join('\n')}</pre>

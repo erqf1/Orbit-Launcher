@@ -64,6 +64,27 @@ export interface LoaderVersionSummary {
   stable: boolean
 }
 
+export interface ModSearchResult {
+  projectId: string
+  slug: string
+  title: string
+  description: string
+  iconUrl: string | null
+  downloads: number
+}
+
+export interface ModVersionSummary {
+  id: string
+  versionNumber: string
+  filename: string
+  url: string
+}
+
+export interface ModFileRef {
+  url: string
+  filename: string
+}
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -91,6 +112,16 @@ const api = {
   listVersions: (): Promise<MinecraftVersionSummary[]> => ipcRenderer.invoke('versions:list'),
   listLoaderVersions: (loader: 'fabric' | 'quilt', mcVersion: string): Promise<LoaderVersionSummary[]> =>
     ipcRenderer.invoke('loaders:list', loader, mcVersion),
+
+  searchMods: (query: string, mcVersion: string, loader: string): Promise<ModSearchResult[]> =>
+    ipcRenderer.invoke('mods:search', query, mcVersion, loader),
+  listModVersions: (projectId: string, mcVersion: string, loader: string): Promise<ModVersionSummary[]> =>
+    ipcRenderer.invoke('mods:versions', projectId, mcVersion, loader),
+  installMod: (instanceId: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('mods:install', instanceId, file),
+  listMods: (instanceId: string): Promise<string[]> => ipcRenderer.invoke('mods:list', instanceId),
+  removeMod: (instanceId: string, filename: string): Promise<void> =>
+    ipcRenderer.invoke('mods:remove', instanceId, filename),
 
   onLog: (callback: (line: string) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (progress: unknown) => void): (() => void) =>

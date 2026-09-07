@@ -179,6 +179,67 @@ button:not(:disabled):hover {
   font-size: 14px;
 }
 
+.mod-browser {
+  width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.mod-browser h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #9aa1ad;
+}
+
+.mod-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mod-search input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #3a3f4b;
+  background: #23262e;
+  color: #e6e6e6;
+}
+
+.mod-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.mod-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #23262e;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.mod-list li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-list button {
+  padding: 4px 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

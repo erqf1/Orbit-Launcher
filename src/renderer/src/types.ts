@@ -43,3 +43,19 @@ export interface LoaderVersionSummary {
   version: string
   stable: boolean
 }
+
+export interface ModSearchResult {
+  projectId: string
+  slug: string
+  title: string
+  description: string
+  iconUrl: string | null
+  downloads: number
+}
+
+export interface ModVersionSummary {
+  id: string
+  versionNumber: string
+  filename: string
+  url: string
+}
