@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { MinecraftVersionSummary } from './types'
+import type { LoaderType, LoaderVersionSummary, MinecraftVersionSummary } from './types'
 
 interface Props {
   onCancel: () => void
-  onCreate: (name: string, mcVersion: string) => void
+  onCreate: (name: string, mcVersion: string, loader: LoaderType, loaderVersion?: string) => void
 }
 
 function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element {
@@ -11,6 +11,10 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
   const [loadingVersions, setLoadingVersions] = useState(true)
   const [name, setName] = useState('Neue Instanz')
   const [mcVersion, setMcVersion] = useState('')
+  const [loader, setLoader] = useState<LoaderType>('vanilla')
+  const [loaderVersions, setLoaderVersions] = useState<LoaderVersionSummary[]>([])
+  const [loaderVersion, setLoaderVersion] = useState('')
+  const [loadingLoaderVersions, setLoadingLoaderVersions] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,11 +38,42 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
     }
   }, [])
 
+  useEffect(() => {
+    if (loader === 'vanilla' || !mcVersion) {
+      setLoaderVersions([])
+      setLoaderVersion('')
+      return
+    }
+    let cancelled = false
+    setLoadingLoaderVersions(true)
+    setLoaderVersion('')
+    window.api
+      .listLoaderVersions(loader, mcVersion)
+      .then((list) => {
+        if (cancelled) return
+        setLoaderVersions(list)
+        if (list.length > 0) setLoaderVersion(list[0].version)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLoaderVersions(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [loader, mcVersion])
+
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault()
     if (!name.trim() || !mcVersion) return
-    onCreate(name.trim(), mcVersion)
+    if (loader !== 'vanilla' && !loaderVersion) return
+    onCreate(name.trim(), mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
   }
+
+  const canSubmit =
+    !loadingVersions && !!mcVersion && (loader === 'vanilla' || (!loadingLoaderVersions && !!loaderVersion))
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -65,13 +100,42 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
           )}
         </label>
 
+        <label>
+          Mod Loader
+          <select value={loader} onChange={(e) => setLoader(e.target.value as LoaderType)}>
+            <option value="vanilla">Vanilla</option>
+            <option value="fabric">Fabric</option>
+            <option value="quilt">Quilt</option>
+          </select>
+        </label>
+
+        {loader !== 'vanilla' && (
+          <label>
+            Loader-Version
+            {loadingLoaderVersions ? (
+              <p>Lade Loader-Versionen…</p>
+            ) : loaderVersions.length === 0 ? (
+              <p>Keine Loader-Version für diese Minecraft-Version gefunden.</p>
+            ) : (
+              <select value={loaderVersion} onChange={(e) => setLoaderVersion(e.target.value)}>
+                {loaderVersions.map((v) => (
+                  <option key={v.version} value={v.version}>
+                    {v.version}
+                    {v.stable ? '' : ' (unstable)'}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+        )}
+
         {error && <p className="error">{error}</p>}
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
             Abbrechen
           </button>
-          <button type="submit" disabled={loadingVersions || !mcVersion}>
+          <button type="submit" disabled={!canSubmit}>
             Erstellen
           </button>
         </div>

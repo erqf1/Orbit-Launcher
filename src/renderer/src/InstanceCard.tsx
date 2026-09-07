@@ -49,7 +49,10 @@ function InstanceCard(props: Props): React.JSX.Element {
         ) : (
           <h3 onDoubleClick={() => setEditing(true)}>{instance.name}</h3>
         )}
-        <span className="instance-version">{instance.mcVersion}</span>
+        <span className="instance-version">
+          {instance.mcVersion}
+          {instance.loader !== 'vanilla' && ` · ${instance.loader}`}
+        </span>
       </div>
 
       <div className="instance-meta">

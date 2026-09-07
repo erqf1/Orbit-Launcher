@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
-import type { Instance } from './types'
+import type { Instance, LoaderType } from './types'
 
 interface Profile {
   name: string
@@ -62,10 +62,15 @@ function App(): React.JSX.Element {
     }
   }
 
-  async function handleCreate(name: string, mcVersion: string): Promise<void> {
+  async function handleCreate(
+    name: string,
+    mcVersion: string,
+    loader: LoaderType,
+    loaderVersion?: string
+  ): Promise<void> {
     setError(null)
     try {
-      await window.api.createInstance({ name, mcVersion })
+      await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
       setShowCreate(false)
       refreshInstances()
     } catch (err) {

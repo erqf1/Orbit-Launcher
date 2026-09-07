@@ -2,12 +2,20 @@ import { ipcMain, app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import { installFabricProfile } from '../loaders/fabric'
+import { installQuiltProfile } from '../loaders/quilt'
+
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
 
 export interface Instance {
   id: string
   name: string
   mcVersion: string
-  loader: 'vanilla'
+  loader: LoaderType
+  loaderVersion: string | null
+  // The `version.custom` id MCLC should launch with for fabric/quilt
+  // instances (e.g. "fabric-loader-0.19.5-1.21.1"). Null for vanilla.
+  customVersionId: string | null
   memoryMin: string
   memoryMax: string
   createdAt: string
@@ -17,6 +25,8 @@ export interface Instance {
 export interface CreateInstanceInput {
   name: string
   mcVersion: string
+  loader: LoaderType
+  loaderVersion?: string
 }
 
 const SUBFOLDERS = ['mods', 'saves', 'resourcepacks', 'shaderpacks', 'config', 'screenshots']
@@ -51,21 +61,35 @@ export function getInstance(id: string): Instance | undefined {
   return readAll().find((instance) => instance.id === id)
 }
 
-export function createInstance(input: CreateInstanceInput): Instance {
+export async function createInstance(input: CreateInstanceInput): Promise<Instance> {
+  const id = randomUUID()
+  const root = getInstanceRoot(id)
+  for (const sub of SUBFOLDERS) {
+    mkdirSync(join(root, sub), { recursive: true })
+  }
+
+  let customVersionId: string | null = null
+  if (input.loader === 'fabric' || input.loader === 'quilt') {
+    if (!input.loaderVersion) {
+      throw new Error('Bitte eine Loader-Version auswählen.')
+    }
+    customVersionId =
+      input.loader === 'fabric'
+        ? await installFabricProfile(root, input.mcVersion, input.loaderVersion)
+        : await installQuiltProfile(root, input.mcVersion, input.loaderVersion)
+  }
+
   const instance: Instance = {
-    id: randomUUID(),
+    id,
     name: input.name,
     mcVersion: input.mcVersion,
-    loader: 'vanilla',
+    loader: input.loader,
+    loaderVersion: input.loaderVersion ?? null,
+    customVersionId,
     memoryMin: '2G',
     memoryMax: '4G',
     createdAt: new Date().toISOString(),
     lastPlayed: null
-  }
-
-  const root = getInstanceRoot(instance.id)
-  for (const sub of SUBFOLDERS) {
-    mkdirSync(join(root, sub), { recursive: true })
   }
 
   const instances = readAll()
@@ -88,11 +112,26 @@ export function deleteInstance(id: string): void {
   rmSync(getInstanceRoot(id), { recursive: true, force: true })
 }
 
+// Copies the source instance's already-installed files (including any
+// fabric/quilt profile json) rather than reinstalling the loader, so
+// cloning needs no network access and always matches the source exactly.
 export function cloneInstance(id: string): Instance {
   const source = getInstance(id)
   if (!source) throw new Error('Instanz nicht gefunden.')
-  const clone = createInstance({ name: `${source.name} (Kopie)`, mcVersion: source.mcVersion })
+
+  const clone: Instance = {
+    ...source,
+    id: randomUUID(),
+    name: `${source.name} (Kopie)`,
+    createdAt: new Date().toISOString(),
+    lastPlayed: null
+  }
+
   cpSync(getInstanceRoot(source.id), getInstanceRoot(clone.id), { recursive: true, force: true })
+
+  const instances = readAll()
+  instances.push(clone)
+  writeAll(instances)
   return clone
 }
 

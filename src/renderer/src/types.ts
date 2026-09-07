@@ -2,11 +2,15 @@
 // Kept separate from src/preload so the renderer's TS project doesn't have
 // to reach across into preload's project.
 
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
+
 export interface Instance {
   id: string
   name: string
   mcVersion: string
-  loader: 'vanilla'
+  loader: LoaderType
+  loaderVersion: string | null
+  customVersionId: string | null
   memoryMin: string
   memoryMax: string
   createdAt: string
@@ -17,4 +21,9 @@ export interface MinecraftVersionSummary {
   id: string
   type: string
   releaseTime: string
+}
+
+export interface LoaderVersionSummary {
+  version: string
+  stable: boolean
 }

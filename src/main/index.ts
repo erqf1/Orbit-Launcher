@@ -4,6 +4,7 @@ import { registerAuthHandlers } from './auth/msmcAuth'
 import { registerLaunchHandlers } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
 import { registerVersionHandlers } from './versions/versionManifest'
+import { registerLoaderHandlers } from './loaders'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -51,6 +52,7 @@ app.whenReady().then(() => {
   registerLaunchHandlers(mainWindow)
   registerInstanceHandlers()
   registerVersionHandlers()
+  registerLoaderHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

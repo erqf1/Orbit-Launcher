@@ -15,11 +15,15 @@ interface LaunchResult {
   started: boolean
 }
 
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
+
 export interface Instance {
   id: string
   name: string
   mcVersion: string
-  loader: 'vanilla'
+  loader: LoaderType
+  loaderVersion: string | null
+  customVersionId: string | null
   memoryMin: string
   memoryMax: string
   createdAt: string
@@ -29,12 +33,19 @@ export interface Instance {
 export interface CreateInstanceInput {
   name: string
   mcVersion: string
+  loader: LoaderType
+  loaderVersion?: string
 }
 
 export interface MinecraftVersionSummary {
   id: string
   type: string
   releaseTime: string
+}
+
+export interface LoaderVersionSummary {
+  version: string
+  stable: boolean
 }
 
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -58,6 +69,8 @@ const api = {
   cloneInstance: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clone', id),
 
   listVersions: (): Promise<MinecraftVersionSummary[]> => ipcRenderer.invoke('versions:list'),
+  listLoaderVersions: (loader: 'fabric' | 'quilt', mcVersion: string): Promise<LoaderVersionSummary[]> =>
+    ipcRenderer.invoke('loaders:list', loader, mcVersion),
 
   onLog: (callback: (line: string) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (progress: unknown) => void): (() => void) =>

@@ -30,7 +30,8 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       root: getInstanceRoot(instance.id),
       version: {
         number: instance.mcVersion,
-        type: 'release'
+        type: 'release',
+        ...(instance.customVersionId ? { custom: instance.customVersionId } : {})
       },
       memory: {
         max: instance.memoryMax,
