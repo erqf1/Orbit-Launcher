@@ -2,7 +2,7 @@
 // Kept separate from src/preload so the renderer's TS project doesn't have
 // to reach across into preload's project.
 
-export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt' | 'legacyfabric' | 'forge' | 'neoforge'
 
 export interface Instance {
   id: string
@@ -11,6 +11,7 @@ export interface Instance {
   loader: LoaderType
   loaderVersion: string | null
   customVersionId: string | null
+  forgeInstallerPath: string | null
   memoryMin: string
   memoryMax: string
   javaPath: string | null

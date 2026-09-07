@@ -7,10 +7,14 @@ export interface CuratedModEntry {
 }
 
 // Slugs verified against the live Modrinth API - these are current,
-// actively maintained (as of testing) Fabric/Quilt mods. Forge/NeoForge
-// aren't covered here since this app doesn't create Forge/NeoForge
-// instances yet; several of these (sodium, lithium, ferrite-core,
-// entityculling) don't even support plain Forge upstream.
+// actively maintained (as of testing) Fabric/Quilt mods; several of these
+// (sodium, lithium, ferrite-core, entityculling) don't have Forge ports, and
+// have at most partial/newer-only NeoForge ports. No Forge-specific
+// equivalents (Rubidium/Embeddium etc.) are listed separately - the
+// `compatible` flag below already reports per-mod, per-loader, per-version
+// availability from Modrinth directly rather than assuming it from a static
+// list, so a Forge/NeoForge instance browsing this list correctly sees
+// what's actually installable instead of a wrong yes/no guess.
 export const CURATED_MODS: CuratedModEntry[] = [
   { slug: 'fabric-api', category: 'Komfort' },
   { slug: 'sodium', category: 'Performance' },

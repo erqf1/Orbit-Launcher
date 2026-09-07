@@ -74,6 +74,7 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
         type: 'release',
         ...(instance.customVersionId ? { custom: instance.customVersionId } : {})
       },
+      ...(instance.forgeInstallerPath ? { forge: instance.forgeInstallerPath } : {}),
       memory: {
         max: instance.memoryMax,
         min: instance.memoryMin

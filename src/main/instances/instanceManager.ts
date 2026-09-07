@@ -4,8 +4,11 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { installFabricProfile } from '../loaders/fabric'
 import { installQuiltProfile } from '../loaders/quilt'
+import { installLegacyFabricProfile } from '../loaders/legacyfabric'
+import { installForgeProfile } from '../loaders/forge'
+import { installNeoForgeProfile } from '../loaders/neoforge'
 
-export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt' | 'legacyfabric' | 'forge' | 'neoforge'
 
 export interface Instance {
   id: string
@@ -13,9 +16,13 @@ export interface Instance {
   mcVersion: string
   loader: LoaderType
   loaderVersion: string | null
-  // The `version.custom` id MCLC should launch with for fabric/quilt
-  // instances (e.g. "fabric-loader-0.19.5-1.21.1"). Null for vanilla.
+  // The `version.custom` id MCLC should launch with for fabric/quilt/
+  // legacyfabric instances (e.g. "fabric-loader-0.19.5-1.21.1"). Null
+  // otherwise.
   customVersionId: string | null
+  // Local path to a downloaded installer jar for forge/neoforge instances,
+  // passed as MCLC's `forge` launch option. Null otherwise.
+  forgeInstallerPath: string | null
   memoryMin: string
   memoryMax: string
   javaPath: string | null
@@ -56,17 +63,39 @@ export interface CloneAsVersionInput {
   loaderVersion?: string
 }
 
+interface LoaderInstallResult {
+  customVersionId: string | null
+  forgeInstallerPath: string | null
+}
+
+const NO_LOADER: LoaderInstallResult = { customVersionId: null, forgeInstallerPath: null }
+
 async function installLoaderProfile(
   root: string,
   loader: LoaderType,
   mcVersion: string,
   loaderVersion: string | undefined
-): Promise<string | null> {
-  if (loader === 'vanilla') return null
+): Promise<LoaderInstallResult> {
+  if (loader === 'vanilla') return NO_LOADER
   if (!loaderVersion) throw new Error('Bitte eine Loader-Version auswählen.')
-  return loader === 'fabric'
-    ? installFabricProfile(root, mcVersion, loaderVersion)
-    : installQuiltProfile(root, mcVersion, loaderVersion)
+
+  if (loader === 'fabric') {
+    return { customVersionId: await installFabricProfile(root, mcVersion, loaderVersion), forgeInstallerPath: null }
+  }
+  if (loader === 'quilt') {
+    return { customVersionId: await installQuiltProfile(root, mcVersion, loaderVersion), forgeInstallerPath: null }
+  }
+  if (loader === 'legacyfabric') {
+    return {
+      customVersionId: await installLegacyFabricProfile(root, mcVersion, loaderVersion),
+      forgeInstallerPath: null
+    }
+  }
+  if (loader === 'forge') {
+    return { customVersionId: null, forgeInstallerPath: await installForgeProfile(root, mcVersion, loaderVersion) }
+  }
+  // neoforge
+  return { customVersionId: null, forgeInstallerPath: await installNeoForgeProfile(root, loaderVersion) }
 }
 
 const SUBFOLDERS = ['mods', 'saves', 'resourcepacks', 'shaderpacks', 'config', 'screenshots']
@@ -108,9 +137,9 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     mkdirSync(join(root, sub), { recursive: true })
   }
 
-  let customVersionId: string | null = null
+  let loaderInstall: LoaderInstallResult
   try {
-    customVersionId = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
+    loaderInstall = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
   } catch (err) {
     // Don't leave an empty, untracked instance folder behind on disk if the
     // loader profile fetch fails (e.g. no internet, bad version/loader combo).
@@ -124,7 +153,8 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     mcVersion: input.mcVersion,
     loader: input.loader,
     loaderVersion: input.loaderVersion ?? null,
-    customVersionId,
+    customVersionId: loaderInstall.customVersionId,
+    forgeInstallerPath: loaderInstall.forgeInstallerPath,
     memoryMin: '2G',
     memoryMax: '4G',
     javaPath: null,
@@ -207,9 +237,9 @@ export async function cloneInstanceAsVersion(
   const root = getInstanceRoot(newId)
   cpSync(getInstanceRoot(source.id), root, { recursive: true, force: true })
 
-  let customVersionId: string | null
+  let loaderInstall: LoaderInstallResult
   try {
-    customVersionId = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
+    loaderInstall = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
   } catch (err) {
     rmSync(root, { recursive: true, force: true })
     throw err
@@ -222,7 +252,8 @@ export async function cloneInstanceAsVersion(
     mcVersion: input.mcVersion,
     loader: input.loader,
     loaderVersion: input.loaderVersion ?? null,
-    customVersionId,
+    customVersionId: loaderInstall.customVersionId,
+    forgeInstallerPath: loaderInstall.forgeInstallerPath,
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }

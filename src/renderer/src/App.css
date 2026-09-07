@@ -186,6 +186,18 @@ button:not(:disabled):hover {
   background: var(--success);
 }
 
+.loader-stripe.loader-legacyfabric {
+  background: linear-gradient(90deg, #c9a06b, #e8c9a0);
+}
+
+.loader-stripe.loader-forge {
+  background: linear-gradient(90deg, #6b5b95, #a08cc9);
+}
+
+.loader-stripe.loader-neoforge {
+  background: linear-gradient(90deg, #d97b3f, #f0a868);
+}
+
 .instance-card-body {
   padding: 16px;
   display: flex;

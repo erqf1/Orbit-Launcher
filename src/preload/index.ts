@@ -33,7 +33,7 @@ export interface LaunchClosedEvent {
   code: number
 }
 
-export type LoaderType = 'vanilla' | 'fabric' | 'quilt'
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt' | 'legacyfabric' | 'forge' | 'neoforge'
 
 export interface Instance {
   id: string
@@ -42,6 +42,7 @@ export interface Instance {
   loader: LoaderType
   loaderVersion: string | null
   customVersionId: string | null
+  forgeInstallerPath: string | null
   memoryMin: string
   memoryMax: string
   javaPath: string | null
@@ -161,8 +162,10 @@ const api = {
   detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
 
   listVersions: (): Promise<MinecraftVersionSummary[]> => ipcRenderer.invoke('versions:list'),
-  listLoaderVersions: (loader: 'fabric' | 'quilt', mcVersion: string): Promise<LoaderVersionSummary[]> =>
-    ipcRenderer.invoke('loaders:list', loader, mcVersion),
+  listLoaderVersions: (
+    loader: Exclude<LoaderType, 'vanilla'>,
+    mcVersion: string
+  ): Promise<LoaderVersionSummary[]> => ipcRenderer.invoke('loaders:list', loader, mcVersion),
 
   searchMods: (query: string, mcVersion: string, loader: string): Promise<ModSearchResult[]> =>
     ipcRenderer.invoke('mods:search', query, mcVersion, loader),

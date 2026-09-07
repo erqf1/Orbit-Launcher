@@ -14,13 +14,19 @@ import {
 
 // Component uids as actually used in Prism's mmc-pack.json (verified against
 // PrismLauncher source, launcher/minecraft/Component.cpp KNOWN_MODLOADERS).
-const LOADER_UIDS: Record<string, 'fabric' | 'quilt'> = {
+// Note: that source has no separate uid for Legacy Fabric - Prism appears to
+// treat it as a plain net.fabricmc.fabric-loader component, so an imported
+// Legacy Fabric instance will be tagged 'fabric' here and its (very old)
+// loader version simply won't resolve against mainline Fabric's meta API -
+// reported per-instance like any other bad version/loader combo rather than
+// silently imported wrong.
+const LOADER_UIDS: Record<string, 'fabric' | 'quilt' | 'forge' | 'neoforge'> = {
   'net.fabricmc.fabric-loader': 'fabric',
-  'org.quiltmc.quilt-loader': 'quilt'
+  'org.quiltmc.quilt-loader': 'quilt',
+  'net.minecraftforge': 'forge',
+  'net.neoforged': 'neoforge'
 }
 const UNSUPPORTED_LOADER_UIDS: Record<string, string> = {
-  'net.minecraftforge': 'Forge wird noch nicht unterstützt',
-  'net.neoforged': 'NeoForge wird noch nicht unterstützt',
   'com.mumfrey.liteloader': 'LiteLoader wird nicht unterstützt'
 }
 

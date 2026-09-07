@@ -120,6 +120,9 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
           <option value="vanilla">Vanilla</option>
           <option value="fabric">Fabric</option>
           <option value="quilt">Quilt</option>
+          <option value="legacyfabric">Legacy Fabric</option>
+          <option value="forge">Forge</option>
+          <option value="neoforge">NeoForge</option>
         </select>
       </label>
 
