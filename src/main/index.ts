@@ -19,7 +19,20 @@ import { registerPrismImportHandlers } from './importers/prismImport'
 // shared 'fs' module in place to retry-with-backoff on EMFILE/ENFILE
 // instead of throwing, which fixes this for MCLC's downloads too since it
 // requires the same shared 'fs' module instance.
-gracefulFs.gracefulify(fs)
+//
+// IMPORTANT: gracefulify() itself throws inside Electron's main process
+// ("Cannot redefine property: ReadStream") because Electron's own fs
+// already has non-configurable ReadStream/WriteStream descriptors from
+// its ASAR patching - this call MUST stay wrapped, or the app fails to
+// start at all (confirmed: unwrapped, this crashed on every launch).
+// The readFile/writeFile/appendFile/copyFile/readdir patches are applied
+// before the throw, so they still take effect even though the exception
+// aborts the rest.
+try {
+  gracefulFs.gracefulify(fs)
+} catch (err) {
+  console.error('[graceful-fs] partial patch only (this is expected under Electron):', err)
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
