@@ -125,6 +125,15 @@ export interface CuratedMod extends ModSearchResult {
   compatible: boolean
 }
 
+export interface PrismInstanceSummary {
+  folderName: string
+  name: string
+  mcVersion: string | null
+  loader: LoaderType | 'unsupported'
+  loaderVersion: string | null
+  unsupportedReason: string | null
+}
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -171,6 +180,12 @@ const api = {
   ): Promise<ModSearchResult[]> => ipcRenderer.invoke('mods:dependencies', projectId, mcVersion, loader),
   listCuratedMods: (mcVersion: string, loader: string): Promise<CuratedMod[]> =>
     ipcRenderer.invoke('mods:curated', mcVersion, loader),
+
+  listPrismInstances: (rootOverride?: string): Promise<PrismInstanceSummary[]> =>
+    ipcRenderer.invoke('prism:list', rootOverride),
+  importPrismInstance: (rootOverride: string | undefined, folderName: string): Promise<Instance> =>
+    ipcRenderer.invoke('prism:import', rootOverride, folderName),
+  browsePrismFolder: (): Promise<string | null> => ipcRenderer.invoke('prism:browseFolder'),
 
   onLog: (callback: (event: LaunchLogEvent) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>

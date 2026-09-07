@@ -8,6 +8,7 @@ import { registerLoaderHandlers } from './loaders'
 import { registerJavaHandlers } from './java/javaManager'
 import { registerModHandlers } from './mods/modrinth'
 import { registerCuratedModHandlers } from './mods/curated'
+import { registerPrismImportHandlers } from './importers/prismImport'
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -59,6 +60,7 @@ app.whenReady().then(() => {
   registerJavaHandlers()
   registerModHandlers()
   registerCuratedModHandlers()
+  registerPrismImportHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

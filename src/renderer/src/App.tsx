@@ -4,6 +4,7 @@ import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceSettingsDialog from './InstanceSettingsDialog'
 import ModBrowserDialog from './ModBrowserDialog'
+import PrismImportDialog from './PrismImportDialog'
 import type { Instance, InstanceSettingsPatch, LoaderType } from './types'
 
 interface Profile {
@@ -29,6 +30,7 @@ function App(): React.JSX.Element {
   const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null)
   const [modsInstanceId, setModsInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
+  const [showPrismImport, setShowPrismImport] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refreshInstances = useCallback(() => {
@@ -219,8 +221,22 @@ function App(): React.JSX.Element {
         </button>
       </div>
 
+      <button className="import-button" onClick={() => setShowPrismImport(true)}>
+        Von Prism Launcher importieren…
+      </button>
+
       {showCreate && (
         <CreateInstanceDialog onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+      )}
+
+      {showPrismImport && (
+        <PrismImportDialog
+          onCancel={() => setShowPrismImport(false)}
+          onImported={() => {
+            setShowPrismImport(false)
+            refreshInstances()
+          }}
+        />
       )}
 
       {settingsInstance && (

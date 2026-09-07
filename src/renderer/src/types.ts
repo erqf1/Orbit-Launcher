@@ -93,3 +93,12 @@ export interface CuratedMod extends ModSearchResult {
   category: string
   compatible: boolean
 }
+
+export interface PrismInstanceSummary {
+  folderName: string
+  name: string
+  mcVersion: string | null
+  loader: LoaderType | 'unsupported'
+  loaderVersion: string | null
+  unsupportedReason: string | null
+}
