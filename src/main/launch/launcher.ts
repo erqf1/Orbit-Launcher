@@ -4,11 +4,12 @@ import { Client } from 'minecraft-launcher-core'
 import { getMclcAuthorization } from '../auth/msmcAuth'
 import { getInstance, getInstanceRoot, markLaunched } from '../instances/instanceManager'
 
-// Launcher-window-hide is a single shared window shared across all launches,
-// but closeOnLaunch is a per-instance setting - so track which in-flight
-// launches asked for it, and only re-show once none of them still want it
-// hidden (covers launching two closeOnLaunch instances at once).
-const hideRequesters = new Set<string>()
+// Only one instance may run at a time. An earlier version allowed
+// launching the same (or a different) instance multiple times
+// concurrently - reverted after real-world testing found it "doesn't work
+// well" in practice (shared saves/logs/screenshots folders, a launcher
+// window whose hide/show state had to track multiple in-flight launches).
+let activeLaunch: { launchId: string; instanceId: string } | null = null
 
 export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('launch:start', async (_event, instanceId: string) => {
@@ -17,12 +18,17 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       throw new Error('Bitte zuerst mit Microsoft anmelden.')
     }
 
+    if (activeLaunch) {
+      throw new Error('Es läuft bereits eine Instanz. Bitte warten, bis sie beendet ist.')
+    }
+
     const instance = getInstance(instanceId)
     if (!instance) {
       throw new Error('Instanz nicht gefunden.')
     }
 
     const launchId = randomUUID()
+    activeLaunch = { launchId, instanceId }
     const launcher = new Client()
 
     launcher.on('debug', (e: string) =>
@@ -36,14 +42,11 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     )
     launcher.on('close', (code: number) => {
       mainWindow.webContents.send('launch:closed', { launchId, instanceId, code })
-      if (instance.closeOnLaunch) {
-        hideRequesters.delete(launchId)
-        if (hideRequesters.size === 0 && !mainWindow.isDestroyed()) mainWindow.show()
-      }
+      activeLaunch = null
+      if (instance.closeOnLaunch && !mainWindow.isDestroyed()) mainWindow.show()
     })
 
     if (instance.closeOnLaunch) {
-      hideRequesters.add(launchId)
       mainWindow.hide()
     }
 

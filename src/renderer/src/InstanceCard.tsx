@@ -4,7 +4,7 @@ import type { Instance } from './types'
 
 interface Props {
   instance: Instance
-  activeLaunches: number
+  isLaunching: boolean
   playDisabled: boolean
   manageDisabled: boolean
   onPlay: (id: string) => void
@@ -19,7 +19,7 @@ interface Props {
 function InstanceCard(props: Props): React.JSX.Element {
   const {
     instance,
-    activeLaunches,
+    isLaunching,
     playDisabled,
     manageDisabled,
     onPlay,
@@ -45,7 +45,7 @@ function InstanceCard(props: Props): React.JSX.Element {
 
   return (
     <div className="instance-card">
-      {activeLaunches > 0 && <span className="running-badge">{activeLaunches}×</span>}
+      {isLaunching && <span className="running-badge">läuft</span>}
 
       <div className={`loader-stripe loader-${instance.loader}`} />
 
@@ -92,15 +92,15 @@ function InstanceCard(props: Props): React.JSX.Element {
         </span>
 
         <div className="instance-meta">
-          {activeLaunches > 0
-            ? `Läuft gerade`
+          {isLaunching
+            ? 'Läuft gerade'
             : instance.lastPlayed
               ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
               : 'Noch nie gestartet'}
         </div>
 
         <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
-          Play
+          {isLaunching ? 'Läuft…' : 'Play'}
         </button>
       </div>
     </div>
