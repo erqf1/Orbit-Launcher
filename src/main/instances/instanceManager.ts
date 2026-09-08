@@ -1,4 +1,4 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain, app, shell } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
@@ -12,6 +12,12 @@ export type LoaderType = 'vanilla' | 'fabric' | 'quilt' | 'legacyfabric' | 'forg
 
 export interface Instance {
   id: string
+  // On-disk directory name under instances/ - human-readable (derived from
+  // the name at creation time), decoupled from `id` so renaming the
+  // instance doesn't require moving files, and pre-existing instances
+  // (folderName absent from old instances.json entries) keep working via
+  // the `id` fallback in getInstanceRoot.
+  folderName?: string
   name: string
   mcVersion: string
   loader: LoaderType
@@ -33,6 +39,7 @@ export interface Instance {
   fullscreen: boolean
   closeOnLaunch: boolean
   autoJoinServer: string | null
+  notes: string
   createdAt: string
   lastPlayed: string | null
 }
@@ -48,6 +55,7 @@ export interface InstanceSettingsPatch {
   fullscreen?: boolean
   closeOnLaunch?: boolean
   autoJoinServer?: string | null
+  notes?: string
 }
 
 export interface CreateInstanceInput {
@@ -104,8 +112,29 @@ function getInstancesFile(): string {
   return join(app.getPath('userData'), 'instances.json')
 }
 
+function sanitizeFolderName(name: string): string {
+  // Windows-invalid filename characters plus leading/trailing dots/spaces
+  // (Windows silently strips trailing dots/spaces, which can cause
+  // mismatches later) - everything else (including spaces, unicode) is
+  // left as-is to stay close to Prism's own "just use the name" approach.
+  const cleaned = name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/, '')
+  return cleaned || 'Instanz'
+}
+
+function uniqueFolderName(base: string, taken: Set<string>): string {
+  let candidate = base
+  let n = 2
+  while (taken.has(candidate.toLowerCase())) {
+    candidate = `${base} (${n})`
+    n++
+  }
+  return candidate
+}
+
 export function getInstanceRoot(id: string): string {
-  return join(app.getPath('userData'), 'instances', id)
+  const instance = readAll().find((i) => i.id === id)
+  const folderName = instance?.folderName ?? id
+  return join(app.getPath('userData'), 'instances', folderName)
 }
 
 function readAll(): Instance[] {
@@ -132,7 +161,9 @@ export function getInstance(id: string): Instance | undefined {
 
 export async function createInstance(input: CreateInstanceInput): Promise<Instance> {
   const id = randomUUID()
-  const root = getInstanceRoot(id)
+  const existingFolders = new Set(readAll().map((i) => (i.folderName ?? i.id).toLowerCase()))
+  const folderName = uniqueFolderName(sanitizeFolderName(input.name), existingFolders)
+  const root = join(app.getPath('userData'), 'instances', folderName)
   for (const sub of SUBFOLDERS) {
     mkdirSync(join(root, sub), { recursive: true })
   }
@@ -149,6 +180,7 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
 
   const instance: Instance = {
     id,
+    folderName,
     name: input.name,
     mcVersion: input.mcVersion,
     loader: input.loader,
@@ -165,6 +197,7 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     fullscreen: false,
     closeOnLaunch: false,
     autoJoinServer: null,
+    notes: '',
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
@@ -194,8 +227,15 @@ export function updateInstanceSettings(id: string, patch: InstanceSettingsPatch)
 }
 
 export function deleteInstance(id: string): void {
+  const root = getInstanceRoot(id)
   writeAll(readAll().filter((instance) => instance.id !== id))
-  rmSync(getInstanceRoot(id), { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true })
+}
+
+export function openInstanceFolder(id: string): Promise<void> {
+  return shell.openPath(getInstanceRoot(id)).then((err) => {
+    if (err) throw new Error(err)
+  })
 }
 
 // Copies the source instance's already-installed files (including any
@@ -205,15 +245,23 @@ export function cloneInstance(id: string): Instance {
   const source = getInstance(id)
   if (!source) throw new Error('Instanz nicht gefunden.')
 
+  const newId = randomUUID()
+  const existingFolders = new Set(readAll().map((i) => (i.folderName ?? i.id).toLowerCase()))
+  const folderName = uniqueFolderName(sanitizeFolderName(`${source.name} (Kopie)`), existingFolders)
+
   const clone: Instance = {
     ...source,
-    id: randomUUID(),
+    id: newId,
+    folderName,
     name: `${source.name} (Kopie)`,
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
 
-  cpSync(getInstanceRoot(source.id), getInstanceRoot(clone.id), { recursive: true, force: true })
+  cpSync(getInstanceRoot(source.id), join(app.getPath('userData'), 'instances', folderName), {
+    recursive: true,
+    force: true
+  })
 
   const instances = readAll()
   instances.push(clone)
@@ -234,7 +282,12 @@ export async function cloneInstanceAsVersion(
   if (!source) throw new Error('Instanz nicht gefunden.')
 
   const newId = randomUUID()
-  const root = getInstanceRoot(newId)
+  const existingFolders = new Set(readAll().map((i) => (i.folderName ?? i.id).toLowerCase()))
+  const folderName = uniqueFolderName(
+    sanitizeFolderName(`${source.name} (${input.mcVersion})`),
+    existingFolders
+  )
+  const root = join(app.getPath('userData'), 'instances', folderName)
   cpSync(getInstanceRoot(source.id), root, { recursive: true, force: true })
 
   let loaderInstall: LoaderInstallResult
@@ -248,6 +301,7 @@ export async function cloneInstanceAsVersion(
   const clone: Instance = {
     ...source,
     id: newId,
+    folderName,
     name: `${source.name} (${input.mcVersion})`,
     mcVersion: input.mcVersion,
     loader: input.loader,
@@ -262,6 +316,28 @@ export async function cloneInstanceAsVersion(
   instances.push(clone)
   writeAll(instances)
   return clone
+}
+
+// Changes an existing instance's Minecraft version/loader *in place* (same
+// id, same folder, same mods/saves) rather than creating a copy - used by
+// the "change version" flow, which then separately tries to re-resolve
+// each currently-installed mod for the new version (see mods/migrate.ts)
+// since old-version mod jars are very likely incompatible.
+export async function changeInstanceVersion(id: string, input: CloneAsVersionInput): Promise<Instance> {
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+
+  const root = getInstanceRoot(id)
+  const loaderInstall = await installLoaderProfile(root, input.loader, input.mcVersion, input.loaderVersion)
+
+  instance.mcVersion = input.mcVersion
+  instance.loader = input.loader
+  instance.loaderVersion = input.loaderVersion ?? null
+  instance.customVersionId = loaderInstall.customVersionId
+  instance.forgeInstallerPath = loaderInstall.forgeInstallerPath
+  writeAll(instances)
+  return instance
 }
 
 export function markLaunched(id: string): void {
@@ -281,7 +357,11 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:cloneAsVersion', (_event, id: string, input: CloneAsVersionInput) =>
     cloneInstanceAsVersion(id, input)
   )
+  ipcMain.handle('instances:changeVersion', (_event, id: string, input: CloneAsVersionInput) =>
+    changeInstanceVersion(id, input)
+  )
   ipcMain.handle('instances:updateSettings', (_event, id: string, patch: InstanceSettingsPatch) =>
     updateInstanceSettings(id, patch)
   )
+  ipcMain.handle('instances:openFolder', (_event, id: string) => openInstanceFolder(id))
 }

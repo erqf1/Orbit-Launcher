@@ -1,6 +1,6 @@
 import { ipcMain, dialog } from 'electron'
 import { existsSync, readFileSync, readdirSync, cpSync } from 'fs'
-import { join } from 'path'
+import { join, relative, sep } from 'path'
 import { homedir } from 'os'
 import {
   createInstance,
@@ -206,19 +206,33 @@ export async function importPrismInstance(
     loaderVersion
   })
 
+  // Copy the whole game folder wholesale rather than a hand-picked subfolder
+  // allowlist, so anything Prism (or a mod) put there - crash-reports, logs,
+  // options.txt, servers.dat, xaero waypoints, mod-specific data folders,
+  // whatever - comes across too, not just the folders this app happened to
+  // think of. The one exclusion is "versions": createInstance() already ran
+  // above and wrote this app's own loader profile/installer under the new
+  // instance's versions/ folder, and Prism's own version-file layout there
+  // isn't compatible with (or needed by) MCLC anyway.
   const gameRoot = findGameRoot(instanceDir)
   if (gameRoot) {
     const destRoot = getInstanceRoot(instance.id)
-    for (const sub of ['mods', 'resourcepacks', 'shaderpacks', 'saves', 'config', 'screenshots']) {
-      const src = join(gameRoot, sub)
-      if (existsSync(src)) {
-        cpSync(src, join(destRoot, sub), { recursive: true, force: true })
+    cpSync(gameRoot, destRoot, {
+      recursive: true,
+      force: true,
+      filter: (src) => {
+        const rel = relative(gameRoot, src)
+        return rel !== 'versions' && !rel.startsWith(`versions${sep}`)
       }
-    }
+    })
   }
 
-  // Best-effort carry-over of memory/java/window overrides, only if Prism
-  // actually had them set for this instance (the Override* gate keys).
+  // Carry over settings Prism tracks per-instance. Memory/Java path/JVM args/
+  // window size are gated behind Prism's own "Override*" flags (only set if
+  // the user explicitly overrode the global default for this instance);
+  // maximize/close-after-launch/join-server aren't gated by a separate
+  // override flag in Prism's schema (confirmed against two real
+  // instance.cfg files) - they're just always per-instance.
   const patch: InstanceSettingsPatch = {}
   if (cfg.OverrideMemory === 'true') {
     if (cfg.MinMemAlloc) patch.memoryMin = `${cfg.MinMemAlloc}M`
@@ -227,10 +241,19 @@ export async function importPrismInstance(
   if (cfg.OverrideJavaLocation === 'true' && cfg.JavaPath) {
     patch.javaPath = cfg.JavaPath
   }
+  if (cfg.OverrideJavaArgs === 'true' && cfg.JvmArgs) {
+    patch.jvmArgs = cfg.JvmArgs
+  }
   if (cfg.OverrideWindow === 'true') {
     if (cfg.MinecraftWinWidth) patch.windowWidth = Number(cfg.MinecraftWinWidth)
     if (cfg.MinecraftWinHeight) patch.windowHeight = Number(cfg.MinecraftWinHeight)
   }
+  if (cfg.LaunchMaximized === 'true') patch.fullscreen = true
+  if (cfg.CloseAfterLaunch === 'true') patch.closeOnLaunch = true
+  if (cfg.JoinServerOnLaunch === 'true' && cfg.JoinServerOnLaunchAddress) {
+    patch.autoJoinServer = cfg.JoinServerOnLaunchAddress
+  }
+  if (cfg.notes) patch.notes = cfg.notes
   if (Object.keys(patch).length > 0) {
     updateInstanceSettings(instance.id, patch)
   }

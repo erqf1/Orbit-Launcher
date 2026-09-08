@@ -12,8 +12,7 @@ interface Props {
   onClone: (id: string) => void
   onCloneAsVersion: (id: string) => void
   onDelete: (id: string) => void
-  onOpenSettings: (id: string) => void
-  onOpenMods: (id: string) => void
+  onManage: (id: string) => void
 }
 
 function InstanceCard(props: Props): React.JSX.Element {
@@ -27,8 +26,7 @@ function InstanceCard(props: Props): React.JSX.Element {
     onClone,
     onCloneAsVersion,
     onDelete,
-    onOpenSettings,
-    onOpenMods
+    onManage
   } = props
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
@@ -75,12 +73,6 @@ function InstanceCard(props: Props): React.JSX.Element {
               { label: 'Umbenennen', onClick: () => setEditing(true) },
               { label: 'Duplizieren', onClick: () => onClone(instance.id) },
               { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
-              {
-                label: 'Mods',
-                onClick: () => onOpenMods(instance.id),
-                disabled: instance.loader === 'vanilla'
-              },
-              { label: 'Einstellungen', onClick: () => onOpenSettings(instance.id) },
               { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
             ]}
           />
@@ -99,9 +91,14 @@ function InstanceCard(props: Props): React.JSX.Element {
               : 'Noch nie gestartet'}
         </div>
 
-        <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
-          {isLaunching ? 'Läuft…' : 'Play'}
-        </button>
+        <div className="instance-card-actions">
+          <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
+            {isLaunching ? 'Läuft…' : 'Play'}
+          </button>
+          <button onClick={() => onManage(instance.id)} disabled={manageDisabled}>
+            Verwalten
+          </button>
+        </div>
       </div>
     </div>
   )

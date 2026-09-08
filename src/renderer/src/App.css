@@ -257,8 +257,17 @@ button:not(:disabled):hover {
   z-index: 1;
 }
 
-.play-button {
+.instance-card-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 4px;
+}
+
+.instance-card-actions .play-button {
+  flex: 1;
+}
+
+.play-button {
   background: var(--success-bg);
   border-color: var(--success);
   color: var(--success);
@@ -598,5 +607,122 @@ button:not(:disabled):hover {
 
 .launch-tab-close:hover {
   opacity: 1;
+}
+
+.instance-detail {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  width: min(920px, 92vw);
+  height: min(640px, 88vh);
+  display: flex;
+  overflow: hidden;
+}
+
+.instance-detail-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 10px;
+  gap: 4px;
+}
+
+.instance-detail-sidebar h2 {
+  margin: 4px 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance-detail-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.instance-detail-nav-item {
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+  font-weight: 400;
+  padding: 8px 10px;
+}
+
+.instance-detail-nav-item:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.instance-detail-nav-item.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.instance-detail-open-folder {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.instance-detail-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.detail-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-tab-header {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mod-list li.mod-disabled {
+  opacity: 0.55;
+}
+
+.notes-textarea {
+  width: 100%;
+  min-height: 300px;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.detail-tab-logs select {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.log-viewer {
+  height: auto;
+  max-height: 420px;
+  font-size: 11px;
 }
 

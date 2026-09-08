@@ -1,9 +1,11 @@
 import { ipcMain } from 'electron'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'fs'
+import { createHash } from 'crypto'
 import { join } from 'path'
 import { getInstanceRoot } from '../instances/instanceManager'
 
 const MODRINTH_API = 'https://api.modrinth.com/v2'
+const DISABLED_SUFFIX = '.disabled'
 
 export interface ModSearchResult {
   projectId: string
@@ -25,6 +27,16 @@ export interface ModVersionSummary {
 export interface ModFileRef {
   url: string
   filename: string
+}
+
+export interface InstalledMod {
+  filename: string
+  enabled: boolean
+}
+
+export interface ModMigrationResult {
+  migrated: Array<{ oldFilename: string; newFilename: string; title: string }>
+  failed: Array<{ oldFilename: string; title: string | null; reason: string }>
 }
 
 function assertSafeFilename(filename: string): void {
@@ -151,10 +163,28 @@ export async function installMod(instanceId: string, file: ModFileRef): Promise<
   writeFileSync(join(modsDir, file.filename), buffer)
 }
 
-export function listInstalledMods(instanceId: string): string[] {
+// Disabled mods are kept on disk with a ".disabled" suffix rather than a
+// separate folder - every mod loader only scans for files literally ending
+// in ".jar", so this is the universal, loader-agnostic way to turn a mod
+// off without uninstalling it (the same convention Prism Launcher and most
+// other launchers use).
+export function listInstalledMods(instanceId: string): InstalledMod[] {
   const modsDir = join(getInstanceRoot(instanceId), 'mods')
   if (!existsSync(modsDir)) return []
-  return readdirSync(modsDir).filter((f) => f.toLowerCase().endsWith('.jar'))
+  return readdirSync(modsDir)
+    .filter((f) => f.toLowerCase().endsWith('.jar') || f.toLowerCase().endsWith(`.jar${DISABLED_SUFFIX}`))
+    .map((f) => ({ filename: f, enabled: !f.endsWith(DISABLED_SUFFIX) }))
+}
+
+export function toggleModEnabled(instanceId: string, filename: string): void {
+  assertSafeFilename(filename)
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  const from = join(modsDir, filename)
+  if (!existsSync(from)) throw new Error('Mod-Datei nicht gefunden.')
+  const to = filename.endsWith(DISABLED_SUFFIX)
+    ? join(modsDir, filename.slice(0, -DISABLED_SUFFIX.length))
+    : join(modsDir, `${filename}${DISABLED_SUFFIX}`)
+  renameSync(from, to)
 }
 
 export function removeMod(instanceId: string, filename: string): void {
@@ -179,6 +209,65 @@ export function copyMods(sourceInstanceId: string, targetInstanceId: string, fil
   }
 }
 
+async function lookupProjectIdByFileHash(sha1: string): Promise<string | null> {
+  const res = await fetch(`${MODRINTH_API}/version_file/${sha1}?algorithm=sha1`)
+  if (!res.ok) return null
+  const v = (await res.json()) as { project_id: string }
+  return v.project_id
+}
+
+// Used when changing an instance's Minecraft version/loader: each
+// currently-installed (enabled) mod jar is identified by its file hash via
+// Modrinth's file-lookup endpoint (the only reliable way to map an
+// arbitrary jar back to a project - mods can be installed via search,
+// curated list, Prism import, or manual copy, none of which necessarily
+// recorded a project id), then re-resolved against the new version/loader.
+// Mods Modrinth doesn't recognize at all, or that have no build for the
+// new version/loader, are reported back rather than silently dropped.
+export async function migrateMods(
+  instanceId: string,
+  mcVersion: string,
+  loader: string
+): Promise<ModMigrationResult> {
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  const mods = listInstalledMods(instanceId).filter((m) => m.enabled)
+  const migrated: ModMigrationResult['migrated'] = []
+  const failed: ModMigrationResult['failed'] = []
+
+  for (const mod of mods) {
+    const filePath = join(modsDir, mod.filename)
+    let title: string | null = null
+    try {
+      const sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
+      const projectId = await lookupProjectIdByFileHash(sha1)
+      if (!projectId) {
+        failed.push({ oldFilename: mod.filename, title: null, reason: 'Nicht auf Modrinth gefunden.' })
+        continue
+      }
+      title = (await getProjectInfo(projectId).catch(() => null))?.title ?? projectId
+
+      const versions = await listModVersions(projectId, mcVersion, loader)
+      const best = versions[0]
+      if (!best) {
+        failed.push({
+          oldFilename: mod.filename,
+          title,
+          reason: `Keine Version für ${mcVersion} (${loader}) verfügbar.`
+        })
+        continue
+      }
+
+      await installMod(instanceId, { url: best.url, filename: best.filename })
+      if (best.filename !== mod.filename) rmSync(filePath, { force: true })
+      migrated.push({ oldFilename: mod.filename, newFilename: best.filename, title })
+    } catch (err) {
+      failed.push({ oldFilename: mod.filename, title, reason: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
+  return { migrated, failed }
+}
+
 export function registerModHandlers(): void {
   ipcMain.handle('mods:search', (_event, query: string, mcVersion: string, loader: string) =>
     searchMods(query, mcVersion, loader)
@@ -198,9 +287,15 @@ export function registerModHandlers(): void {
   ipcMain.handle('mods:remove', (_event, instanceId: string, filename: string) =>
     removeMod(instanceId, filename)
   )
+  ipcMain.handle('mods:toggleEnabled', (_event, instanceId: string, filename: string) =>
+    toggleModEnabled(instanceId, filename)
+  )
   ipcMain.handle(
     'mods:copyTo',
     (_event, sourceInstanceId: string, targetInstanceId: string, filenames: string[]) =>
       copyMods(sourceInstanceId, targetInstanceId, filenames)
+  )
+  ipcMain.handle('mods:migrate', (_event, instanceId: string, mcVersion: string, loader: string) =>
+    migrateMods(instanceId, mcVersion, loader)
   )
 }

@@ -2,10 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
-import InstanceSettingsDialog from './InstanceSettingsDialog'
-import ModBrowserDialog from './ModBrowserDialog'
+import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import PrismImportDialog from './PrismImportDialog'
-import type { Instance, InstanceSettingsPatch, LoaderType } from './types'
+import type { Instance, LoaderType } from './types'
 
 interface Profile {
   name: string
@@ -29,8 +28,7 @@ function App(): React.JSX.Element {
   const [launches, setLaunches] = useState<Record<string, LaunchSession>>({})
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [settingsInstanceId, setSettingsInstanceId] = useState<string | null>(null)
-  const [modsInstanceId, setModsInstanceId] = useState<string | null>(null)
+  const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [showPrismImport, setShowPrismImport] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -110,11 +108,27 @@ function App(): React.JSX.Element {
     name: string,
     mcVersion: string,
     loader: LoaderType,
-    loaderVersion?: string
+    loaderVersion: string | undefined,
+    installRecommendedMods: boolean
   ): Promise<void> {
-    await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
+    const instance = await window.api.createInstance({ name, mcVersion, loader, loaderVersion })
     setShowCreate(false)
     refreshInstances()
+
+    if (installRecommendedMods) {
+      // Best-effort: a curated mod failing to install shouldn't block the
+      // instance the user just successfully created from showing up.
+      try {
+        const curated = await window.api.listCuratedMods(mcVersion, loader)
+        for (const mod of curated.filter((m) => m.compatible)) {
+          const versions = await window.api.listModVersions(mod.projectId, mcVersion, loader)
+          const best = versions[0]
+          if (best) await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      }
+    }
   }
 
   async function handleCloneAsVersion(
@@ -138,12 +152,6 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
-  async function handleSaveSettings(id: string, patch: InstanceSettingsPatch): Promise<void> {
-    await window.api.updateInstanceSettings(id, patch)
-    setSettingsInstanceId(null)
-    refreshInstances()
-  }
-
   async function handleDelete(id: string): Promise<void> {
     const instance = instances.find((i) => i.id === id)
     const label = instance ? instance.name : 'diese Instanz'
@@ -159,8 +167,7 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
-  const settingsInstance = instances.find((i) => i.id === settingsInstanceId) ?? null
-  const modsInstance = instances.find((i) => i.id === modsInstanceId) ?? null
+  const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
   const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
   const runningEntries = Object.entries(launches)
   const selectedLaunch = selectedInstanceId ? launches[selectedInstanceId] : undefined
@@ -198,8 +205,7 @@ function App(): React.JSX.Element {
             onClone={handleClone}
             onCloneAsVersion={setCloneAsVersionInstanceId}
             onDelete={handleDelete}
-            onOpenSettings={setSettingsInstanceId}
-            onOpenMods={setModsInstanceId}
+            onManage={setDetailInstanceId}
           />
         ))}
 
@@ -220,19 +226,12 @@ function App(): React.JSX.Element {
         <PrismImportDialog onCancel={() => setShowPrismImport(false)} onImported={refreshInstances} />
       )}
 
-      {settingsInstance && (
-        <InstanceSettingsDialog
-          instance={settingsInstance}
-          onCancel={() => setSettingsInstanceId(null)}
-          onSave={handleSaveSettings}
-        />
-      )}
-
-      {modsInstance && (
-        <ModBrowserDialog
-          instance={modsInstance}
+      {detailInstance && (
+        <InstanceDetailPanel
+          instance={detailInstance}
           allInstances={instances}
-          onClose={() => setModsInstanceId(null)}
+          onClose={() => setDetailInstanceId(null)}
+          onInstanceChanged={refreshInstances}
         />
       )}
 

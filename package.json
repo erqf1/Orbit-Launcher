@@ -19,6 +19,7 @@
     "graceful-fs": "^4.2.11",
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5",
+    "prismarine-nbt": "^2.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

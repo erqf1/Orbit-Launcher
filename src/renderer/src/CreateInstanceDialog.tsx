@@ -8,7 +8,8 @@ interface Props {
     name: string,
     mcVersion: string,
     loader: LoaderType,
-    loaderVersion?: string
+    loaderVersion: string | undefined,
+    installRecommendedMods: boolean
   ) => Promise<void>
 }
 
@@ -17,6 +18,7 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
   const [mcVersion, setMcVersion] = useState('')
   const [loader, setLoader] = useState<LoaderType>('vanilla')
   const [loaderVersion, setLoaderVersion] = useState('')
+  const [installRecommendedMods, setInstallRecommendedMods] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -27,7 +29,13 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
     setError(null)
     setSubmitting(true)
     try {
-      await onCreate(name.trim(), mcVersion, loader, loader === 'vanilla' ? undefined : loaderVersion)
+      await onCreate(
+        name.trim(),
+        mcVersion,
+        loader,
+        loader === 'vanilla' ? undefined : loaderVersion,
+        loader !== 'vanilla' && installRecommendedMods
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -57,6 +65,17 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
           onLoaderVersionChange={setLoaderVersion}
           onError={setError}
         />
+
+        {loader !== 'vanilla' && (
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={installRecommendedMods}
+              onChange={(e) => setInstallRecommendedMods(e.target.checked)}
+            />
+            Empfohlene Mods installieren (Performance + Komfort)
+          </label>
+        )}
 
         {error && <p className="error">{error}</p>}
 

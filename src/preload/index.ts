@@ -53,6 +53,7 @@ export interface Instance {
   fullscreen: boolean
   closeOnLaunch: boolean
   autoJoinServer: string | null
+  notes: string
   createdAt: string
   lastPlayed: string | null
 }
@@ -68,6 +69,7 @@ export interface InstanceSettingsPatch {
   fullscreen?: boolean
   closeOnLaunch?: boolean
   autoJoinServer?: string | null
+  notes?: string
 }
 
 export interface CloneAsVersionInput {
@@ -121,6 +123,16 @@ export interface ModFileRef {
   filename: string
 }
 
+export interface InstalledMod {
+  filename: string
+  enabled: boolean
+}
+
+export interface ModMigrationResult {
+  migrated: Array<{ oldFilename: string; newFilename: string; title: string }>
+  failed: Array<{ oldFilename: string; title: string | null; reason: string }>
+}
+
 export interface CuratedMod extends ModSearchResult {
   category: string
   compatible: boolean
@@ -133,6 +145,31 @@ export interface PrismInstanceSummary {
   loader: LoaderType | 'unsupported'
   loaderVersion: string | null
   unsupportedReason: string | null
+}
+
+export interface ContentFileEntry {
+  name: string
+  size: number
+  modifiedAt: string
+  isDirectory: boolean
+}
+
+export interface WorldEntry {
+  folderName: string
+  sizeBytes: number
+  lastPlayed: string
+}
+
+export interface ServerEntry {
+  name: string
+  ip: string
+}
+
+export interface LogFileEntry {
+  folder: 'logs' | 'crash-reports'
+  name: string
+  sizeBytes: number
+  modifiedAt: string
 }
 
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -156,8 +193,11 @@ const api = {
   cloneInstance: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clone', id),
   cloneInstanceAsVersion: (id: string, input: CloneAsVersionInput): Promise<Instance> =>
     ipcRenderer.invoke('instances:cloneAsVersion', id, input),
+  changeInstanceVersion: (id: string, input: CloneAsVersionInput): Promise<Instance> =>
+    ipcRenderer.invoke('instances:changeVersion', id, input),
   updateInstanceSettings: (id: string, patch: InstanceSettingsPatch): Promise<Instance> =>
     ipcRenderer.invoke('instances:updateSettings', id, patch),
+  openInstanceFolder: (id: string): Promise<void> => ipcRenderer.invoke('instances:openFolder', id),
 
   detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
 
@@ -173,11 +213,15 @@ const api = {
     ipcRenderer.invoke('mods:versions', projectId, mcVersion, loader),
   installMod: (instanceId: string, file: ModFileRef): Promise<void> =>
     ipcRenderer.invoke('mods:install', instanceId, file),
-  listMods: (instanceId: string): Promise<string[]> => ipcRenderer.invoke('mods:list', instanceId),
+  listMods: (instanceId: string): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:list', instanceId),
   removeMod: (instanceId: string, filename: string): Promise<void> =>
     ipcRenderer.invoke('mods:remove', instanceId, filename),
+  toggleModEnabled: (instanceId: string, filename: string): Promise<void> =>
+    ipcRenderer.invoke('mods:toggleEnabled', instanceId, filename),
   copyMods: (sourceInstanceId: string, targetInstanceId: string, filenames: string[]): Promise<void> =>
     ipcRenderer.invoke('mods:copyTo', sourceInstanceId, targetInstanceId, filenames),
+  migrateMods: (instanceId: string, mcVersion: string, loader: string): Promise<ModMigrationResult> =>
+    ipcRenderer.invoke('mods:migrate', instanceId, mcVersion, loader),
   getModDependencies: (
     projectId: string,
     mcVersion: string,
@@ -191,6 +235,34 @@ const api = {
   importPrismInstance: (rootOverride: string | undefined, folderName: string): Promise<Instance> =>
     ipcRenderer.invoke('prism:import', rootOverride, folderName),
   browsePrismFolder: (): Promise<string | null> => ipcRenderer.invoke('prism:browseFolder'),
+
+  listContentFiles: (instanceId: string, subfolder: string): Promise<ContentFileEntry[]> =>
+    ipcRenderer.invoke('content:list', instanceId, subfolder),
+  removeContentFile: (instanceId: string, subfolder: string, name: string): Promise<void> =>
+    ipcRenderer.invoke('content:remove', instanceId, subfolder, name),
+  renameContentFile: (instanceId: string, subfolder: string, oldName: string, newName: string): Promise<void> =>
+    ipcRenderer.invoke('content:rename', instanceId, subfolder, oldName, newName),
+  addContentFiles: (instanceId: string, subfolder: string): Promise<number> =>
+    ipcRenderer.invoke('content:add', instanceId, subfolder),
+  openContentFolder: (instanceId: string, subfolder: string): Promise<void> =>
+    ipcRenderer.invoke('content:openFolder', instanceId, subfolder),
+
+  listWorlds: (instanceId: string): Promise<WorldEntry[]> => ipcRenderer.invoke('worlds:list', instanceId),
+  renameWorld: (instanceId: string, oldName: string, newName: string): Promise<void> =>
+    ipcRenderer.invoke('worlds:rename', instanceId, oldName, newName),
+  deleteWorld: (instanceId: string, name: string): Promise<void> =>
+    ipcRenderer.invoke('worlds:delete', instanceId, name),
+  openWorldsFolder: (instanceId: string): Promise<void> => ipcRenderer.invoke('worlds:openFolder', instanceId),
+
+  listServers: (instanceId: string): Promise<ServerEntry[]> => ipcRenderer.invoke('servers:list', instanceId),
+  addServer: (instanceId: string, name: string, ip: string): Promise<void> =>
+    ipcRenderer.invoke('servers:add', instanceId, name, ip),
+  removeServer: (instanceId: string, index: number): Promise<void> =>
+    ipcRenderer.invoke('servers:remove', instanceId, index),
+
+  listLogFiles: (instanceId: string): Promise<LogFileEntry[]> => ipcRenderer.invoke('logs:list', instanceId),
+  readLogFile: (instanceId: string, folder: string, name: string): Promise<string> =>
+    ipcRenderer.invoke('logs:read', instanceId, folder, name),
 
   onLog: (callback: (event: LaunchLogEvent) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>

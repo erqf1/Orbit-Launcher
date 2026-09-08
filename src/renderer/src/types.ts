@@ -22,6 +22,7 @@ export interface Instance {
   fullscreen: boolean
   closeOnLaunch: boolean
   autoJoinServer: string | null
+  notes: string
   createdAt: string
   lastPlayed: string | null
 }
@@ -37,6 +38,7 @@ export interface InstanceSettingsPatch {
   fullscreen?: boolean
   closeOnLaunch?: boolean
   autoJoinServer?: string | null
+  notes?: string
 }
 
 export interface CloneAsVersionInput {
@@ -102,4 +104,39 @@ export interface PrismInstanceSummary {
   loader: LoaderType | 'unsupported'
   loaderVersion: string | null
   unsupportedReason: string | null
+}
+
+export interface InstalledMod {
+  filename: string
+  enabled: boolean
+}
+
+export interface ModMigrationResult {
+  migrated: Array<{ oldFilename: string; newFilename: string; title: string }>
+  failed: Array<{ oldFilename: string; title: string | null; reason: string }>
+}
+
+export interface ContentFileEntry {
+  name: string
+  size: number
+  modifiedAt: string
+  isDirectory: boolean
+}
+
+export interface WorldEntry {
+  folderName: string
+  sizeBytes: number
+  lastPlayed: string
+}
+
+export interface ServerEntry {
+  name: string
+  ip: string
+}
+
+export interface LogFileEntry {
+  folder: 'logs' | 'crash-reports'
+  name: string
+  sizeBytes: number
+  modifiedAt: string
 }

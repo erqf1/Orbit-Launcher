@@ -11,6 +11,10 @@ import { registerJavaHandlers } from './java/javaManager'
 import { registerModHandlers } from './mods/modrinth'
 import { registerCuratedModHandlers } from './mods/curated'
 import { registerPrismImportHandlers } from './importers/prismImport'
+import { registerContentFolderHandlers } from './instances/contentFolders'
+import { registerWorldHandlers } from './instances/worlds'
+import { registerServerHandlers } from './instances/servers'
+import { registerLogHandlers } from './instances/logs'
 
 // `require`, not `import * as fs from 'fs'`: the latter produced a
 // read-only ESM namespace object under esbuild's interop, which is what
@@ -90,6 +94,10 @@ app.whenReady().then(() => {
   registerModHandlers()
   registerCuratedModHandlers()
   registerPrismImportHandlers()
+  registerContentFolderHandlers()
+  registerWorldHandlers()
+  registerServerHandlers()
+  registerLogHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
