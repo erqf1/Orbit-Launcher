@@ -6,7 +6,11 @@ import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import type { Instance, LoaderType } from './types'
-import defaultBgPhoto from './assets/bg-photo-1.png'
+import bgPhoto1 from './assets/bg-photo-1.png'
+import bgPhoto2 from './assets/bg-photo-2.png'
+import bgPhoto3 from './assets/bg-photo-3.png'
+
+const DEFAULT_BACKGROUNDS = [bgPhoto1, bgPhoto2, bgPhoto3]
 
 interface Account {
   name: string
@@ -365,10 +369,10 @@ function App(): React.JSX.Element {
       .catch(() => setCustomBackgrounds([]))
   }, [])
 
-  // Bundled default photo is always background 0; any PNGs the user adds
-  // via the switcher's "+" get appended after it, so the arrows work over
-  // a list that isn't limited to hardcoded assets.
-  const backgrounds = [defaultBgPhoto, ...customBackgrounds]
+  // Bundled default photos always come first; any PNGs the user adds via
+  // the switcher's "+" get appended after them, so the arrows work over a
+  // list that isn't limited to hardcoded assets.
+  const backgrounds = [...DEFAULT_BACKGROUNDS, ...customBackgrounds]
 
   function setBgIndex(index: number): void {
     const wrapped = (index + backgrounds.length) % backgrounds.length
@@ -383,12 +387,12 @@ function App(): React.JSX.Element {
   async function handleAddBackground(): Promise<void> {
     const updated = await window.api.addCustomBackground()
     setCustomBackgrounds(updated)
-    setBgIndex(updated.length)
+    setBgIndex(DEFAULT_BACKGROUNDS.length + updated.length - 1)
   }
 
   async function handleRemoveCurrentBackground(): Promise<void> {
-    if (bgIndex === 0) return
-    const updated = await window.api.removeCustomBackground(bgIndex - 1)
+    if (bgIndex < DEFAULT_BACKGROUNDS.length) return
+    const updated = await window.api.removeCustomBackground(bgIndex - DEFAULT_BACKGROUNDS.length)
     setCustomBackgrounds(updated)
     setBgIndex(0)
   }
@@ -396,7 +400,7 @@ function App(): React.JSX.Element {
   // --bg-photo is read by body's background-image in App.css - set here
   // instead of a static CSS url() so the arrows can switch it live.
   useEffect(() => {
-    const list = [defaultBgPhoto, ...customBackgrounds]
+    const list = [...DEFAULT_BACKGROUNDS, ...customBackgrounds]
     const clamped = ((bgIndex % list.length) + list.length) % list.length
     document.documentElement.style.setProperty('--bg-photo', `url(${list[clamped]})`)
   }, [bgIndex, customBackgrounds])
@@ -718,7 +722,7 @@ function App(): React.JSX.Element {
         <button type="button" className="bg-switcher-arrow" onClick={handleAddBackground} title="Eigenes Bild hinzufügen">
           +
         </button>
-        {bgIndex > 0 && (
+        {bgIndex >= DEFAULT_BACKGROUNDS.length && (
           <button
             type="button"
             className="bg-switcher-arrow"
