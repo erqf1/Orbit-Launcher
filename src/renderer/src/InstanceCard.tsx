@@ -77,15 +77,23 @@ function InstanceCard(props: Props): React.JSX.Element {
     onIconChanged()
   }
 
+  async function handleCreateShortcut(): Promise<void> {
+    try {
+      await window.api.createInstanceShortcut(instance.id)
+      window.alert(`Verknüpfung für "${instance.name}" auf dem Desktop erstellt.`)
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   return (
     <div className="instance-card">
-      {isLaunching && <span className="running-badge">läuft</span>}
-
-      <div className={`instance-card-art loader-${instance.loader}`}>
+      <div className={`instance-cover loader-${instance.loader}`}>
+        {isLaunching && <span className="running-pill">läuft</span>}
         {iconUrl ? (
-          <img src={iconUrl} alt="" />
+          <img className="instance-cover-icon" src={iconUrl} alt="" />
         ) : (
-          <span className="instance-card-art-fallback">{instance.name.charAt(0).toUpperCase()}</span>
+          <span className="instance-cover-glyph">{instance.name.charAt(0).toUpperCase()}</span>
         )}
       </div>
 
@@ -117,6 +125,7 @@ function InstanceCard(props: Props): React.JSX.Element {
               ...(instance.iconFilename
                 ? [{ label: 'Icon entfernen', onClick: handleClearIcon }]
                 : []),
+              { label: 'Desktop-Verknüpfung erstellen', onClick: handleCreateShortcut },
               { label: 'Duplizieren', onClick: () => onClone(instance.id) },
               { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
               { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
@@ -125,11 +134,9 @@ function InstanceCard(props: Props): React.JSX.Element {
         </div>
 
         <div className="instance-tags">
-          <span className="instance-version-pill">{instance.mcVersion}</span>
+          <span className="pill pill-version">{instance.mcVersion}</span>
           {instance.loader !== 'vanilla' && (
-            <span className={`instance-loader-pill loader-${instance.loader}`}>
-              {LOADER_LABELS[instance.loader]}
-            </span>
+            <span className={`pill pill-${instance.loader}`}>{LOADER_LABELS[instance.loader]}</span>
           )}
         </div>
 

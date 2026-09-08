@@ -142,98 +142,107 @@ function SettingsTab({
 
   return (
     <div className="detail-tab">
-      <label>
-        Java
-        {loadingJava ? (
-          <p>Suche Java-Installationen…</p>
-        ) : (
-          <select value={javaPath} onChange={(e) => setJavaPath(e.target.value)}>
-            <option value="">System-Standard (java)</option>
-            {javaOptions.map((j) => (
-              <option key={j.path} value={j.path}>
-                {j.version} — {j.path}
-              </option>
-            ))}
-          </select>
+      <section className="settings-section">
+        <h4 className="settings-section-title">Java &amp; Speicher</h4>
+        <label>
+          Java
+          {loadingJava ? (
+            <p className="instance-meta">Suche Java-Installationen…</p>
+          ) : (
+            <select value={javaPath} onChange={(e) => setJavaPath(e.target.value)}>
+              <option value="">System-Standard (java)</option>
+              {javaOptions.map((j) => (
+                <option key={j.path} value={j.path}>
+                  {j.version} — {j.path}
+                </option>
+              ))}
+            </select>
+          )}
+        </label>
+
+        <div className="field-row">
+          <label>
+            Min. Speicher
+            <input value={memoryMin} onChange={(e) => setMemoryMin(e.target.value)} placeholder="2G" />
+          </label>
+          <label>
+            Max. Speicher
+            <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
+          </label>
+        </div>
+
+        {!memoryValid && (
+          <p className="error">
+            Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
+            überschreiten.
+          </p>
         )}
-      </label>
+      </section>
 
-      <div className="field-row">
+      <section className="settings-section">
+        <h4 className="settings-section-title">Erweitert</h4>
         <label>
-          Min. Speicher
-          <input value={memoryMin} onChange={(e) => setMemoryMin(e.target.value)} placeholder="2G" />
+          Zusätzliche Java-Argumente
+          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
         </label>
+
         <label>
-          Max. Speicher
-          <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
+          Zusätzliche Spiel-Argumente
+          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
         </label>
-      </div>
 
-      {!memoryValid && (
-        <p className="error">
-          Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
-          überschreiten.
-        </p>
-      )}
-
-      <label>
-        Zusätzliche Java-Argumente
-        <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
-      </label>
-
-      <label>
-        Zusätzliche Spiel-Argumente
-        <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
-      </label>
-
-      <label>
-        Server automatisch beitreten
-        <input
-          value={autoJoinServer}
-          onChange={(e) => setAutoJoinServer(e.target.value)}
-          placeholder="host:port (optional)"
-        />
-      </label>
-
-      <div className="field-row">
         <label>
-          Fensterbreite
+          Server automatisch beitreten
           <input
-            type="number"
-            value={windowWidth}
-            onChange={(e) => setWindowWidth(e.target.value)}
-            placeholder="Standard"
-            disabled={fullscreen}
+            value={autoJoinServer}
+            onChange={(e) => setAutoJoinServer(e.target.value)}
+            placeholder="host:port (optional)"
           />
         </label>
-        <label>
-          Fensterhöhe
-          <input
-            type="number"
-            value={windowHeight}
-            onChange={(e) => setWindowHeight(e.target.value)}
-            placeholder="Standard"
-            disabled={fullscreen}
-          />
+      </section>
+
+      <section className="settings-section">
+        <h4 className="settings-section-title">Fenster</h4>
+        <div className="field-row">
+          <label>
+            Fensterbreite
+            <input
+              type="number"
+              value={windowWidth}
+              onChange={(e) => setWindowWidth(e.target.value)}
+              placeholder="Standard"
+              disabled={fullscreen}
+            />
+          </label>
+          <label>
+            Fensterhöhe
+            <input
+              type="number"
+              value={windowHeight}
+              onChange={(e) => setWindowHeight(e.target.value)}
+              placeholder="Standard"
+              disabled={fullscreen}
+            />
+          </label>
+        </div>
+
+        <label className="checkbox-label">
+          <input type="checkbox" checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)} />
+          Vollbild starten
         </label>
-      </div>
 
-      <label className="checkbox-label">
-        <input type="checkbox" checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)} />
-        Vollbild starten
-      </label>
-
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={closeOnLaunch}
-          onChange={(e) => setCloseOnLaunch(e.target.checked)}
-        />
-        Launcher-Fenster ausblenden, während diese Instanz läuft
-      </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={closeOnLaunch}
+            onChange={(e) => setCloseOnLaunch(e.target.checked)}
+          />
+          Launcher-Fenster ausblenden, während diese Instanz läuft
+        </label>
+      </section>
 
       <div className="modal-actions">
-        <button type="button" onClick={handleSave} disabled={!memoryValid}>
+        <button type="button" className="save-button" onClick={handleSave} disabled={!memoryValid}>
           Speichern
         </button>
         {saved && <span className="instance-meta">Gespeichert.</span>}

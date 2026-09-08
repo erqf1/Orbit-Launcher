@@ -28,7 +28,27 @@ export const CURATED_MODS: CuratedModEntry[] = [
   { slug: 'appleskin', category: 'Komfort' },
   { slug: 'no-realms-button', category: 'Komfort' },
   { slug: 'complete-shield-fixes', category: 'Fixes' },
-  { slug: 'capes', category: 'Kosmetik' }
+  { slug: 'capes', category: 'Kosmetik' },
+  { slug: 'krypton', category: 'Performance' },
+  { slug: 'immediatelyfast', category: 'Performance' },
+  { slug: 'dynamic-fps', category: 'Performance' },
+  { slug: 'clumps', category: 'Performance' },
+  { slug: 'moreculling', category: 'Performance' },
+  { slug: 'spark', category: 'Performance' },
+  { slug: 'konkrete', category: 'Komfort' },
+  { slug: 'chat-heads', category: 'Kosmetik' },
+  { slug: 'morechathistory', category: 'Komfort' },
+  { slug: 'dcch', category: 'Komfort' },
+  { slug: 'better-ping-display-fabric', category: 'Komfort' },
+  { slug: 'fast-ip-ping', category: 'Komfort' },
+  { slug: 'better-advancements', category: 'Komfort' },
+  { slug: 'better-mount-hud', category: 'Komfort' },
+  { slug: 'ukus-armor-hud', category: 'Komfort' },
+  { slug: 'shulkerboxtooltip', category: 'Komfort' },
+  { slug: 'simple-voice-chat', category: 'Komfort' },
+  { slug: 'cubes-without-borders', category: 'Kosmetik' },
+  { slug: 'armor-trim-item-fix', category: 'Fixes' },
+  { slug: 'no-gaps-in-yo-items', category: 'Fixes' }
 ]
 
 export interface CuratedMod extends ModSearchResult {

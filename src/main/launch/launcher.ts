@@ -13,7 +13,25 @@ import { getInstance, getInstanceRoot, markLaunched } from '../instances/instanc
 const activeInstanceIds = new Set<string>()
 const hideRequesters = new Set<string>()
 
+// Set from a `--launch-instance=<id>` argv flag (added by desktop shortcuts,
+// see instanceManager's createDesktopShortcut) and consumed once by the
+// renderer after it restores auth on startup, so a shortcut-triggered launch
+// goes through the exact same play flow as clicking "Play" instead of a
+// separate main-process launch path.
+let pendingLaunchInstanceId: string | null = null
+
+export function setPendingLaunchInstanceIdFromArgv(argv: string[]): void {
+  const flag = argv.find((arg) => arg.startsWith('--launch-instance='))
+  if (flag) pendingLaunchInstanceId = flag.slice('--launch-instance='.length)
+}
+
 export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
+  ipcMain.handle('launch:consumePendingInstanceId', () => {
+    const id = pendingLaunchInstanceId
+    pendingLaunchInstanceId = null
+    return id
+  })
+
   ipcMain.handle('launch:start', async (_event, instanceId: string) => {
     const authorization = getMclcAuthorization()
     if (!authorization) {

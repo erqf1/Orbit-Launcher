@@ -12,6 +12,15 @@ interface Account {
   id: string
 }
 
+const LOADER_LABELS: Record<LoaderType, string> = {
+  vanilla: 'Vanilla',
+  fabric: 'Fabric',
+  quilt: 'Quilt',
+  legacyfabric: 'Legacy Fabric',
+  forge: 'Forge',
+  neoforge: 'NeoForge'
+}
+
 // Keyed by instanceId, not launchId: the backend guarantees at most one
 // active launch per instance (different instances may run concurrently,
 // the same one can't be started twice), so instanceId is already a unique
@@ -34,6 +43,7 @@ function App(): React.JSX.Element {
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [showPrismImport, setShowPrismImport] = useState(false)
+  const [loaderFilter, setLoaderFilter] = useState<LoaderType | 'all'>('all')
   const [error, setError] = useState<string | null>(null)
   const [showCat, setShowCat] = useState(false)
   const brandClicksRef = useRef(0)
@@ -64,6 +74,13 @@ function App(): React.JSX.Element {
     window.api.currentAccount().then((result) => {
       setAccounts(result.accounts)
       if (result.profile) setActiveAccountId(result.profile.id)
+      // A desktop shortcut re-launches the whole app with a pending instance
+      // id (see createDesktopShortcut/setPendingLaunchInstanceIdFromArgv) -
+      // only consumed once auth is known, so this doesn't race the login
+      // restore and immediately fail with "not logged in".
+      window.api.consumePendingLaunchInstanceId().then((pendingId) => {
+        if (pendingId) handlePlay(pendingId)
+      })
     })
   }, [refreshInstances])
 
@@ -220,59 +237,139 @@ function App(): React.JSX.Element {
   const runningEntries = Object.entries(launches)
   const selectedLaunch = selectedInstanceId ? launches[selectedInstanceId] : undefined
 
+  const loaderCounts = instances.reduce<Partial<Record<LoaderType, number>>>((acc, i) => {
+    acc[i.loader] = (acc[i.loader] ?? 0) + 1
+    return acc
+  }, {})
+  const presentLoaders = (Object.keys(loaderCounts) as LoaderType[]).filter((l) => l !== 'vanilla')
+  const visibleInstances =
+    loaderFilter === 'all' ? instances : instances.filter((i) => i.loader === loaderFilter)
+
   return (
-    <div className="app">
-      <header className="app-header">
+    <div className="app-shell">
+      <aside className="main-sidebar">
         <div className="brand">
           <span className="brand-mark" onClick={handleBrandClick}>
             E
           </span>
           <h1>Erqf Launcher</h1>
         </div>
-        {accounts.length === 0 ? (
-          <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
-            {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
+
+        <nav>
+          <button
+            type="button"
+            className={`main-nav-item${loaderFilter === 'all' ? ' active' : ''}`}
+            onClick={() => setLoaderFilter('all')}
+          >
+            Alle Instanzen
+            <span className="main-nav-count">{instances.length}</span>
           </button>
-        ) : (
-          <AccountSwitcher
-            activeId={activeAccountId}
-            accounts={accounts}
-            onSwitch={handleSwitchAccount}
-            onRemove={handleRemoveAccount}
-            onAddAccount={handleLogin}
-            busy={switchingAccount || loggingIn}
-          />
+          {loaderCounts.vanilla !== undefined && (
+            <button
+              type="button"
+              className={`main-nav-item${loaderFilter === 'vanilla' ? ' active' : ''}`}
+              onClick={() => setLoaderFilter('vanilla')}
+            >
+              <span className="main-nav-dot loader-vanilla" />
+              Vanilla
+              <span className="main-nav-count">{loaderCounts.vanilla}</span>
+            </button>
+          )}
+          {presentLoaders.map((loader) => (
+            <button
+              key={loader}
+              type="button"
+              className={`main-nav-item${loaderFilter === loader ? ' active' : ''}`}
+              onClick={() => setLoaderFilter(loader)}
+            >
+              <span className={`main-nav-dot loader-${loader}`} />
+              {LOADER_LABELS[loader]}
+              <span className="main-nav-count">{loaderCounts[loader]}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="main-sidebar-footer">
+          <button type="button" onClick={() => setShowPrismImport(true)}>
+            Von Prism Launcher importieren…
+          </button>
+          {accounts.length === 0 ? (
+            <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
+              {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
+            </button>
+          ) : (
+            <AccountSwitcher
+              activeId={activeAccountId}
+              accounts={accounts}
+              onSwitch={handleSwitchAccount}
+              onRemove={handleRemoveAccount}
+              onAddAccount={handleLogin}
+              busy={switchingAccount || loggingIn}
+            />
+          )}
+        </div>
+      </aside>
+
+      <div className="app-main">
+        <div className="app-main-header">
+          <h2>{loaderFilter === 'all' ? 'Instanzen' : LOADER_LABELS[loaderFilter]}</h2>
+        </div>
+
+        {error && <p className="error">{error}</p>}
+
+        <div className="instance-grid">
+          {visibleInstances.map((instance) => (
+            <InstanceCard
+              key={instance.id}
+              instance={instance}
+              isLaunching={launches[instance.id] !== undefined && !launches[instance.id].closed}
+              playDisabled={!activeAccountId || (launches[instance.id]?.closed === false)}
+              manageDisabled={launches[instance.id] !== undefined && !launches[instance.id].closed}
+              onPlay={handlePlay}
+              onRename={handleRename}
+              onClone={handleClone}
+              onCloneAsVersion={setCloneAsVersionInstanceId}
+              onDelete={handleDelete}
+              onManage={setDetailInstanceId}
+              onIconChanged={refreshInstances}
+            />
+          ))}
+
+          <button className="instance-card new-instance-card" onClick={() => setShowCreate(true)}>
+            + Neue Instanz
+          </button>
+        </div>
+
+        {runningEntries.length > 0 && (
+          <div className="launch-panel">
+            <div className="launch-tabs">
+              {runningEntries.map(([instanceId, session]) => {
+                const instanceName = instances.find((i) => i.id === instanceId)?.name ?? instanceId
+                return (
+                  <button
+                    key={instanceId}
+                    className={`launch-tab${instanceId === selectedInstanceId ? ' active' : ''}`}
+                    onClick={() => setSelectedInstanceId(instanceId)}
+                  >
+                    {instanceName}
+                    {session.closed ? ` (beendet: ${session.exitCode})` : ' (läuft)'}
+                    <span
+                      className="launch-tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        dismissLaunch(instanceId)
+                      }}
+                    >
+                      ×
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
+          </div>
         )}
-      </header>
-
-      {error && <p className="error">{error}</p>}
-
-      <div className="instance-grid">
-        {instances.map((instance) => (
-          <InstanceCard
-            key={instance.id}
-            instance={instance}
-            isLaunching={launches[instance.id] !== undefined && !launches[instance.id].closed}
-            playDisabled={!activeAccountId || (launches[instance.id]?.closed === false)}
-            manageDisabled={launches[instance.id] !== undefined && !launches[instance.id].closed}
-            onPlay={handlePlay}
-            onRename={handleRename}
-            onClone={handleClone}
-            onCloneAsVersion={setCloneAsVersionInstanceId}
-            onDelete={handleDelete}
-            onManage={setDetailInstanceId}
-            onIconChanged={refreshInstances}
-          />
-        ))}
-
-        <button className="instance-card new-instance-card" onClick={() => setShowCreate(true)}>
-          + Neue Instanz
-        </button>
       </div>
-
-      <button className="import-button" onClick={() => setShowPrismImport(true)}>
-        Von Prism Launcher importieren…
-      </button>
 
       {showCreate && (
         <CreateInstanceDialog onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
@@ -297,36 +394,6 @@ function App(): React.JSX.Element {
           onCancel={() => setCloneAsVersionInstanceId(null)}
           onClone={handleCloneAsVersion}
         />
-      )}
-
-      {runningEntries.length > 0 && (
-        <div className="launch-panel">
-          <div className="launch-tabs">
-            {runningEntries.map(([instanceId, session]) => {
-              const instanceName = instances.find((i) => i.id === instanceId)?.name ?? instanceId
-              return (
-                <button
-                  key={instanceId}
-                  className={`launch-tab${instanceId === selectedInstanceId ? ' active' : ''}`}
-                  onClick={() => setSelectedInstanceId(instanceId)}
-                >
-                  {instanceName}
-                  {session.closed ? ` (beendet: ${session.exitCode})` : ' (läuft)'}
-                  <span
-                    className="launch-tab-close"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      dismissLaunch(instanceId)
-                    }}
-                  >
-                    ×
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
-        </div>
       )}
 
       {showCat && (

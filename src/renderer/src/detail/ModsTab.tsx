@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import ModBrowserDialog from './ModBrowserDialog'
 import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult } from '../types'
 
 interface Props {
@@ -8,10 +9,7 @@ interface Props {
 
 function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
   const [installed, setInstalled] = useState<InstalledMod[]>([])
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<ModSearchResult[]>([])
-  const [searching, setSearching] = useState(false)
-  const [installingId, setInstallingId] = useState<string | null>(null)
+  const [showModBrowser, setShowModBrowser] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [showCurated, setShowCurated] = useState(false)
@@ -46,41 +44,6 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
     await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
     if (best.requiredDependencyProjectIds.length === 0) return []
     return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader)
-  }
-
-  async function handleSearch(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    if (!query.trim()) return
-    setSearching(true)
-    setError(null)
-    try {
-      const hits = await window.api.searchMods(query, instance.mcVersion, instance.loader)
-      setResults(hits)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  async function handleInstall(projectId: string): Promise<void> {
-    setError(null)
-    setInstallingId(projectId)
-    try {
-      const deps = await installOne(projectId)
-      refreshInstalled()
-      if (deps.length > 0) {
-        const names = deps.map((d) => d.title).join(', ')
-        if (window.confirm(`Benötigt außerdem: ${names}. Jetzt mitinstallieren?`)) {
-          for (const dep of deps) await installOne(dep.projectId)
-          refreshInstalled()
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setInstallingId(null)
-    }
   }
 
   async function handleRemove(filename: string): Promise<void> {
@@ -142,6 +105,18 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
       else next.add(projectId)
       return next
     })
+  }
+
+  const selectableCurated = curated.filter(
+    (mod) => mod.compatible && !installed.some((m) => m.filename.includes(mod.slug))
+  )
+  const allCuratedSelected =
+    selectableCurated.length > 0 && selectableCurated.every((mod) => selectedCurated.has(mod.projectId))
+
+  function toggleSelectAllCurated(): void {
+    setSelectedCurated(
+      allCuratedSelected ? new Set() : new Set(selectableCurated.map((mod) => mod.projectId))
+    )
   }
 
   async function handleInstallSelected(): Promise<void> {
@@ -224,9 +199,21 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
                       checked={selectedInstalled.has(mod.filename)}
                       onChange={() => toggleInstalledSelected(mod.filename)}
                     />
-                    <span>
-                      {mod.filename.replace(/\.disabled$/, '')}
-                      {!mod.enabled && ' (deaktiviert)'}
+                    <span className="mod-row">
+                      {mod.iconUrl ? (
+                        <img className="mod-icon" src={mod.iconUrl} alt="" />
+                      ) : (
+                        <span className="mod-icon mod-icon-fallback">
+                          {(mod.title ?? mod.filename).charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="mod-name-block">
+                        <span className="mod-title">
+                          {mod.title ?? mod.filename.replace(/\.disabled$/, '')}
+                        </span>
+                        {mod.versionNumber && <span className="pill pill-version">V{mod.versionNumber}</span>}
+                        {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
+                      </span>
                     </span>
                   </label>
                   <span className="detail-row-actions">
@@ -340,6 +327,12 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
             <p className="instance-meta">Lade Empfehlungen…</p>
           ) : (
             <>
+              <div className="mod-section-header">
+                <p className="instance-meta">{selectableCurated.length} verfügbar</p>
+                <button type="button" onClick={toggleSelectAllCurated} disabled={selectableCurated.length === 0}>
+                  {allCuratedSelected ? 'Alle abwählen' : 'Alle auswählen'}
+                </button>
+              </div>
               {Object.entries(curatedByCategory).map(([category, mods]) => (
                 <div key={category} className="curated-category">
                   <h4>{category}</h4>
@@ -355,8 +348,20 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
                             }
                             onChange={() => toggleSelected(mod.projectId)}
                           />
-                          {mod.title}
-                          {!mod.compatible && ' (nicht kompatibel)'}
+                          <span className="mod-row">
+                            {mod.iconUrl ? (
+                              <img className="mod-icon" src={mod.iconUrl} alt="" />
+                            ) : (
+                              <span className="mod-icon mod-icon-fallback">{mod.title.charAt(0).toUpperCase()}</span>
+                            )}
+                            <span className="mod-name-block">
+                              <span className="mod-title">{mod.title}</span>
+                              {!mod.compatible && <span className="pill pill-disabled">Nicht kompatibel</span>}
+                              {mod.compatible && installed.some((m) => m.filename.includes(mod.slug)) && (
+                                <span className="pill pill-version">Installiert</span>
+                              )}
+                            </span>
+                          </span>
                         </label>
                       </li>
                     ))}
@@ -365,6 +370,7 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
               ))}
               <button
                 type="button"
+                className="save-button"
                 onClick={handleInstallSelected}
                 disabled={selectedCurated.size === 0 || installingBatch}
               >
@@ -375,31 +381,21 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
       </section>
 
       <section>
-        <h3>Modrinth durchsuchen</h3>
-        <form className="mod-search" onSubmit={handleSearch}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Mod-Name…" />
-          <button type="submit" disabled={searching || !query.trim()}>
-            {searching ? 'Suche…' : 'Suchen'}
-          </button>
-        </form>
-
-        <ul className="mod-list">
-          {results.map((hit) => (
-            <li key={hit.projectId}>
-              <span>{hit.title}</span>
-              <button
-                type="button"
-                onClick={() => handleInstall(hit.projectId)}
-                disabled={installingId === hit.projectId}
-              >
-                {installingId === hit.projectId ? 'Installiere…' : 'Installieren'}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <h3>Weitere Mods</h3>
+        <button type="button" onClick={() => setShowModBrowser(true)}>
+          Modrinth durchsuchen…
+        </button>
       </section>
 
       {error && <p className="error">{error}</p>}
+
+      {showModBrowser && (
+        <ModBrowserDialog
+          instance={instance}
+          onClose={() => setShowModBrowser(false)}
+          onInstalled={refreshInstalled}
+        />
+      )}
     </div>
   )
 }

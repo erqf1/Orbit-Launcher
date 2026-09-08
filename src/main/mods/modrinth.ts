@@ -32,6 +32,9 @@ export interface ModFileRef {
 export interface InstalledMod {
   filename: string
   enabled: boolean
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
 }
 
 export interface ModMigrationResult {
@@ -184,12 +187,75 @@ export async function installMod(instanceId: string, file: ModFileRef): Promise<
 // in ".jar", so this is the universal, loader-agnostic way to turn a mod
 // off without uninstalling it (the same convention Prism Launcher and most
 // other launchers use).
-export function listInstalledMods(instanceId: string): InstalledMod[] {
+function readModFiles(instanceId: string): Array<{ filename: string; enabled: boolean }> {
   const modsDir = join(getInstanceRoot(instanceId), 'mods')
   if (!existsSync(modsDir)) return []
   return readdirSync(modsDir)
     .filter((f) => f.toLowerCase().endsWith('.jar') || f.toLowerCase().endsWith(`.jar${DISABLED_SUFFIX}`))
     .map((f) => ({ filename: f, enabled: !f.endsWith(DISABLED_SUFFIX) }))
+}
+
+interface ResolvedModInfo {
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
+// Keyed by file sha1 so a mod only ever gets looked up once, even across
+// repeated listMods() calls (the UI refetches after every install/toggle/
+// remove) - a `null` cache entry means "looked up, not found on Modrinth",
+// which is itself worth remembering so a manually-added jar doesn't get
+// re-queried on every refresh.
+const modInfoCache = new Map<string, ResolvedModInfo | null>()
+
+function titleCaseFromFilename(filename: string): string {
+  const guess = guessProjectNameFromFilename(filename)
+  const base = guess ?? filename.replace(/\.jar$/i, '')
+  return base
+    .split(' ')
+    .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ')
+}
+
+async function resolveModInfo(filePath: string, filename: string): Promise<ResolvedModInfo> {
+  const sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
+  if (modInfoCache.has(sha1)) {
+    const cached = modInfoCache.get(sha1) ?? null
+    return cached ?? { title: titleCaseFromFilename(filename), versionNumber: null, iconUrl: null }
+  }
+
+  try {
+    const res = await fetch(`${MODRINTH_API}/version_file/${sha1}?algorithm=sha1`)
+    if (res.ok) {
+      const version = (await res.json()) as { project_id: string; version_number: string }
+      const project = await getProjectInfo(version.project_id).catch(() => null)
+      const resolved: ResolvedModInfo = {
+        title: project?.title ?? titleCaseFromFilename(filename),
+        versionNumber: version.version_number,
+        iconUrl: project?.iconUrl ?? null
+      }
+      modInfoCache.set(sha1, resolved)
+      return resolved
+    }
+  } catch {
+    // Network hiccup or malformed response - fall through to the filename-based
+    // fallback below without caching, so it's retried on the next refresh.
+    return { title: titleCaseFromFilename(filename), versionNumber: null, iconUrl: null }
+  }
+
+  modInfoCache.set(sha1, null)
+  return { title: titleCaseFromFilename(filename), versionNumber: null, iconUrl: null }
+}
+
+export async function listInstalledMods(instanceId: string): Promise<InstalledMod[]> {
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  const files = readModFiles(instanceId)
+  return Promise.all(
+    files.map(async ({ filename, enabled }) => {
+      const info = await resolveModInfo(join(modsDir, filename), filename)
+      return { filename, enabled, ...info }
+    })
+  )
 }
 
 export function toggleModEnabled(instanceId: string, filename: string): void {
@@ -246,7 +312,7 @@ export async function migrateMods(
   loader: string
 ): Promise<ModMigrationResult> {
   const modsDir = join(getInstanceRoot(instanceId), 'mods')
-  const mods = listInstalledMods(instanceId).filter((m) => m.enabled)
+  const mods = readModFiles(instanceId).filter((m) => m.enabled)
   const migrated: ModMigrationResult['migrated'] = []
   const failed: ModMigrationResult['failed'] = []
 

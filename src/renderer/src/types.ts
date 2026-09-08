@@ -110,6 +110,9 @@ export interface PrismInstanceSummary {
 export interface InstalledMod {
   filename: string
   enabled: boolean
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
 }
 
 export interface ModMigrationResult {

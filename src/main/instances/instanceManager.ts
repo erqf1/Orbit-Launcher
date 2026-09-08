@@ -1,5 +1,14 @@
 import { ipcMain, app, shell, dialog } from 'electron'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, unlinkSync } from 'fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  cpSync,
+  unlinkSync,
+  chmodSync
+} from 'fs'
 import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
 import { installFabricProfile } from '../loaders/fabric'
@@ -192,7 +201,7 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     loaderVersion: input.loaderVersion ?? null,
     customVersionId: loaderInstall.customVersionId,
     forgeInstallerPath: loaderInstall.forgeInstallerPath,
-    memoryMin: '2G',
+    memoryMin: '512M',
     memoryMax: '4G',
     javaPath: null,
     jvmArgs: null,
@@ -295,6 +304,58 @@ export async function setInstanceIcon(id: string): Promise<Instance> {
   instance.iconFilename = filename
   writeAll(instances)
   return instance
+}
+
+// Creates a desktop shortcut that re-launches the app with a
+// `--launch-instance=<id>` flag; index.ts reads that flag at startup and
+// App.tsx auto-triggers the normal play flow once auth is restored, so the
+// shortcut reuses the exact same launch path as clicking "Play" instead of
+// duplicating any of that logic here. Windows-only via shell.writeShortcutLink
+// (there's no Electron equivalent for other platforms); Linux gets a
+// hand-written .desktop file instead. macOS isn't a build target yet.
+export async function createDesktopShortcut(id: string): Promise<string> {
+  const instance = getInstance(id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+
+  const desktopDir = app.getPath('desktop')
+  const baseName = sanitizeFolderName(instance.name)
+  const execPath = process.execPath
+  const launchFlag = `--launch-instance=${id}`
+
+  if (process.platform === 'win32') {
+    const shortcutPath = join(desktopDir, `${baseName}.lnk`)
+    // In dev, process.execPath is the Electron binary itself and needs the
+    // entry script as its first arg (mirrors how `electron-vite dev` invokes
+    // it); a packaged build's exe is the entry point, so only the flag is needed.
+    const args = app.isPackaged ? launchFlag : `"${process.argv[1]}" ${launchFlag}`
+    const ok = shell.writeShortcutLink(shortcutPath, 'create', {
+      target: execPath,
+      args,
+      description: `${instance.name} in Erqf Launcher starten`
+    })
+    if (!ok) throw new Error('Verknüpfung konnte nicht erstellt werden.')
+    return shortcutPath
+  }
+
+  if (process.platform === 'linux') {
+    const desktopFilePath = join(desktopDir, `${baseName}.desktop`)
+    const execLine = app.isPackaged
+      ? `"${execPath}" ${launchFlag}`
+      : `"${execPath}" "${process.argv[1]}" ${launchFlag}`
+    const contents = [
+      '[Desktop Entry]',
+      'Type=Application',
+      `Name=${instance.name} (Erqf Launcher)`,
+      `Exec=${execLine}`,
+      'Terminal=false',
+      'Categories=Game;'
+    ].join('\n')
+    writeFileSync(desktopFilePath, contents, 'utf-8')
+    chmodSync(desktopFilePath, 0o755)
+    return desktopFilePath
+  }
+
+  throw new Error('Desktop-Verknüpfungen werden auf diesem Betriebssystem nicht unterstützt.')
 }
 
 export function clearInstanceIcon(id: string): Instance {
@@ -439,4 +500,5 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:getIconDataUrl', (_event, id: string) => getInstanceIconDataUrl(id))
   ipcMain.handle('instances:setIcon', (_event, id: string) => setInstanceIcon(id))
   ipcMain.handle('instances:clearIcon', (_event, id: string) => clearInstanceIcon(id))
+  ipcMain.handle('instances:createShortcut', (_event, id: string) => createDesktopShortcut(id))
 }

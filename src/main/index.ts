@@ -3,7 +3,7 @@ import { join } from 'path'
 import gracefulFs from 'graceful-fs'
 import { patchCreateWriteStreamForEmfile } from './emfileSafeFs'
 import { registerAuthHandlers } from './auth/msmcAuth'
-import { registerLaunchHandlers } from './launch/launcher'
+import { registerLaunchHandlers, setPendingLaunchInstanceIdFromArgv } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
 import { registerVersionHandlers } from './versions/versionManifest'
 import { registerLoaderHandlers } from './loaders'
@@ -83,6 +83,8 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.erqf.launcher')
+
+  setPendingLaunchInstanceIdFromArgv(process.argv)
 
   const mainWindow = createWindow()
   registerAuthHandlers(mainWindow)

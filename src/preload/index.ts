@@ -133,6 +133,9 @@ export interface ModFileRef {
 export interface InstalledMod {
   filename: string
   enabled: boolean
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
 }
 
 export interface ModMigrationResult {
@@ -201,6 +204,8 @@ const api = {
   removeAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:remove', id),
   launch: (instanceId: string): Promise<LaunchResult> =>
     ipcRenderer.invoke('launch:start', instanceId),
+  consumePendingLaunchInstanceId: (): Promise<string | null> =>
+    ipcRenderer.invoke('launch:consumePendingInstanceId'),
 
   listInstances: (): Promise<Instance[]> => ipcRenderer.invoke('instances:list'),
   createInstance: (input: CreateInstanceInput): Promise<Instance> =>
@@ -220,6 +225,8 @@ const api = {
     ipcRenderer.invoke('instances:getIconDataUrl', id),
   setInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:setIcon', id),
   clearInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clearIcon', id),
+  createInstanceShortcut: (id: string): Promise<string> =>
+    ipcRenderer.invoke('instances:createShortcut', id),
 
   detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
 
