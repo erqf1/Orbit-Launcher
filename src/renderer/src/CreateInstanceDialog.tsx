@@ -11,11 +11,15 @@ interface Props {
     loaderVersion: string | undefined,
     installRecommendedMods: boolean
   ) => Promise<void>
+  // Set when opened while the sidebar is filtered to a specific version -
+  // the version picker is then replaced by a fixed display for that version
+  // instead of offering every Minecraft version again.
+  presetVersion?: string
 }
 
-function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element {
+function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): React.JSX.Element {
   const [name, setName] = useState('Neue Instanz')
-  const [mcVersion, setMcVersion] = useState('')
+  const [mcVersion, setMcVersion] = useState(presetVersion ?? '')
   const [loader, setLoader] = useState<LoaderType>('vanilla')
   const [loaderVersion, setLoaderVersion] = useState('')
   const [installRecommendedMods, setInstallRecommendedMods] = useState(false)
@@ -64,6 +68,7 @@ function CreateInstanceDialog({ onCancel, onCreate }: Props): React.JSX.Element 
           loaderVersion={loaderVersion}
           onLoaderVersionChange={setLoaderVersion}
           onError={setError}
+          lockedVersion={presetVersion}
         />
 
         {loader !== 'vanilla' && (

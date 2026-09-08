@@ -10,6 +10,11 @@ interface Props {
   loaderVersion: string
   onLoaderVersionChange: (value: string) => void
   onError?: (message: string) => void
+  // When set, the Minecraft-version picker is replaced by a fixed display -
+  // used when creating an instance from within a version-filtered sidebar
+  // view, where picking a different version would contradict why the
+  // dialog was opened from there in the first place.
+  lockedVersion?: string
 }
 
 // Mojang's manifest type field - "snapshot" also covers April Fools joke
@@ -50,7 +55,8 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
     onLoaderChange,
     loaderVersion,
     onLoaderVersionChange,
-    onError
+    onError,
+    lockedVersion
   } = props
 
   const { versions, loading: loadingVersions, error: versionsError } = useMinecraftVersions()
@@ -61,6 +67,7 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
   } = useLoaderVersions(loader, mcVersion)
 
   useEffect(() => {
+    if (lockedVersion) return
     if (!loadingVersions && versions.length > 0 && !mcVersion) {
       // Default to the latest stable release even though every version is
       // selectable - most people creating an instance want that, not
@@ -68,7 +75,7 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
       const defaultVersion = versions.find((v) => v.type === 'release') ?? versions[0]
       onMcVersionChange(defaultVersion.id)
     }
-  }, [loadingVersions, versions])
+  }, [loadingVersions, versions, lockedVersion])
 
   // Whenever the loader or target MC version changes, the previously
   // selected loader version is very likely no longer valid - clear it so
@@ -97,7 +104,9 @@ function VersionLoaderFields(props: Props): React.JSX.Element {
     <>
       <label>
         Minecraft-Version
-        {loadingVersions ? (
+        {lockedVersion ? (
+          <p className="locked-version-display">{lockedVersion}</p>
+        ) : loadingVersions ? (
           <p>Lade Versionen…</p>
         ) : (
           <select value={mcVersion} onChange={(e) => onMcVersionChange(e.target.value)}>

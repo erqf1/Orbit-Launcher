@@ -542,7 +542,11 @@ function App(): React.JSX.Element {
       </div>
 
       {showCreate && (
-        <CreateInstanceDialog onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+        <CreateInstanceDialog
+          onCancel={() => setShowCreate(false)}
+          onCreate={handleCreate}
+          presetVersion={filter.type === 'version' ? filter.value : undefined}
+        />
       )}
 
       {showPrismImport && (
