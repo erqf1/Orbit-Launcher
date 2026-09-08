@@ -771,39 +771,6 @@ button:not(:disabled):active {
   text-shadow: 0 0 8px rgba(255, 209, 102, 0.6);
 }
 
-/* Honeycomb view: hexagonal cover art, offset ("brick") tessellation on the
-   grid itself since real hex tiling needs a fixed column count to offset
-   reliably - auto-fill's column count isn't known in pure CSS. */
-.instance-card-hex .instance-cover {
-  height: 128px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-}
-
-.instance-grid.view-honeycomb {
-  grid-template-columns: repeat(2, 1fr);
-  row-gap: 4px;
-}
-
-@media (min-width: 760px) {
-  .instance-grid.view-honeycomb {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (min-width: 1040px) {
-  .instance-grid.view-honeycomb {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-@media (min-width: 1320px) {
-  .instance-grid.view-honeycomb {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-.instance-grid.view-honeycomb .instance-card:nth-child(2n) {
-  margin-top: 34px;
-}
-
 /* List view: compact single-line rows instead of a card grid. */
 .instance-grid.view-list {
   display: flex;

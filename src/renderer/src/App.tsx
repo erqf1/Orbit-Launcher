@@ -30,7 +30,7 @@ const SORT_MODE_KEY = 'erqf.sortMode'
 function readStoredViewMode(): InstanceViewLayout {
   try {
     const stored = localStorage.getItem(VIEW_MODE_KEY)
-    if (stored === 'grid' || stored === 'list' || stored === 'honeycomb') return stored
+    if (stored === 'grid' || stored === 'list') return stored
   } catch {
     // localStorage can throw in restricted contexts - grid is a fine default.
   }
@@ -472,14 +472,6 @@ function App(): React.JSX.Element {
               title="Liste"
             >
               ☰ Liste{viewMode === 'list' ? ' (Standard)' : ''}
-            </button>
-            <button
-              type="button"
-              className={viewMode === 'honeycomb' ? 'active' : ''}
-              onClick={() => setViewMode('honeycomb')}
-              title="Honigwaben"
-            >
-              ⬡ Honigwaben{viewMode === 'honeycomb' ? ' (Standard)' : ''}
             </button>
           </div>
         </div>

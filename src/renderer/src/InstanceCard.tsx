@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import OverflowMenu from './OverflowMenu'
 import type { Instance } from './types'
 
-export type InstanceViewLayout = 'grid' | 'list' | 'honeycomb'
+export type InstanceViewLayout = 'grid' | 'list'
 
 interface Props {
   instance: Instance
@@ -185,7 +185,7 @@ function InstanceCard(props: Props): React.JSX.Element {
   }
 
   return (
-    <div className={`instance-card${layout === 'honeycomb' ? ' instance-card-hex' : ''}`}>
+    <div className="instance-card">
       <div className={`instance-cover loader-${instance.loader}`}>
         {isLaunching && <span className="running-pill">läuft</span>}
         {favoriteButton}
