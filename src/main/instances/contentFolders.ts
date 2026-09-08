@@ -13,7 +13,7 @@ import {
 } from 'fs'
 import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
-import { resolveModInfo, type ModFileRef } from '../mods/modrinth'
+import { mapWithConcurrency, resolveModInfo, type ModFileRef } from '../mods/modrinth'
 
 export interface ContentFileEntry {
   name: string
@@ -69,13 +69,11 @@ export async function listContentFilesEnriched(
 ): Promise<EnrichedContentFile[]> {
   const entries = listContentFiles(instanceId, subfolder)
   const dir = join(getInstanceRoot(instanceId), subfolder)
-  return Promise.all(
-    entries.map(async (entry): Promise<EnrichedContentFile> => {
-      if (entry.isDirectory) return { ...entry, title: null, versionNumber: null, iconUrl: null }
-      const info = await resolveModInfo(join(dir, entry.name), entry.name)
-      return { ...entry, ...info }
-    })
-  )
+  return mapWithConcurrency(entries, 8, async (entry): Promise<EnrichedContentFile> => {
+    if (entry.isDirectory) return { ...entry, title: null, versionNumber: null, iconUrl: null }
+    const info = await resolveModInfo(join(dir, entry.name), entry.name)
+    return { ...entry, ...info }
+  })
 }
 
 export function removeContentFile(instanceId: string, subfolder: string, name: string): void {

@@ -7,6 +7,26 @@ import { getInstanceRoot } from '../instances/instanceManager'
 const MODRINTH_API = 'https://api.modrinth.com/v2'
 const DISABLED_SUFFIX = '.disabled'
 
+// Firing one Promise.all per item over a whole mod/content list (each item
+// needing 1-2 Modrinth requests) trips Modrinth's rate limiting once a list
+// gets past ~30 items - confirmed live (curated mods silently dropped
+// results past that point until batched). Installed-mod lists can be much
+// bigger than the curated list (80+ mods is a real, reported case), so
+// every per-file Modrinth enrichment call in this app goes through this
+// instead of a raw Promise.all.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency)
+    results.push(...(await Promise.all(batch.map(fn))))
+  }
+  return results
+}
+
 export interface ModSearchResult {
   projectId: string
   slug: string
@@ -288,12 +308,10 @@ export async function resolveModInfo(filePath: string, filename: string): Promis
 export async function listInstalledMods(instanceId: string): Promise<InstalledMod[]> {
   const modsDir = join(getInstanceRoot(instanceId), 'mods')
   const files = readModFiles(instanceId)
-  return Promise.all(
-    files.map(async ({ filename, enabled }) => {
-      const info = await resolveModInfo(join(modsDir, filename), filename)
-      return { filename, enabled, ...info }
-    })
-  )
+  return mapWithConcurrency(files, 8, async ({ filename, enabled }) => {
+    const info = await resolveModInfo(join(modsDir, filename), filename)
+    return { filename, enabled, ...info }
+  })
 }
 
 export function toggleModEnabled(instanceId: string, filename: string): void {
