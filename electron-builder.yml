@@ -1,5 +1,5 @@
-appId: com.erqf.launcher
-productName: Erqf Launcher
+appId: com.orbit.launcher
+productName: Orbit Launcher
 directories:
   output: dist
   buildResources: build
@@ -7,6 +7,7 @@ files:
   - out/**/*
   - package.json
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -20,7 +21,7 @@ linux:
     - target: deb
       arch: [x64]
   category: Game
-  maintainer: erqf-launcher
+  maintainer: orbit-launcher
 deb:
   depends:
     - default-jre | java21-runtime | java17-runtime

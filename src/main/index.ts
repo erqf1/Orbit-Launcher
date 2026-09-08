@@ -46,6 +46,14 @@ try {
   console.error('[emfileSafeFs] failed to patch createWriteStream:', err)
 }
 
+// app.getPath('userData') defaults to a folder named after package.json's
+// "name" field - renaming the app (e.g. Erqf Launcher -> Orbit Launcher)
+// silently pointed every future launch at a brand-new, empty folder while
+// all real instance data stayed behind under the old name, which looked
+// exactly like every instance had been deleted. Pinning this explicitly
+// means a future rename only changes branding, never where user data lives.
+app.setPath('userData', join(app.getPath('appData'), 'orbit-launcher'))
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,

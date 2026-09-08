@@ -6,6 +6,7 @@ import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import type { CloneContentOptions, Instance, LoaderType } from './types'
+import logo from './assets/logo.png'
 import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
 import bgPhoto3 from './assets/bg-photo-3.png'
@@ -468,30 +469,9 @@ function App(): React.JSX.Element {
       <aside className="main-sidebar">
         <div className="brand">
           <span className="brand-mark" onClick={handleBrandClick}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="white" strokeWidth="1.6" />
-              <ellipse
-                cx="12"
-                cy="12"
-                rx="10"
-                ry="4.2"
-                stroke="white"
-                strokeWidth="1.6"
-                transform="rotate(60 12 12)"
-              />
-              <ellipse
-                cx="12"
-                cy="12"
-                rx="10"
-                ry="4.2"
-                stroke="white"
-                strokeWidth="1.6"
-                transform="rotate(120 12 12)"
-              />
-              <circle cx="12" cy="12" r="2" fill="white" />
-            </svg>
+            <img src={logo} alt="" />
           </span>
-          <h1>Erqf Launcher</h1>
+          <h1>Orbit Launcher</h1>
         </div>
 
         <nav>

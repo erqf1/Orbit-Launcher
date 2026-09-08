@@ -382,7 +382,7 @@ export async function createDesktopShortcut(id: string): Promise<string> {
     const ok = shell.writeShortcutLink(shortcutPath, 'create', {
       target: execPath,
       args,
-      description: `${instance.name} in Erqf Launcher starten`
+      description: `${instance.name} in Orbit Launcher starten`
     })
     if (!ok) throw new Error('Verknüpfung konnte nicht erstellt werden.')
     return shortcutPath
@@ -396,7 +396,7 @@ export async function createDesktopShortcut(id: string): Promise<string> {
     const contents = [
       '[Desktop Entry]',
       'Type=Application',
-      `Name=${instance.name} (Erqf Launcher)`,
+      `Name=${instance.name} (Orbit Launcher)`,
       `Exec=${execLine}`,
       'Terminal=false',
       'Categories=Game;'

@@ -1,11 +1,11 @@
 {
-  "name": "erqf-launcher",
+  "name": "orbit-launcher",
   "version": "0.1.0",
   "description": "Custom Minecraft launcher",
   "main": "./out/main/index.js",
   "private": true,
   "author": "",
-  "homepage": "https://erqf-launcher.invalid",
+  "homepage": "https://orbit-launcher.invalid",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
