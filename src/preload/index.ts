@@ -60,6 +60,7 @@ export interface Instance {
   closeOnLaunch: boolean
   autoJoinServer: string | null
   notes: string
+  iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
 }
@@ -215,6 +216,10 @@ const api = {
   updateInstanceSettings: (id: string, patch: InstanceSettingsPatch): Promise<Instance> =>
     ipcRenderer.invoke('instances:updateSettings', id, patch),
   openInstanceFolder: (id: string): Promise<void> => ipcRenderer.invoke('instances:openFolder', id),
+  getInstanceIconDataUrl: (id: string): Promise<string | null> =>
+    ipcRenderer.invoke('instances:getIconDataUrl', id),
+  setInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:setIcon', id),
+  clearInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clearIcon', id),
 
   detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
 

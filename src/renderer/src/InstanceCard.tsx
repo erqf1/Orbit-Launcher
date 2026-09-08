@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import OverflowMenu from './OverflowMenu'
 import type { Instance } from './types'
 
@@ -13,6 +13,16 @@ interface Props {
   onCloneAsVersion: (id: string) => void
   onDelete: (id: string) => void
   onManage: (id: string) => void
+  onIconChanged: () => void
+}
+
+const LOADER_LABELS: Record<string, string> = {
+  vanilla: 'Vanilla',
+  fabric: 'Fabric',
+  quilt: 'Quilt',
+  legacyfabric: 'Legacy Fabric',
+  forge: 'Forge',
+  neoforge: 'NeoForge'
 }
 
 function InstanceCard(props: Props): React.JSX.Element {
@@ -26,10 +36,26 @@ function InstanceCard(props: Props): React.JSX.Element {
     onClone,
     onCloneAsVersion,
     onDelete,
-    onManage
+    onManage,
+    onIconChanged
   } = props
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
+  const [iconUrl, setIconUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!instance.iconFilename) {
+      setIconUrl(null)
+      return
+    }
+    window.api.getInstanceIconDataUrl(instance.id).then((url) => {
+      if (!cancelled) setIconUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [instance.id, instance.iconFilename])
 
   function confirmRename(): void {
     const trimmed = draftName.trim()
@@ -41,11 +67,27 @@ function InstanceCard(props: Props): React.JSX.Element {
     setEditing(false)
   }
 
+  async function handleSetIcon(): Promise<void> {
+    await window.api.setInstanceIcon(instance.id)
+    onIconChanged()
+  }
+
+  async function handleClearIcon(): Promise<void> {
+    await window.api.clearInstanceIcon(instance.id)
+    onIconChanged()
+  }
+
   return (
     <div className="instance-card">
       {isLaunching && <span className="running-badge">läuft</span>}
 
-      <div className={`loader-stripe loader-${instance.loader}`} />
+      <div className={`instance-card-art loader-${instance.loader}`}>
+        {iconUrl ? (
+          <img src={iconUrl} alt="" />
+        ) : (
+          <span className="instance-card-art-fallback">{instance.name.charAt(0).toUpperCase()}</span>
+        )}
+      </div>
 
       <div className="instance-card-body">
         <div className="instance-card-header">
@@ -71,6 +113,10 @@ function InstanceCard(props: Props): React.JSX.Element {
             disabled={manageDisabled}
             items={[
               { label: 'Umbenennen', onClick: () => setEditing(true) },
+              { label: 'Icon ändern…', onClick: handleSetIcon },
+              ...(instance.iconFilename
+                ? [{ label: 'Icon entfernen', onClick: handleClearIcon }]
+                : []),
               { label: 'Duplizieren', onClick: () => onClone(instance.id) },
               { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
               { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
@@ -78,10 +124,14 @@ function InstanceCard(props: Props): React.JSX.Element {
           />
         </div>
 
-        <span className="instance-version">
-          {instance.mcVersion}
-          {instance.loader !== 'vanilla' && ` · ${instance.loader}`}
-        </span>
+        <div className="instance-tags">
+          <span className="instance-version-pill">{instance.mcVersion}</span>
+          {instance.loader !== 'vanilla' && (
+            <span className={`instance-loader-pill loader-${instance.loader}`}>
+              {LOADER_LABELS[instance.loader]}
+            </span>
+          )}
+        </div>
 
         <div className="instance-meta">
           {isLaunching

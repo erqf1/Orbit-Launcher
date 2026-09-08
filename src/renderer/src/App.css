@@ -4,41 +4,79 @@
   box-sizing: border-box;
 }
 
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./assets/fonts/ChakraPetch-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./assets/fonts/ChakraPetch-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./assets/fonts/ChakraPetch-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/Manrope-Variable.woff2') format('woff2');
+}
+
 :root {
   color-scheme: dark;
-  --bg: #14161b;
-  --bg-elevated: #1b1e25;
-  --bg-card: #1f232b;
-  --bg-input: #262a33;
-  --bg-hover: #2a2f3a;
-  --border: #2d323d;
-  --border-strong: #3a4150;
-  --text: #e8e9ec;
-  --text-muted: #9aa1ad;
-  --text-faint: #6b7280;
+  --bg: #0f1115;
+  --bg-elevated: #181b22;
+  --bg-card: #1c2029;
+  --bg-input: #242833;
+  --bg-hover: #2a3040;
+  --border: #262b35;
+  --border-strong: #383f4e;
+  --text: #eef0f3;
+  --text-muted: #99a1b0;
+  --text-faint: #656d7d;
   --accent: #5b9dff;
-  --accent-strong: #4a8aef;
+  --accent-strong: #4a7aef;
+  --accent-glow: rgba(91, 157, 255, 0.32);
   --success: #4caf7d;
   --success-bg: rgba(76, 175, 125, 0.14);
+  --success-glow: rgba(76, 175, 125, 0.3);
   --danger: #e5787a;
   --danger-bg: rgba(229, 120, 122, 0.12);
   --radius-sm: 6px;
   --radius: 8px;
   --radius-lg: 12px;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --font-display: 'Chakra Petch', var(--font-mono);
+  --font-body:
+    'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'Cascadia Code', Consolas, monospace;
 }
 
 body {
   margin: 0;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
+}
+
+h1,
+h2,
+h3,
+.modal h2,
+button {
+  font-family: var(--font-display);
 }
 
 .app {
@@ -66,19 +104,25 @@ body {
 }
 
 .brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), #8a6bff);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 4px 14px var(--accent-glow);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   color: #0c1116;
   flex-shrink: 0;
   cursor: pointer;
   user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.brand-mark:hover {
+  transform: scale(1.06) rotate(-3deg);
 }
 
 .hidden-cat {
@@ -123,9 +167,9 @@ body {
 
 .app-header h1 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .account {
@@ -241,7 +285,8 @@ body {
 button {
   padding: 9px 16px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg-input);
@@ -249,7 +294,9 @@ button {
   cursor: pointer;
   transition:
     background-color 0.12s ease,
-    border-color 0.12s ease;
+    border-color 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 button:disabled {
@@ -259,17 +306,24 @@ button:disabled {
 
 button:not(:disabled):hover {
   background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
 }
 
 .primary-button {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   border-color: var(--accent-strong);
   color: #0c1116;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 4px 14px var(--accent-glow);
 }
 
 .primary-button:not(:disabled):hover {
-  background: var(--accent-strong);
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  box-shadow: 0 6px 20px var(--accent-glow);
 }
 
 .import-button {
@@ -289,62 +343,108 @@ button:not(:disabled):hover {
 
 .instance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 14px;
 }
 
 .instance-card {
   position: relative;
-  background: var(--bg-card);
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-card);
   display: flex;
-  flex-direction: column;
-  transition: border-color 0.12s ease;
+  gap: 14px;
+  padding: 14px;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .instance-card:hover {
   border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
 
-.loader-stripe {
-  height: 3px;
+.instance-card-art {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, var(--bg-input), var(--bg-hover));
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+.instance-card-art img {
   width: 100%;
-  background: var(--border-strong);
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
 }
 
-.loader-stripe.loader-fabric {
-  background: linear-gradient(90deg, #dbb69b, #f3d9c4);
+.instance-card-art-fallback {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
-.loader-stripe.loader-quilt {
-  background: linear-gradient(90deg, #8657e0, #b48af0);
+.instance-card-art.loader-fabric {
+  background: linear-gradient(145deg, #6b4f36, #3a2c1f);
+}
+.instance-card-art.loader-fabric .instance-card-art-fallback {
+  color: #f3d9c4;
 }
 
-.loader-stripe.loader-vanilla {
-  background: var(--success);
+.instance-card-art.loader-quilt {
+  background: linear-gradient(145deg, #5233a3, #2a1a5c);
+}
+.instance-card-art.loader-quilt .instance-card-art-fallback {
+  color: #d3c1fb;
 }
 
-.loader-stripe.loader-legacyfabric {
-  background: linear-gradient(90deg, #c9a06b, #e8c9a0);
+.instance-card-art.loader-vanilla {
+  background: linear-gradient(145deg, #2e6b4c, #1a4030);
+}
+.instance-card-art.loader-vanilla .instance-card-art-fallback {
+  color: #a7e6c6;
 }
 
-.loader-stripe.loader-forge {
-  background: linear-gradient(90deg, #6b5b95, #a08cc9);
+.instance-card-art.loader-legacyfabric {
+  background: linear-gradient(145deg, #8a6640, #4a3520);
+}
+.instance-card-art.loader-legacyfabric .instance-card-art-fallback {
+  color: #f0dcc0;
 }
 
-.loader-stripe.loader-neoforge {
-  background: linear-gradient(90deg, #d97b3f, #f0a868);
+.instance-card-art.loader-forge {
+  background: linear-gradient(145deg, #4a3d70, #251d3d);
+}
+.instance-card-art.loader-forge .instance-card-art-fallback {
+  color: #d3c6f0;
+}
+
+.instance-card-art.loader-neoforge {
+  background: linear-gradient(145deg, #a5551f, #5c2e10);
+}
+.instance-card-art.loader-neoforge .instance-card-art-fallback {
+  color: #f7c9a3;
 }
 
 .instance-card-body {
-  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
 }
 
 .instance-card-header {
@@ -356,7 +456,7 @@ button:not(:disabled):hover {
 
 .instance-card-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: text;
   overflow: hidden;
@@ -370,12 +470,52 @@ button:not(:disabled):hover {
   width: 100%;
 }
 
-.instance-version {
-  font-size: 11px;
-  color: var(--text-muted);
+.instance-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.instance-version-pill,
+.instance-loader-pill {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+}
+
+.instance-version-pill {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+
+.instance-loader-pill {
+  border: 1px solid transparent;
+}
+
+.instance-loader-pill.loader-fabric {
+  background: rgba(219, 182, 155, 0.16);
+  color: #ecc9ab;
+}
+.instance-loader-pill.loader-quilt {
+  background: rgba(134, 87, 224, 0.18);
+  color: #c3a9f7;
+}
+.instance-loader-pill.loader-legacyfabric {
+  background: rgba(201, 160, 108, 0.16);
+  color: #e5c393;
+}
+.instance-loader-pill.loader-forge {
+  background: rgba(160, 140, 204, 0.18);
+  color: #cbb8f0;
+}
+.instance-loader-pill.loader-neoforge {
+  background: rgba(217, 123, 63, 0.18);
+  color: #f3ab74;
 }
 
 .instance-meta {
@@ -409,15 +549,16 @@ button:not(:disabled):hover {
 }
 
 .play-button {
-  background: var(--success-bg);
+  background: linear-gradient(135deg, var(--success-bg), var(--success-bg));
   border-color: var(--success);
   color: var(--success);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .play-button:not(:disabled):hover {
-  background: var(--success);
+  background: linear-gradient(135deg, var(--success), #3f9968);
   color: #0c1116;
+  box-shadow: 0 4px 14px var(--success-glow);
 }
 
 .new-instance-card {
@@ -425,8 +566,9 @@ button:not(:disabled):hover {
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  min-height: 140px;
+  min-height: 96px;
   background: transparent;
+  font-size: 13px;
 }
 
 .new-instance-card:not(:disabled):hover {

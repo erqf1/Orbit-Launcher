@@ -1,6 +1,6 @@
-import { ipcMain, app, shell } from 'electron'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync } from 'fs'
-import { join } from 'path'
+import { ipcMain, app, shell, dialog } from 'electron'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, cpSync, unlinkSync } from 'fs'
+import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
 import { installFabricProfile } from '../loaders/fabric'
 import { installQuiltProfile } from '../loaders/quilt'
@@ -40,6 +40,11 @@ export interface Instance {
   closeOnLaunch: boolean
   autoJoinServer: string | null
   notes: string
+  // Filename of a custom icon inside the instance's own folder (e.g.
+  // "icon.png"), or null for the default loader-colored card. Kept as
+  // just a filename (not a full path) since the instance root itself can
+  // move if folderName ever changes.
+  iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
 }
@@ -198,6 +203,7 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     closeOnLaunch: false,
     autoJoinServer: null,
     notes: '',
+    iconFilename: null,
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
@@ -236,6 +242,72 @@ export function openInstanceFolder(id: string): Promise<void> {
   return shell.openPath(getInstanceRoot(id)).then((err) => {
     if (err) throw new Error(err)
   })
+}
+
+const ICON_MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp'
+}
+
+// Reads the instance's custom icon (if any) as a data: URL rather than
+// exposing a file:// path to the renderer - simplest way to display it
+// without touching the CSP's img-src, which the app deliberately leaves
+// unset (default-src 'self') rather than opening up to arbitrary local
+// paths.
+export function getInstanceIconDataUrl(id: string): string | null {
+  const instance = getInstance(id)
+  if (!instance?.iconFilename) return null
+  const filePath = join(getInstanceRoot(id), instance.iconFilename)
+  if (!existsSync(filePath)) return null
+  const mime = ICON_MIME_BY_EXT[extname(instance.iconFilename).toLowerCase()]
+  if (!mime) return null
+  return `data:${mime};base64,${readFileSync(filePath).toString('base64')}`
+}
+
+export async function setInstanceIcon(id: string): Promise<Instance> {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Bild', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }]
+  })
+  if (result.canceled || result.filePaths.length === 0) {
+    const instance = getInstance(id)
+    if (!instance) throw new Error('Instanz nicht gefunden.')
+    return instance
+  }
+
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+
+  const root = getInstanceRoot(id)
+  const ext = extname(result.filePaths[0]).toLowerCase() || '.png'
+  // Clear any previous icon with a different extension first, so switching
+  // from a .png to a .jpg icon doesn't leave the old file behind forever.
+  if (instance.iconFilename) {
+    const oldPath = join(root, instance.iconFilename)
+    if (existsSync(oldPath)) unlinkSync(oldPath)
+  }
+  const filename = `icon${ext}`
+  cpSync(result.filePaths[0], join(root, filename))
+  instance.iconFilename = filename
+  writeAll(instances)
+  return instance
+}
+
+export function clearInstanceIcon(id: string): Instance {
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+  if (instance.iconFilename) {
+    const filePath = join(getInstanceRoot(id), instance.iconFilename)
+    if (existsSync(filePath)) unlinkSync(filePath)
+  }
+  instance.iconFilename = null
+  writeAll(instances)
+  return instance
 }
 
 // Copies the source instance's already-installed files (including any
@@ -364,4 +436,7 @@ export function registerInstanceHandlers(): void {
     updateInstanceSettings(id, patch)
   )
   ipcMain.handle('instances:openFolder', (_event, id: string) => openInstanceFolder(id))
+  ipcMain.handle('instances:getIconDataUrl', (_event, id: string) => getInstanceIconDataUrl(id))
+  ipcMain.handle('instances:setIcon', (_event, id: string) => setInstanceIcon(id))
+  ipcMain.handle('instances:clearIcon', (_event, id: string) => clearInstanceIcon(id))
 }

@@ -261,6 +261,7 @@ function App(): React.JSX.Element {
             onCloneAsVersion={setCloneAsVersionInstanceId}
             onDelete={handleDelete}
             onManage={setDetailInstanceId}
+            onIconChanged={refreshInstances}
           />
         ))}
 

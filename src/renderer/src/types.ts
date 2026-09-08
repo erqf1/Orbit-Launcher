@@ -23,6 +23,7 @@ export interface Instance {
   closeOnLaunch: boolean
   autoJoinServer: string | null
   notes: string
+  iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
 }
