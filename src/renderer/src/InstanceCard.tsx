@@ -63,6 +63,7 @@ function InstanceCard(props: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
   const [iconUrl, setIconUrl] = useState<string | null>(null)
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
   const colorInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -78,6 +79,20 @@ function InstanceCard(props: Props): React.JSX.Element {
       cancelled = true
     }
   }, [instance.id, instance.iconFilename])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!instance.bannerFilename) {
+      setBannerUrl(null)
+      return
+    }
+    window.api.getInstanceBannerDataUrl(instance.id).then((url) => {
+      if (!cancelled) setBannerUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [instance.id, instance.bannerFilename])
 
   function confirmRename(): void {
     const trimmed = draftName.trim()
@@ -96,6 +111,16 @@ function InstanceCard(props: Props): React.JSX.Element {
 
   async function handleClearIcon(): Promise<void> {
     await window.api.clearInstanceIcon(instance.id)
+    onIconChanged()
+  }
+
+  async function handleSetBanner(): Promise<void> {
+    await window.api.setInstanceBanner(instance.id)
+    onIconChanged()
+  }
+
+  async function handleClearBanner(): Promise<void> {
+    await window.api.clearInstanceBanner(instance.id)
     onIconChanged()
   }
 
@@ -123,6 +148,8 @@ function InstanceCard(props: Props): React.JSX.Element {
     ...(instance.coverColor
       ? [{ label: 'Kartenfarbe zurücksetzen', onClick: () => onSetCoverColor(instance.id, null) }]
       : []),
+    { label: 'Banner festlegen…', onClick: handleSetBanner },
+    ...(instance.bannerFilename ? [{ label: 'Banner zurücksetzen', onClick: handleClearBanner }] : []),
     { label: 'Gruppe…', onClick: handleSetGroup },
     { label: 'Desktop-Verknüpfung erstellen', onClick: handleCreateShortcut },
     { label: 'Duplizieren…', onClick: () => onCloneAsVersion(instance.id) },
@@ -143,9 +170,12 @@ function InstanceCard(props: Props): React.JSX.Element {
     />
   )
 
-  const coverStyle = instance.coverColor
-    ? ({ '--cover-a': instance.coverColor, '--cover-b': darken(instance.coverColor, 0.5) } as React.CSSProperties)
-    : undefined
+  const coverStyle = {
+    ...(instance.coverColor
+      ? { '--cover-a': instance.coverColor, '--cover-b': darken(instance.coverColor, 0.5) }
+      : {}),
+    ...(bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : {})
+  } as React.CSSProperties
 
   const nameElement = editing ? (
     <input
@@ -196,7 +226,10 @@ function InstanceCard(props: Props): React.JSX.Element {
     return (
       <div className="instance-row">
         {coverColorInput}
-        <div className={`instance-row-art loader-${instance.loader}`} style={coverStyle}>
+        <div
+          className={`instance-row-art loader-${instance.loader}${bannerUrl ? ' has-banner' : ''}`}
+          style={coverStyle}
+        >
           {iconUrl ? (
             <img src={iconUrl} alt="" />
           ) : (
@@ -223,7 +256,10 @@ function InstanceCard(props: Props): React.JSX.Element {
   return (
     <div className="instance-card">
       {coverColorInput}
-      <div className={`instance-cover loader-${instance.loader}`} style={coverStyle}>
+      <div
+        className={`instance-cover loader-${instance.loader}${bannerUrl ? ' has-banner' : ''}`}
+        style={coverStyle}
+      >
         {isLaunching && <span className="running-pill">läuft</span>}
         {favoriteButton}
         {iconUrl ? (

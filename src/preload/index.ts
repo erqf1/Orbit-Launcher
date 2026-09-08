@@ -67,6 +67,7 @@ export interface Instance {
   favorite: boolean
   group: string | null
   coverColor: string | null
+  bannerFilename: string | null
 }
 
 export interface InstanceSettingsPatch {
@@ -261,6 +262,10 @@ const api = {
     ipcRenderer.invoke('instances:getIconDataUrl', id),
   setInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:setIcon', id),
   clearInstanceIcon: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clearIcon', id),
+  getInstanceBannerDataUrl: (id: string): Promise<string | null> =>
+    ipcRenderer.invoke('instances:getBannerDataUrl', id),
+  setInstanceBanner: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:setBanner', id),
+  clearInstanceBanner: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clearBanner', id),
   createInstanceShortcut: (id: string): Promise<string> =>
     ipcRenderer.invoke('instances:createShortcut', id),
 

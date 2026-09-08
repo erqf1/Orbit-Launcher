@@ -683,6 +683,20 @@ button:not(:disabled):active {
     linear-gradient(150deg, var(--cover-a), var(--cover-b));
 }
 
+/* A custom banner image paints on the real element itself (set inline as
+   background-image); the gradient above lives on ::before, a separate box
+   fully covering the same area, so it has to be turned off here or it would
+   just hide the banner underneath it. ::after's bottom-darkening overlay
+   stays either way, keeping the icon/name legible over a bright photo. */
+.instance-cover.has-banner {
+  background-size: cover;
+  background-position: center;
+}
+
+.instance-cover.has-banner::before {
+  background-image: none;
+}
+
 .instance-cover::after {
   content: '';
   position: absolute;
@@ -907,6 +921,11 @@ button:not(:disabled):active {
   justify-content: center;
   background: linear-gradient(150deg, var(--cover-a), var(--cover-b));
   overflow: hidden;
+}
+
+.instance-row-art.has-banner {
+  background-size: cover;
+  background-position: center;
 }
 
 .instance-row-art img {

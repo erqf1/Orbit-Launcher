@@ -29,6 +29,7 @@ export interface Instance {
   favorite: boolean
   group: string | null
   coverColor: string | null
+  bannerFilename: string | null
 }
 
 export interface InstanceSettingsPatch {

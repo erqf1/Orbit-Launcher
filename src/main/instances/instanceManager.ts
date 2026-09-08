@@ -66,6 +66,11 @@ export interface Instance {
   // User-chosen hex color (e.g. "#5b9dff") for the card's cover art
   // gradient, or null to use the default per-loader color.
   coverColor: string | null
+  // Filename of a custom banner image inside the instance's own folder,
+  // shown as the card's cover art instead of the color gradient. Same
+  // filename-only storage as iconFilename, and takes priority over
+  // coverColor when both are set.
+  bannerFilename: string | null
 }
 
 export interface InstanceSettingsPatch {
@@ -253,7 +258,8 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     lastPlayed: null,
     favorite: false,
     group: null,
-    coverColor: null
+    coverColor: null,
+    bannerFilename: null
   }
 
   const instances = readAll()
@@ -412,6 +418,60 @@ export function clearInstanceIcon(id: string): Instance {
     if (existsSync(filePath)) unlinkSync(filePath)
   }
   instance.iconFilename = null
+  writeAll(instances)
+  return instance
+}
+
+// Same data: URL approach as getInstanceIconDataUrl - avoids exposing a
+// file:// path to the renderer.
+export function getInstanceBannerDataUrl(id: string): string | null {
+  const instance = getInstance(id)
+  if (!instance?.bannerFilename) return null
+  const filePath = join(getInstanceRoot(id), instance.bannerFilename)
+  if (!existsSync(filePath)) return null
+  const mime = ICON_MIME_BY_EXT[extname(instance.bannerFilename).toLowerCase()]
+  if (!mime) return null
+  return `data:${mime};base64,${readFileSync(filePath).toString('base64')}`
+}
+
+export async function setInstanceBanner(id: string): Promise<Instance> {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Bild', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }]
+  })
+  refocusMainWindow()
+  if (result.canceled || result.filePaths.length === 0) {
+    const instance = getInstance(id)
+    if (!instance) throw new Error('Instanz nicht gefunden.')
+    return instance
+  }
+
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+
+  const root = getInstanceRoot(id)
+  const ext = extname(result.filePaths[0]).toLowerCase() || '.png'
+  if (instance.bannerFilename) {
+    const oldPath = join(root, instance.bannerFilename)
+    if (existsSync(oldPath)) unlinkSync(oldPath)
+  }
+  const filename = `banner${ext}`
+  cpSync(result.filePaths[0], join(root, filename))
+  instance.bannerFilename = filename
+  writeAll(instances)
+  return instance
+}
+
+export function clearInstanceBanner(id: string): Instance {
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+  if (instance.bannerFilename) {
+    const filePath = join(getInstanceRoot(id), instance.bannerFilename)
+    if (existsSync(filePath)) unlinkSync(filePath)
+  }
+  instance.bannerFilename = null
   writeAll(instances)
   return instance
 }
@@ -596,5 +656,8 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:getIconDataUrl', (_event, id: string) => getInstanceIconDataUrl(id))
   ipcMain.handle('instances:setIcon', (_event, id: string) => setInstanceIcon(id))
   ipcMain.handle('instances:clearIcon', (_event, id: string) => clearInstanceIcon(id))
+  ipcMain.handle('instances:getBannerDataUrl', (_event, id: string) => getInstanceBannerDataUrl(id))
+  ipcMain.handle('instances:setBanner', (_event, id: string) => setInstanceBanner(id))
+  ipcMain.handle('instances:clearBanner', (_event, id: string) => clearInstanceBanner(id))
   ipcMain.handle('instances:createShortcut', (_event, id: string) => createDesktopShortcut(id))
 }
