@@ -188,6 +188,14 @@ export interface CuratedMod extends ModSearchResult {
   compatible: boolean
 }
 
+export interface UpdateCandidate {
+  filename: string
+  title: string
+  currentVersionNumber: string | null
+  newVersionNumber: string
+  file: ModFileRef
+}
+
 export interface PrismInstanceSummary {
   folderName: string
   name: string
@@ -314,6 +322,10 @@ const api = {
   pickAndCheckModFile: (): Promise<ModCheckResult | null> => ipcRenderer.invoke('mods:pickAndCheckFile'),
   installModFromFile: (instanceId: string, filePath: string): Promise<void> =>
     ipcRenderer.invoke('mods:installFromFile', instanceId, filePath),
+  checkModUpdates: (instanceId: string, mcVersion: string, loader: string): Promise<UpdateCandidate[]> =>
+    ipcRenderer.invoke('mods:checkUpdates', instanceId, mcVersion, loader),
+  updateMod: (instanceId: string, oldFilename: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('mods:update', instanceId, oldFilename, file),
   getModDependencies: (
     projectId: string,
     mcVersion: string,
@@ -359,6 +371,10 @@ const api = {
     ipcRenderer.invoke('content:bestVersion', projectId, mcVersion),
   installContentFileFromUrl: (instanceId: string, subfolder: string, file: ModFileRef): Promise<void> =>
     ipcRenderer.invoke('content:installFromUrl', instanceId, subfolder, file),
+  checkContentUpdates: (instanceId: string, subfolder: string, mcVersion: string): Promise<UpdateCandidate[]> =>
+    ipcRenderer.invoke('content:checkUpdates', instanceId, subfolder, mcVersion),
+  updateContentFile: (instanceId: string, subfolder: string, oldName: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('content:update', instanceId, subfolder, oldName, file),
 
   listWorlds: (instanceId: string): Promise<WorldEntry[]> => ipcRenderer.invoke('worlds:list', instanceId),
   renameWorld: (instanceId: string, oldName: string, newName: string): Promise<void> =>

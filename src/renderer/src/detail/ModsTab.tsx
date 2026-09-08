@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ModBrowserDialog from './ModBrowserDialog'
-import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult } from '../types'
+import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult, UpdateCandidate } from '../types'
 
 interface Props {
   instance: Instance
@@ -21,6 +21,11 @@ function ModsTab({ instance }: Props): React.JSX.Element {
   const [checkResult, setCheckResult] = useState<ModCheckResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [installingChecked, setInstallingChecked] = useState(false)
+
+  const [updates, setUpdates] = useState<Map<string, UpdateCandidate>>(new Map())
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [updatingAll, setUpdatingAll] = useState(false)
+  const [updatingFilename, setUpdatingFilename] = useState<string | null>(null)
 
   const refreshInstalled = useCallback(() => {
     window.api.listMods(instance.id).then(setInstalled)
@@ -49,6 +54,55 @@ function ModsTab({ instance }: Props): React.JSX.Element {
   async function handleToggle(filename: string): Promise<void> {
     await window.api.toggleModEnabled(instance.id, filename)
     refreshInstalled()
+  }
+
+  async function handleCheckUpdates(): Promise<void> {
+    setError(null)
+    setCheckingUpdates(true)
+    try {
+      const candidates = await window.api.checkModUpdates(instance.id, instance.mcVersion, instance.loader)
+      setUpdates(new Map(candidates.map((c) => [c.filename, c])))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
+  async function handleUpdateOne(filename: string): Promise<void> {
+    const candidate = updates.get(filename)
+    if (!candidate) return
+    setError(null)
+    setUpdatingFilename(filename)
+    try {
+      await window.api.updateMod(instance.id, filename, candidate.file)
+      setUpdates((prev) => {
+        const next = new Map(prev)
+        next.delete(filename)
+        return next
+      })
+      refreshInstalled()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setUpdatingFilename(null)
+    }
+  }
+
+  async function handleUpdateAll(): Promise<void> {
+    setError(null)
+    setUpdatingAll(true)
+    try {
+      for (const [filename, candidate] of updates) {
+        await window.api.updateMod(instance.id, filename, candidate.file)
+      }
+      setUpdates(new Map())
+      refreshInstalled()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setUpdatingAll(false)
+    }
   }
 
   async function handlePickFileToCheck(): Promise<void> {
@@ -156,7 +210,19 @@ function ModsTab({ instance }: Props): React.JSX.Element {
     <div className="detail-tab mods-tab">
       <div className="mods-tab-columns">
       <section className="mods-installed-section">
-        <h3>Installiert ({installed.length})</h3>
+        <div className="mod-section-header">
+          <h3>Installiert ({installed.length})</h3>
+          <div className="detail-row-actions">
+            {updates.size > 0 && (
+              <button type="button" className="save-button" onClick={handleUpdateAll} disabled={updatingAll}>
+                {updatingAll ? 'Aktualisiere…' : `Alle aktualisieren (${updates.size})`}
+              </button>
+            )}
+            <button type="button" onClick={handleCheckUpdates} disabled={checkingUpdates || installed.length === 0}>
+              {checkingUpdates ? 'Suche…' : 'Nach Updates suchen'}
+            </button>
+          </div>
+        </div>
         {installed.length === 0 ? (
           <p className="instance-meta">Keine Mods installiert.</p>
         ) : (
@@ -189,9 +255,24 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                         </span>
                         {mod.versionNumber && <span className="pill pill-version">V{mod.versionNumber}</span>}
                         {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
+                        {updates.has(mod.filename) && (
+                          <span className="pill pill-update">
+                            Update: V{updates.get(mod.filename)!.newVersionNumber}
+                          </span>
+                        )}
                       </span>
                     </span>
                     <span className="detail-row-actions">
+                      {updates.has(mod.filename) && (
+                        <button
+                          type="button"
+                          className="save-button"
+                          onClick={() => handleUpdateOne(mod.filename)}
+                          disabled={updatingFilename === mod.filename || updatingAll}
+                        >
+                          {updatingFilename === mod.filename ? 'Aktualisiere…' : 'Aktualisieren'}
+                        </button>
+                      )}
                       <button type="button" onClick={() => handleToggle(mod.filename)}>
                         {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
                       </button>

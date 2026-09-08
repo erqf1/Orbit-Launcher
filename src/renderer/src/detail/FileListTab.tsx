@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ContentBrowserDialog from './ContentBrowserDialog'
-import type { EnrichedContentFile, Instance } from '../types'
+import type { EnrichedContentFile, Instance, UpdateCandidate } from '../types'
 
 interface BrowseConfig {
   instance: Instance
@@ -24,6 +24,10 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
   const [renamingName, setRenamingName] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const [showBrowser, setShowBrowser] = useState(false)
+  const [updates, setUpdates] = useState<Map<string, UpdateCandidate>>(new Map())
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [updatingAll, setUpdatingAll] = useState(false)
+  const [updatingName, setUpdatingName] = useState<string | null>(null)
 
   // Resource/shader packs are ordinary Modrinth project types now that
   // browsing them is wired up, so the same icon/title/version enrichment
@@ -74,13 +78,81 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
     await window.api.openContentFolder(instanceId, subfolder)
   }
 
+  async function handleCheckUpdates(): Promise<void> {
+    if (!browse) return
+    setError(null)
+    setCheckingUpdates(true)
+    try {
+      const candidates = await window.api.checkContentUpdates(instanceId, subfolder, browse.instance.mcVersion)
+      setUpdates(new Map(candidates.map((c) => [c.filename, c])))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
+  async function handleUpdateOne(name: string): Promise<void> {
+    const candidate = updates.get(name)
+    if (!candidate) return
+    setError(null)
+    setUpdatingName(name)
+    try {
+      await window.api.updateContentFile(instanceId, subfolder, name, candidate.file)
+      setUpdates((prev) => {
+        const next = new Map(prev)
+        next.delete(name)
+        return next
+      })
+      refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setUpdatingName(null)
+    }
+  }
+
+  async function handleUpdateAll(): Promise<void> {
+    setError(null)
+    setUpdatingAll(true)
+    try {
+      for (const [name, candidate] of updates) {
+        await window.api.updateContentFile(instanceId, subfolder, name, candidate.file)
+      }
+      setUpdates(new Map())
+      refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setUpdatingAll(false)
+    }
+  }
+
   return (
     <div className="detail-tab mods-tab">
       <div className="mods-tab-columns">
         <section className="mods-installed-section">
-          <h3>
-            {files.length} {files.length === 1 ? 'Datei' : 'Dateien'}
-          </h3>
+          <div className="mod-section-header">
+            <h3>
+              {files.length} {files.length === 1 ? 'Datei' : 'Dateien'}
+            </h3>
+            {browse && (
+              <div className="detail-row-actions">
+                {updates.size > 0 && (
+                  <button type="button" className="save-button" onClick={handleUpdateAll} disabled={updatingAll}>
+                    {updatingAll ? 'Aktualisiere…' : `Alle aktualisieren (${updates.size})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCheckUpdates}
+                  disabled={checkingUpdates || files.length === 0}
+                >
+                  {checkingUpdates ? 'Suche…' : 'Nach Updates suchen'}
+                </button>
+              </div>
+            )}
+          </div>
 
           {error && <p className="error">{error}</p>}
 
@@ -116,10 +188,23 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                       <span className="mod-name-block">
                         <span className="mod-title">{f.title ?? f.name}</span>
                         {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
+                        {updates.has(f.name) && (
+                          <span className="pill pill-update">Update: V{updates.get(f.name)!.newVersionNumber}</span>
+                        )}
                       </span>
                     </span>
                   )}
                   <span className="detail-row-actions">
+                    {updates.has(f.name) && (
+                      <button
+                        type="button"
+                        className="save-button"
+                        onClick={() => handleUpdateOne(f.name)}
+                        disabled={updatingName === f.name || updatingAll}
+                      >
+                        {updatingName === f.name ? 'Aktualisiere…' : 'Aktualisieren'}
+                      </button>
+                    )}
                     <button type="button" onClick={() => startRename(f.name)}>
                       Umbenennen
                     </button>

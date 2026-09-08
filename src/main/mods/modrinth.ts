@@ -238,6 +238,82 @@ export async function installMod(instanceId: string, file: ModFileRef): Promise<
   writeFileSync(join(modsDir, file.filename), buffer)
 }
 
+export interface UpdateCandidate {
+  filename: string
+  title: string
+  currentVersionNumber: string | null
+  newVersionNumber: string
+  file: ModFileRef
+}
+
+// Shared by mods and content (resourcepacks/shaderpacks - pass loader
+// 'vanilla' to skip loader filtering, since those aren't loader-specific).
+// A file that isn't recognized on Modrinth at all (version_file 404s) just
+// can't be checked, same as it can't be enriched with a title elsewhere.
+export async function checkFileForUpdate(
+  filePath: string,
+  filename: string,
+  mcVersion: string,
+  loader: string
+): Promise<UpdateCandidate | null> {
+  let sha1: string
+  try {
+    sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
+  } catch {
+    return null
+  }
+  const res = await fetch(`${MODRINTH_API}/version_file/${sha1}?algorithm=sha1`)
+  if (!res.ok) return null
+  const current = (await res.json()) as { id: string; project_id: string; version_number: string }
+
+  const versions = await listModVersions(current.project_id, mcVersion, loader)
+  const latest = versions[0]
+  if (!latest || latest.id === current.id) return null
+
+  const project = await getProjectInfo(current.project_id).catch(() => null)
+  return {
+    filename,
+    title: project?.title ?? titleCaseFromFilename(filename),
+    currentVersionNumber: current.version_number,
+    newVersionNumber: latest.versionNumber,
+    file: { url: latest.url, filename: latest.filename }
+  }
+}
+
+export async function checkModUpdates(
+  instanceId: string,
+  mcVersion: string,
+  loader: string
+): Promise<UpdateCandidate[]> {
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  const files = readModFiles(instanceId)
+  const results = await mapWithConcurrency(files, 6, ({ filename }) =>
+    checkFileForUpdate(join(modsDir, filename), filename, mcVersion, loader)
+  )
+  return results.filter((r): r is UpdateCandidate => r !== null)
+}
+
+// Downloads the new version under its own Modrinth filename, preserving the
+// old file's enabled/disabled state (a disabled mod should stay disabled
+// after updating, not silently re-enable), then removes the old file.
+export async function updateMod(instanceId: string, oldFilename: string, file: ModFileRef): Promise<void> {
+  assertSafeFilename(oldFilename)
+  assertSafeFilename(file.filename)
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  const oldPath = join(modsDir, oldFilename)
+
+  const res = await fetch(file.url)
+  if (!res.ok) throw new Error(`Mod-Download fehlgeschlagen (HTTP ${res.status}).`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+
+  const wasDisabled = oldFilename.endsWith(DISABLED_SUFFIX)
+  const newFilename = wasDisabled ? `${file.filename}${DISABLED_SUFFIX}` : file.filename
+  const newPath = join(modsDir, newFilename)
+
+  writeFileSync(newPath, buffer)
+  if (existsSync(oldPath) && oldPath !== newPath) rmSync(oldPath)
+}
+
 // Disabled mods are kept on disk with a ".disabled" suffix rather than a
 // separate folder - every mod loader only scans for files literally ending
 // in ".jar", so this is the universal, loader-agnostic way to turn a mod
@@ -569,6 +645,12 @@ export function registerModHandlers(): void {
   ipcMain.handle('mods:pickAndCheckFile', () => pickAndCheckModFile())
   ipcMain.handle('mods:installFromFile', (_event, instanceId: string, filePath: string) =>
     installModFromFile(instanceId, filePath)
+  )
+  ipcMain.handle('mods:checkUpdates', (_event, instanceId: string, mcVersion: string, loader: string) =>
+    checkModUpdates(instanceId, mcVersion, loader)
+  )
+  ipcMain.handle('mods:update', (_event, instanceId: string, oldFilename: string, file: ModFileRef) =>
+    updateMod(instanceId, oldFilename, file)
   )
   ipcMain.handle(
     'content:search',

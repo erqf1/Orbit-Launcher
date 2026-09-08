@@ -1629,6 +1629,11 @@ button:not(:disabled):active {
   color: var(--danger);
 }
 
+.pill-update {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
 .mod-check-result {
   margin-top: 10px;
   padding: 10px 12px;

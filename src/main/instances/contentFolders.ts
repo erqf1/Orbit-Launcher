@@ -13,7 +13,13 @@ import {
 } from 'fs'
 import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
-import { mapWithConcurrency, resolveModInfo, type ModFileRef } from '../mods/modrinth'
+import {
+  mapWithConcurrency,
+  resolveModInfo,
+  checkFileForUpdate,
+  type ModFileRef,
+  type UpdateCandidate
+} from '../mods/modrinth'
 import { refocusMainWindow } from '../windowFocus'
 
 export interface ContentFileEntry {
@@ -162,6 +168,47 @@ export async function installContentFile(instanceId: string, subfolder: string, 
   writeFileSync(join(dir, file.filename), buffer)
 }
 
+// Resourcepacks/shaderpacks aren't loader-specific on Modrinth, so
+// checkFileForUpdate is called with 'vanilla' to skip loader filtering
+// (screenshots is a valid subfolder for other operations but was never
+// Modrinth content, so it's excluded here rather than accepted by
+// assertAllowedSubfolder and just silently returning nothing).
+export async function checkContentUpdates(
+  instanceId: string,
+  subfolder: string,
+  mcVersion: string
+): Promise<UpdateCandidate[]> {
+  assertAllowedSubfolder(subfolder)
+  if (subfolder === 'screenshots') return []
+  const dir = join(getInstanceRoot(instanceId), subfolder)
+  const entries = listContentFiles(instanceId, subfolder).filter((e) => !e.isDirectory)
+  const results = await mapWithConcurrency(entries, 6, (entry) =>
+    checkFileForUpdate(join(dir, entry.name), entry.name, mcVersion, 'vanilla')
+  )
+  return results.filter((r): r is UpdateCandidate => r !== null)
+}
+
+export async function updateContentFile(
+  instanceId: string,
+  subfolder: string,
+  oldName: string,
+  file: ModFileRef
+): Promise<void> {
+  assertAllowedSubfolder(subfolder)
+  assertSafeName(oldName)
+  assertSafeName(file.filename)
+  const dir = join(getInstanceRoot(instanceId), subfolder)
+  const oldPath = join(dir, oldName)
+
+  const res = await fetch(file.url)
+  if (!res.ok) throw new Error(`Download fehlgeschlagen (HTTP ${res.status}).`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+
+  const newPath = join(dir, file.filename)
+  writeFileSync(newPath, buffer)
+  if (existsSync(oldPath) && oldPath !== newPath) rmSync(oldPath)
+}
+
 export function openContentFolder(instanceId: string, subfolder: string): Promise<void> {
   assertAllowedSubfolder(subfolder)
   const dir = join(getInstanceRoot(instanceId), subfolder)
@@ -200,5 +247,13 @@ export function registerContentFolderHandlers(): void {
   )
   ipcMain.handle('content:installFromUrl', (_e, instanceId: string, subfolder: string, file: ModFileRef) =>
     installContentFile(instanceId, subfolder, file)
+  )
+  ipcMain.handle('content:checkUpdates', (_e, instanceId: string, subfolder: string, mcVersion: string) =>
+    checkContentUpdates(instanceId, subfolder, mcVersion)
+  )
+  ipcMain.handle(
+    'content:update',
+    (_e, instanceId: string, subfolder: string, oldName: string, file: ModFileRef) =>
+      updateContentFile(instanceId, subfolder, oldName, file)
   )
 }

@@ -123,9 +123,22 @@ export interface ModVersionSummary {
   requiredDependencyProjectIds: string[]
 }
 
+export interface ModFileRef {
+  url: string
+  filename: string
+}
+
 export interface CuratedMod extends ModSearchResult {
   category: string
   compatible: boolean
+}
+
+export interface UpdateCandidate {
+  filename: string
+  title: string
+  currentVersionNumber: string | null
+  newVersionNumber: string
+  file: ModFileRef
 }
 
 export interface PrismInstanceSummary {
