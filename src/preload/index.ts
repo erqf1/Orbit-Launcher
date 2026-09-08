@@ -81,6 +81,14 @@ export interface Instance {
   group: string | null
   coverColor: string | null
   bannerFilename: string | null
+  quitAppOnGameClose: boolean
+  totalPlaytimeMs: number
+  trackPlaytime: boolean
+  overrideAccountId: string | null
+  skipJavaCompatWarning: boolean
+  preLaunchCommand: string | null
+  postExitCommand: string | null
+  envVars: Array<{ name: string; value: string }>
 }
 
 export interface InstanceSettingsPatch {
@@ -98,6 +106,13 @@ export interface InstanceSettingsPatch {
   closeOnLaunch?: boolean
   autoJoinServer?: string | null
   notes?: string
+  quitAppOnGameClose?: boolean
+  trackPlaytime?: boolean
+  overrideAccountId?: string | null
+  skipJavaCompatWarning?: boolean
+  preLaunchCommand?: string | null
+  postExitCommand?: string | null
+  envVars?: Array<{ name: string; value: string }>
 }
 
 export interface CloneAsVersionInput {
@@ -119,6 +134,13 @@ export interface CloneContentOptions {
 export interface JavaInstallation {
   path: string
   version: string
+}
+
+export interface JavaCompatCheck {
+  installedVersion: string | null
+  installedMajor: number | null
+  requiredMajor: number | null
+  mismatch: boolean
 }
 
 export interface CreateInstanceInput {
@@ -297,6 +319,9 @@ const api = {
     ipcRenderer.invoke('instances:createShortcut', id),
 
   detectJava: (): Promise<JavaInstallation[]> => ipcRenderer.invoke('java:detect'),
+  browseForJava: (): Promise<JavaInstallation | null> => ipcRenderer.invoke('java:browse'),
+  checkJavaCompat: (javaPath: string, mcVersion: string): Promise<JavaCompatCheck> =>
+    ipcRenderer.invoke('java:checkCompat', javaPath, mcVersion),
 
   listVersions: (): Promise<MinecraftVersionSummary[]> => ipcRenderer.invoke('versions:list'),
   listLoaderVersions: (

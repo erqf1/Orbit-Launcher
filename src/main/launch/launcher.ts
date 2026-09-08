@@ -1,8 +1,12 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, app } from 'electron'
 import { randomUUID } from 'crypto'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { Client } from 'minecraft-launcher-core'
-import { getMclcAuthorization } from '../auth/msmcAuth'
-import { getInstance, getInstanceRoot, markLaunched } from '../instances/instanceManager'
+import { getMclcAuthorization, getMclcAuthorizationFor } from '../auth/msmcAuth'
+import { getInstance, getInstanceRoot, markLaunched, addPlaytime } from '../instances/instanceManager'
+
+const execAsync = promisify(exec)
 
 // Different instances may run concurrently, but the same instance can't be
 // launched twice - an earlier version allowed that too and real-world
@@ -25,6 +29,15 @@ export function setPendingLaunchInstanceIdFromArgv(argv: string[]): void {
   if (flag) pendingLaunchInstanceId = flag.slice('--launch-instance='.length)
 }
 
+function runHookCommand(command: string, cwd: string, env: NodeJS.ProcessEnv): Promise<void> {
+  return execAsync(command, { cwd, env }).then(
+    () => undefined,
+    (err) => {
+      throw new Error(`Befehl fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  )
+}
+
 export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('launch:consumePendingInstanceId', () => {
     const id = pendingLaunchInstanceId
@@ -33,7 +46,14 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
   })
 
   ipcMain.handle('launch:start', async (_event, instanceId: string) => {
-    const authorization = getMclcAuthorization()
+    const instance = getInstance(instanceId)
+    if (!instance) {
+      throw new Error('Instanz nicht gefunden.')
+    }
+
+    const authorization = instance.overrideAccountId
+      ? await getMclcAuthorizationFor(instance.overrideAccountId)
+      : getMclcAuthorization()
     if (!authorization) {
       throw new Error('Bitte zuerst mit Microsoft anmelden.')
     }
@@ -42,14 +62,24 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       throw new Error('Diese Instanz läuft bereits.')
     }
 
-    const instance = getInstance(instanceId)
-    if (!instance) {
-      throw new Error('Instanz nicht gefunden.')
+    const root = getInstanceRoot(instance.id)
+    const hookEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      INST_NAME: instance.name,
+      INST_ID: instance.folderName ?? instance.id,
+      INST_DIR: root,
+      INST_MC_DIR: root,
+      ...(instance.javaPath ? { INST_JAVA: instance.javaPath } : {})
+    }
+
+    if (instance.preLaunchCommand?.trim()) {
+      await runHookCommand(instance.preLaunchCommand, root, hookEnv)
     }
 
     const launchId = randomUUID()
     activeInstanceIds.add(instanceId)
     const launcher = new Client()
+    const startedAt = Date.now()
 
     launcher.on('debug', (e: string) =>
       mainWindow.webContents.send('launch:log', { launchId, instanceId, line: String(e) })
@@ -67,6 +97,22 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
         hideRequesters.delete(launchId)
         if (hideRequesters.size === 0 && !mainWindow.isDestroyed()) mainWindow.show()
       }
+
+      if (instance.trackPlaytime) {
+        addPlaytime(instance.id, Date.now() - startedAt)
+      }
+
+      if (instance.postExitCommand?.trim()) {
+        runHookCommand(instance.postExitCommand, root, hookEnv).catch((err) => {
+          mainWindow.webContents.send('launch:log', {
+            launchId,
+            instanceId,
+            line: `[post-exit] ${err instanceof Error ? err.message : String(err)}`
+          })
+        })
+      }
+
+      if (instance.quitAppOnGameClose) app.quit()
     })
 
     if (instance.closeOnLaunch) {
@@ -81,30 +127,52 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     }
     if (instance.fullscreen) windowOptions.fullscreen = true
 
-    await launcher.launch({
-      // MCLC's own .d.ts types `user_properties` as `Partial<any>`, which this
-      // TS version won't structurally accept a plain string for — but a JSON
-      // string is exactly what MCLC's README shows and what msmc produces.
-      authorization: authorization as unknown as Parameters<InstanceType<typeof Client>['launch']>[0]['authorization'],
-      root: getInstanceRoot(instance.id),
-      version: {
-        number: instance.mcVersion,
-        type: 'release',
-        ...(instance.customVersionId ? { custom: instance.customVersionId } : {})
-      },
-      ...(instance.forgeInstallerPath ? { forge: instance.forgeInstallerPath } : {}),
-      memory: {
-        max: instance.memoryMax,
-        min: instance.memoryMin
-      },
-      ...(instance.javaPath ? { javaPath: instance.javaPath } : {}),
-      ...(instance.jvmArgs ? { customArgs: instance.jvmArgs.split(/\s+/).filter(Boolean) } : {}),
-      ...(instance.mcArgs ? { customLaunchArgs: instance.mcArgs.split(/\s+/).filter(Boolean) } : {}),
-      ...(Object.keys(windowOptions).length > 0 ? { window: windowOptions } : {}),
-      ...(instance.autoJoinServer
-        ? { quickPlay: { type: 'multiplayer' as const, identifier: instance.autoJoinServer } }
-        : {})
-    })
+    // MCLC spawns the game process with no explicit `env` option, which
+    // means Node defaults to inheriting process.env at that moment - the
+    // only hook available to add custom vars without patching MCLC itself.
+    // Narrow risk: two concurrently-launched instances with *different*
+    // custom env vars could theoretically clobber each other's globally-
+    // mutated process.env during the (usually sub-second) window between
+    // setting it here and MCLC's internal spawn call. Accepted for now -
+    // rare in practice for a personal launcher, and reverted in `finally`.
+    const previousEnv: Record<string, string | undefined> = {}
+    for (const { name, value } of instance.envVars) {
+      previousEnv[name] = process.env[name]
+      process.env[name] = value
+    }
+
+    try {
+      await launcher.launch({
+        // MCLC's own .d.ts types `user_properties` as `Partial<any>`, which this
+        // TS version won't structurally accept a plain string for — but a JSON
+        // string is exactly what MCLC's README shows and what msmc produces.
+        authorization:
+          authorization as unknown as Parameters<InstanceType<typeof Client>['launch']>[0]['authorization'],
+        root,
+        version: {
+          number: instance.mcVersion,
+          type: 'release',
+          ...(instance.customVersionId ? { custom: instance.customVersionId } : {})
+        },
+        ...(instance.forgeInstallerPath ? { forge: instance.forgeInstallerPath } : {}),
+        memory: {
+          max: instance.memoryMax,
+          min: instance.memoryMin
+        },
+        ...(instance.javaPath ? { javaPath: instance.javaPath } : {}),
+        ...(instance.jvmArgs ? { customArgs: instance.jvmArgs.split(/\s+/).filter(Boolean) } : {}),
+        ...(instance.mcArgs ? { customLaunchArgs: instance.mcArgs.split(/\s+/).filter(Boolean) } : {}),
+        ...(Object.keys(windowOptions).length > 0 ? { window: windowOptions } : {}),
+        ...(instance.autoJoinServer
+          ? { quickPlay: { type: 'multiplayer' as const, identifier: instance.autoJoinServer } }
+          : {})
+      })
+    } finally {
+      for (const [name, value] of Object.entries(previousEnv)) {
+        if (value === undefined) delete process.env[name]
+        else process.env[name] = value
+      }
+    }
 
     markLaunched(instance.id)
 

@@ -646,6 +646,7 @@ function App(): React.JSX.Element {
       {detailInstance && (
         <InstanceDetailPanel
           instance={detailInstance}
+          accounts={accounts}
           onClose={() => setDetailInstanceId(null)}
           onInstanceChanged={refreshInstances}
         />

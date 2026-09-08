@@ -74,6 +74,15 @@ export function getMclcAuthorization(): MclcAuthorization | null {
   return authorizationCache.get(activeId) ?? null
 }
 
+// For an instance's per-account override (Settings > General > "Override
+// Default Account") - ensures that specific account's token is refreshed/
+// cached (same path as switching to it) and returns its MCLC authorization,
+// independent of whichever account is globally active.
+export async function getMclcAuthorizationFor(id: string): Promise<MclcAuthorization | null> {
+  await ensureAuthorizationFor(id)
+  return authorizationCache.get(id) ?? null
+}
+
 export interface CapeInfo {
   id: string
   url: string

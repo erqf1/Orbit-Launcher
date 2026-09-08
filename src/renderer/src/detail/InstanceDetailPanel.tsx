@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Instance, InstanceSettingsPatch, JavaInstallation } from '../types'
+import type { Instance, InstanceSettingsPatch, JavaCompatCheck, JavaInstallation } from '../types'
 import VersionTab from './VersionTab'
 import ModsTab from './ModsTab'
 import FileListTab from './FileListTab'
@@ -8,8 +8,14 @@ import WorldsTab from './WorldsTab'
 import ServersTab from './ServersTab'
 import LogsTab from './LogsTab'
 
+interface Account {
+  id: string
+  name: string
+}
+
 interface Props {
   instance: Instance
+  accounts: Account[]
   onClose: () => void
   onInstanceChanged: () => void
 }
@@ -23,7 +29,8 @@ type TabKey =
   | 'worlds'
   | 'servers'
   | 'screenshots'
-  | 'settings'
+  | 'general'
+  | 'advanced'
   | 'logs'
 
 const TABS: Array<{ key: TabKey; label: string }> = [
@@ -35,9 +42,18 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'worlds', label: 'Welten' },
   { key: 'servers', label: 'Server' },
   { key: 'screenshots', label: 'Screenshots' },
-  { key: 'settings', label: 'Einstellungen' },
+  { key: 'general', label: 'Allgemein' },
+  { key: 'advanced', label: 'Erweitert' },
   { key: 'logs', label: 'Logs' }
 ]
+
+function formatPlaytime(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60000)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours === 0) return `${minutes} Min.`
+  return `${hours} Std. ${minutes} Min.`
+}
 
 function NotesTab({ instance, onSaved }: { instance: Instance; onSaved: () => void }): React.JSX.Element {
   const [notes, setNotes] = useState(instance.notes)
@@ -72,26 +88,35 @@ function NotesTab({ instance, onSaved }: { instance: Instance; onSaved: () => vo
   )
 }
 
-function SettingsTab({
+function GeneralTab({
   instance,
+  accounts,
   onSaved
 }: {
   instance: Instance
+  accounts: Account[]
   onSaved: () => void
 }): React.JSX.Element {
   const [javaOptions, setJavaOptions] = useState<JavaInstallation[]>([])
   const [loadingJava, setLoadingJava] = useState(true)
   const [javaPath, setJavaPath] = useState(instance.javaPath ?? '')
-  const [jvmArgs, setJvmArgs] = useState(instance.jvmArgs ?? '')
-  const [mcArgs, setMcArgs] = useState(instance.mcArgs ?? '')
   const [memoryMin, setMemoryMin] = useState(instance.memoryMin)
   const [memoryMax, setMemoryMax] = useState(instance.memoryMax)
   const [windowWidth, setWindowWidth] = useState(instance.windowWidth?.toString() ?? '')
   const [windowHeight, setWindowHeight] = useState(instance.windowHeight?.toString() ?? '')
   const [fullscreen, setFullscreen] = useState(instance.fullscreen)
   const [closeOnLaunch, setCloseOnLaunch] = useState(instance.closeOnLaunch)
+  const [quitAppOnGameClose, setQuitAppOnGameClose] = useState(instance.quitAppOnGameClose)
+  const [trackPlaytime, setTrackPlaytime] = useState(instance.trackPlaytime)
+  const [overrideAccount, setOverrideAccount] = useState(instance.overrideAccountId !== null)
+  const [overrideAccountId, setOverrideAccountId] = useState(instance.overrideAccountId ?? '')
+  const [autoJoinEnabled, setAutoJoinEnabled] = useState(!!instance.autoJoinServer)
   const [autoJoinServer, setAutoJoinServer] = useState(instance.autoJoinServer ?? '')
+  const [skipJavaCompatWarning, setSkipJavaCompatWarning] = useState(instance.skipJavaCompatWarning)
+  const [compat, setCompat] = useState<JavaCompatCheck | null>(null)
+  const [browsingJava, setBrowsingJava] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -107,6 +132,32 @@ function SettingsTab({
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    window.api.checkJavaCompat(javaPath, instance.mcVersion).then((result) => {
+      if (!cancelled) setCompat(result)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [javaPath, instance.mcVersion])
+
+  async function handleBrowseJava(): Promise<void> {
+    setBrowsingJava(true)
+    setError(null)
+    try {
+      const result = await window.api.browseForJava()
+      if (result) {
+        setJavaPath(result.path)
+        setJavaOptions((prev) => (prev.some((j) => j.path === result.path) ? prev : [...prev, result]))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBrowsingJava(false)
+    }
+  }
 
   const memoryPattern = /^\d+[MG]$/i
   const toMebibytes = (value: string): number => {
@@ -124,15 +175,17 @@ function SettingsTab({
     if (!memoryValid) return
     const patch: InstanceSettingsPatch = {
       javaPath: javaPath || null,
-      jvmArgs: jvmArgs.trim() || null,
-      mcArgs: mcArgs.trim() || null,
       memoryMin,
       memoryMax,
       windowWidth: windowWidth ? Number(windowWidth) : null,
       windowHeight: windowHeight ? Number(windowHeight) : null,
       fullscreen,
       closeOnLaunch,
-      autoJoinServer: autoJoinServer.trim() || null
+      quitAppOnGameClose,
+      trackPlaytime,
+      overrideAccountId: overrideAccount ? overrideAccountId || null : null,
+      autoJoinServer: autoJoinEnabled ? autoJoinServer.trim() || null : null,
+      skipJavaCompatWarning
     }
     await window.api.updateInstanceSettings(instance.id, patch)
     onSaved()
@@ -143,44 +196,7 @@ function SettingsTab({
   return (
     <div className="detail-tab">
       <section className="settings-section">
-        <h4 className="settings-section-title">Java &amp; Speicher</h4>
-        <label>
-          Java
-          {loadingJava ? (
-            <p className="instance-meta">Suche Java-Installationen…</p>
-          ) : (
-            <select value={javaPath} onChange={(e) => setJavaPath(e.target.value)}>
-              <option value="">System-Standard (java)</option>
-              {javaOptions.map((j) => (
-                <option key={j.path} value={j.path}>
-                  {j.version} — {j.path}
-                </option>
-              ))}
-            </select>
-          )}
-        </label>
-
-        <div className="field-row">
-          <label>
-            Min. Speicher
-            <input value={memoryMin} onChange={(e) => setMemoryMin(e.target.value)} placeholder="2G" />
-          </label>
-          <label>
-            Max. Speicher
-            <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
-          </label>
-        </div>
-
-        {!memoryValid && (
-          <p className="error">
-            Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
-            überschreiten.
-          </p>
-        )}
-      </section>
-
-      <section className="settings-section">
-        <h4 className="settings-section-title">Fenster</h4>
+        <h4 className="settings-section-title">Spielfenster</h4>
         <div className="field-row">
           <label>
             Fensterbreite
@@ -208,7 +224,6 @@ function SettingsTab({
           <input type="checkbox" checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)} />
           Vollbild starten
         </label>
-
         <label className="checkbox-label">
           <input
             type="checkbox"
@@ -217,29 +232,118 @@ function SettingsTab({
           />
           Launcher-Fenster ausblenden, während diese Instanz läuft
         </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={quitAppOnGameClose}
+            onChange={(e) => setQuitAppOnGameClose(e.target.checked)}
+          />
+          Launcher beenden, sobald das Spiel geschlossen wird
+        </label>
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Erweitert</h4>
-        <label>
-          Zusätzliche Java-Argumente
-          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
+        <h4 className="settings-section-title">Spielzeit</h4>
+        <p className="instance-meta">Gesamt: {formatPlaytime(instance.totalPlaytimeMs)}</p>
+        <label className="checkbox-label">
+          <input type="checkbox" checked={trackPlaytime} onChange={(e) => setTrackPlaytime(e.target.checked)} />
+          Spielzeit für diese Instanz aufzeichnen
         </label>
+      </section>
 
-        <label>
-          Zusätzliche Spiel-Argumente
-          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
+      <section className="settings-section">
+        <h4 className="settings-section-title">Konto &amp; Server</h4>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={overrideAccount}
+            onChange={(e) => setOverrideAccount(e.target.checked)}
+          />
+          Abweichendes Konto für diese Instanz verwenden
         </label>
+        {overrideAccount && (
+          <select value={overrideAccountId} onChange={(e) => setOverrideAccountId(e.target.value)}>
+            <option value="">Konto wählen…</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        )}
 
-        <label>
-          Server automatisch beitreten
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={autoJoinEnabled}
+            onChange={(e) => setAutoJoinEnabled(e.target.checked)}
+          />
+          Automatisch einem Server beitreten
+        </label>
+        {autoJoinEnabled && (
           <input
             value={autoJoinServer}
             onChange={(e) => setAutoJoinServer(e.target.value)}
-            placeholder="Serveradresse (optional, auch im Server-Tab einstellbar)"
+            placeholder="Serveradresse (auch im Server-Tab einstellbar)"
           />
-        </label>
+        )}
       </section>
+
+      <section className="settings-section">
+        <h4 className="settings-section-title">Java &amp; Speicher</h4>
+        <label>
+          Java-Installation
+          {loadingJava ? (
+            <p className="instance-meta">Suche Java-Installationen…</p>
+          ) : (
+            <select value={javaPath} onChange={(e) => setJavaPath(e.target.value)}>
+              <option value="">System-Standard (java)</option>
+              {javaOptions.map((j) => (
+                <option key={j.path} value={j.path}>
+                  {j.version} — {j.path}
+                </option>
+              ))}
+            </select>
+          )}
+        </label>
+        <button type="button" onClick={handleBrowseJava} disabled={browsingJava}>
+          {browsingJava ? '…' : 'Durchsuchen…'}
+        </button>
+
+        {compat?.mismatch && !skipJavaCompatWarning && (
+          <p className="error">
+            Warnung: Java {compat.installedMajor} wirkt falsch für Minecraft {instance.mcVersion} (empfohlen:
+            Java {compat.requiredMajor}). Das Spiel startet eventuell nicht.
+          </p>
+        )}
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={skipJavaCompatWarning}
+            onChange={(e) => setSkipJavaCompatWarning(e.target.checked)}
+          />
+          Java-Kompatibilitätswarnung ausblenden
+        </label>
+
+        <div className="field-row">
+          <label>
+            Min. Speicher
+            <input value={memoryMin} onChange={(e) => setMemoryMin(e.target.value)} placeholder="2G" />
+          </label>
+          <label>
+            Max. Speicher
+            <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
+          </label>
+        </div>
+        {!memoryValid && (
+          <p className="error">
+            Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
+            überschreiten.
+          </p>
+        )}
+      </section>
+
+      {error && <p className="error">{error}</p>}
 
       <div className="modal-actions">
         <button type="button" className="save-button" onClick={handleSave} disabled={!memoryValid}>
@@ -251,7 +355,123 @@ function SettingsTab({
   )
 }
 
-function InstanceDetailPanel({ instance, onClose, onInstanceChanged }: Props): React.JSX.Element {
+function AdvancedTab({
+  instance,
+  onSaved
+}: {
+  instance: Instance
+  onSaved: () => void
+}): React.JSX.Element {
+  const [jvmArgs, setJvmArgs] = useState(instance.jvmArgs ?? '')
+  const [mcArgs, setMcArgs] = useState(instance.mcArgs ?? '')
+  const [preLaunchCommand, setPreLaunchCommand] = useState(instance.preLaunchCommand ?? '')
+  const [postExitCommand, setPostExitCommand] = useState(instance.postExitCommand ?? '')
+  const [envVars, setEnvVars] = useState(instance.envVars)
+  const [saved, setSaved] = useState(false)
+
+  function updateEnvVar(index: number, field: 'name' | 'value', value: string): void {
+    setEnvVars((prev) => prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)))
+  }
+
+  function addEnvVar(): void {
+    setEnvVars((prev) => [...prev, { name: '', value: '' }])
+  }
+
+  function removeEnvVar(index: number): void {
+    setEnvVars((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  async function handleSave(): Promise<void> {
+    const patch: InstanceSettingsPatch = {
+      jvmArgs: jvmArgs.trim() || null,
+      mcArgs: mcArgs.trim() || null,
+      preLaunchCommand: preLaunchCommand.trim() || null,
+      postExitCommand: postExitCommand.trim() || null,
+      envVars: envVars.filter((v) => v.name.trim())
+    }
+    await window.api.updateInstanceSettings(instance.id, patch)
+    onSaved()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="detail-tab">
+      <section className="settings-section">
+        <h4 className="settings-section-title">Argumente</h4>
+        <label>
+          Zusätzliche Java-Argumente
+          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
+        </label>
+        <label>
+          Zusätzliche Spiel-Argumente
+          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
+        </label>
+      </section>
+
+      <section className="settings-section">
+        <h4 className="settings-section-title">Eigene Befehle</h4>
+        <label>
+          Vor dem Start ausführen
+          <input
+            value={preLaunchCommand}
+            onChange={(e) => setPreLaunchCommand(e.target.value)}
+            placeholder="optional"
+          />
+        </label>
+        <label>
+          Nach dem Beenden ausführen
+          <input
+            value={postExitCommand}
+            onChange={(e) => setPostExitCommand(e.target.value)}
+            placeholder="optional"
+          />
+        </label>
+        <p className="instance-meta">
+          Beide laufen im Instanzordner mit den Umgebungsvariablen INST_NAME, INST_ID, INST_DIR, INST_MC_DIR
+          und (falls gesetzt) INST_JAVA.
+        </p>
+      </section>
+
+      <section className="settings-section">
+        <h4 className="settings-section-title">Umgebungsvariablen</h4>
+        {envVars.length > 0 && (
+          <div className="env-var-list">
+            {envVars.map((v, i) => (
+              <div className="env-var-row" key={i}>
+                <input
+                  value={v.name}
+                  onChange={(e) => updateEnvVar(i, 'name', e.target.value)}
+                  placeholder="NAME"
+                />
+                <input
+                  value={v.value}
+                  onChange={(e) => updateEnvVar(i, 'value', e.target.value)}
+                  placeholder="Wert"
+                />
+                <button type="button" onClick={() => removeEnvVar(i)} title="Entfernen">
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button type="button" onClick={addEnvVar}>
+          + Variable hinzufügen
+        </button>
+      </section>
+
+      <div className="modal-actions">
+        <button type="button" className="save-button" onClick={handleSave}>
+          Speichern
+        </button>
+        {saved && <span className="instance-meta">Gespeichert.</span>}
+      </div>
+    </div>
+  )
+}
+
+function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }: Props): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('version')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(instance.name)
@@ -305,8 +525,10 @@ function InstanceDetailPanel({ instance, onClose, onInstanceChanged }: Props): R
         return <ServersTab instance={instance} onChanged={onInstanceChanged} />
       case 'screenshots':
         return <ScreenshotsTab instanceId={instance.id} />
-      case 'settings':
-        return <SettingsTab instance={instance} onSaved={onInstanceChanged} />
+      case 'general':
+        return <GeneralTab instance={instance} accounts={accounts} onSaved={onInstanceChanged} />
+      case 'advanced':
+        return <AdvancedTab instance={instance} onSaved={onInstanceChanged} />
       case 'logs':
         return <LogsTab instanceId={instance.id} />
     }

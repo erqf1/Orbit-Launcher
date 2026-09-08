@@ -1284,6 +1284,34 @@ button:not(:disabled):active {
   flex: 1;
 }
 
+.env-var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.env-var-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.env-var-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.env-var-row button {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  color: var(--text-faint);
+}
+
+.env-var-row button:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
 .modal input,
 .modal select {
   padding: 8px 10px;

@@ -71,6 +71,32 @@ export interface Instance {
   // filename-only storage as iconFilename, and takes priority over
   // coverColor when both are set.
   bannerFilename: string | null
+  // Quits the whole app (not just re-showing the window) once this
+  // instance's game process exits - the Prism "when game window closes,
+  // quit launcher" option. Independent of closeOnLaunch (hide-while-
+  // running); both can be set together.
+  quitAppOnGameClose: boolean
+  // Accumulated play time in milliseconds, updated once per session when
+  // the game process closes (start-of-launch to close timestamp delta).
+  totalPlaytimeMs: number
+  trackPlaytime: boolean
+  // Launch with a specific saved account instead of whichever one is
+  // globally active - id into authStore's account list, or null to use
+  // the app's normal active-account selection.
+  overrideAccountId: string | null
+  // Suppresses the advisory (non-blocking) warning shown when the
+  // detected/selected Java's major version looks wrong for this
+  // instance's Minecraft version.
+  skipJavaCompatWarning: boolean
+  // Run before the game launches / after it exits, in the instance's own
+  // root as cwd, with INST_* env vars set (name/id/dir/mcDir/java/javaArgs)
+  // - same convention Prism documents for its own pre-launch/post-exit
+  // commands. Null/empty means "no command".
+  preLaunchCommand: string | null
+  postExitCommand: string | null
+  // Extra environment variables merged into the launched game process's
+  // environment (on top of the current process's own env).
+  envVars: Array<{ name: string; value: string }>
 }
 
 export interface InstanceSettingsPatch {
@@ -88,6 +114,13 @@ export interface InstanceSettingsPatch {
   closeOnLaunch?: boolean
   autoJoinServer?: string | null
   notes?: string
+  quitAppOnGameClose?: boolean
+  trackPlaytime?: boolean
+  overrideAccountId?: string | null
+  skipJavaCompatWarning?: boolean
+  preLaunchCommand?: string | null
+  postExitCommand?: string | null
+  envVars?: Array<{ name: string; value: string }>
 }
 
 export interface CreateInstanceInput {
@@ -192,11 +225,31 @@ export function getInstanceRoot(id: string): string {
   return join(app.getPath('userData'), 'instances', folderName)
 }
 
+// Instances saved before a given field existed just won't have it in
+// instances.json - normalize once here (rather than `?? default` scattered
+// at every read site) so the rest of the app can treat every Instance as
+// fully populated. No versioned migration system exists in this project;
+// this is the same lightweight approach folderName's own fallback uses.
+function normalizeInstance(instance: Partial<Instance>): Instance {
+  return {
+    quitAppOnGameClose: false,
+    totalPlaytimeMs: 0,
+    trackPlaytime: true,
+    overrideAccountId: null,
+    skipJavaCompatWarning: false,
+    preLaunchCommand: null,
+    postExitCommand: null,
+    envVars: [],
+    ...instance
+  } as Instance
+}
+
 function readAll(): Instance[] {
   const file = getInstancesFile()
   if (!existsSync(file)) return []
   try {
-    return JSON.parse(readFileSync(file, 'utf-8')) as Instance[]
+    const instances = JSON.parse(readFileSync(file, 'utf-8')) as Partial<Instance>[]
+    return instances.map(normalizeInstance)
   } catch {
     return []
   }
@@ -259,7 +312,15 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     favorite: false,
     group: null,
     coverColor: null,
-    bannerFilename: null
+    bannerFilename: null,
+    quitAppOnGameClose: false,
+    totalPlaytimeMs: 0,
+    trackPlaytime: true,
+    overrideAccountId: null,
+    skipJavaCompatWarning: false,
+    preLaunchCommand: null,
+    postExitCommand: null,
+    envVars: []
   }
 
   const instances = readAll()
@@ -509,8 +570,19 @@ function applyCloneSettingsReset(clone: Instance, options: CloneContentOptions):
     clone.fullscreen = false
     clone.closeOnLaunch = false
     clone.notes = ''
+    clone.quitAppOnGameClose = false
+    clone.trackPlaytime = true
+    clone.overrideAccountId = null
+    clone.skipJavaCompatWarning = false
+    clone.preLaunchCommand = null
+    clone.postExitCommand = null
+    clone.envVars = []
   }
   if (!options.servers) clone.autoJoinServer = null
+  // Playtime always resets on a duplicate - it tracks actual play sessions
+  // of that specific instance's files, not something meaningful to inherit
+  // regardless of what content/settings options were chosen.
+  clone.totalPlaytimeMs = 0
 }
 
 // Copies the source instance's already-installed files (including any
@@ -630,6 +702,14 @@ export function markLaunched(id: string): void {
   const instance = instances.find((i) => i.id === id)
   if (!instance) return
   instance.lastPlayed = new Date().toISOString()
+  writeAll(instances)
+}
+
+export function addPlaytime(id: string, ms: number): void {
+  const instances = readAll()
+  const instance = instances.find((i) => i.id === id)
+  if (!instance) return
+  instance.totalPlaytimeMs += ms
   writeAll(instances)
 }
 
