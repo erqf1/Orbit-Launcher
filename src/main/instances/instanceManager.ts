@@ -335,13 +335,18 @@ export async function createDesktopShortcut(id: string): Promise<string> {
   const baseName = sanitizeFolderName(instance.name)
   const execPath = process.execPath
   const launchFlag = `--launch-instance=${id}`
+  // process.argv[1] is NOT a reliable way to find the entry script in dev -
+  // confirmed broken in practice (electron-vite dev's actual argv layout
+  // doesn't put it there, producing a shortcut whose Arguments resolved to
+  // the Desktop folder itself instead of out/main/index.js, and Electron
+  // then failed to find an app to load at all). app.getAppPath() is
+  // Electron's own API for exactly this - the app root directory in both
+  // dev (project root) and packaged (resources/app.asar) builds.
+  const devEntryScript = join(app.getAppPath(), 'out', 'main', 'index.js')
 
   if (process.platform === 'win32') {
     const shortcutPath = join(desktopDir, `${baseName}.lnk`)
-    // In dev, process.execPath is the Electron binary itself and needs the
-    // entry script as its first arg (mirrors how `electron-vite dev` invokes
-    // it); a packaged build's exe is the entry point, so only the flag is needed.
-    const args = app.isPackaged ? launchFlag : `"${process.argv[1]}" ${launchFlag}`
+    const args = app.isPackaged ? launchFlag : `"${devEntryScript}" ${launchFlag}`
     const ok = shell.writeShortcutLink(shortcutPath, 'create', {
       target: execPath,
       args,
@@ -355,7 +360,7 @@ export async function createDesktopShortcut(id: string): Promise<string> {
     const desktopFilePath = join(desktopDir, `${baseName}.desktop`)
     const execLine = app.isPackaged
       ? `"${execPath}" ${launchFlag}`
-      : `"${execPath}" "${process.argv[1]}" ${launchFlag}`
+      : `"${execPath}" "${devEntryScript}" ${launchFlag}`
     const contents = [
       '[Desktop Entry]',
       'Type=Application',
