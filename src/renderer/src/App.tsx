@@ -12,17 +12,8 @@ interface Account {
   id: string
 }
 
-const LOADER_LABELS: Record<LoaderType, string> = {
-  vanilla: 'Vanilla',
-  fabric: 'Fabric',
-  quilt: 'Quilt',
-  legacyfabric: 'Legacy Fabric',
-  forge: 'Forge',
-  neoforge: 'NeoForge'
-}
-
 type SortMode = 'name' | 'lastPlayed' | 'created'
-type Filter = { type: 'all' } | { type: 'loader'; value: LoaderType } | { type: 'group'; value: string }
+type Filter = { type: 'all' } | { type: 'version'; value: string } | { type: 'group'; value: string }
 
 const VIEW_MODE_KEY = 'erqf.viewMode'
 const SORT_MODE_KEY = 'erqf.sortMode'
@@ -35,6 +26,28 @@ function readStoredViewMode(): InstanceViewLayout {
     // localStorage can throw in restricted contexts - grid is a fine default.
   }
   return 'grid'
+}
+
+// Newest-first, numeric-chunk-aware so "1.21.11" sorts above "1.21.2" (a
+// plain string sort would put "1.21.11" first alphabetically but that's
+// wrong numerically) - falls back to a plain string compare per chunk for
+// non-numeric ids like "rd-132211" (an April Fools' snapshot).
+function compareVersionsDesc(a: string, b: string): number {
+  const partsA = a.match(/\d+|\D+/g) ?? [a]
+  const partsB = b.match(/\d+|\D+/g) ?? [b]
+  const len = Math.max(partsA.length, partsB.length)
+  for (let i = 0; i < len; i++) {
+    const x = partsA[i] ?? ''
+    const y = partsB[i] ?? ''
+    if (/^\d+$/.test(x) && /^\d+$/.test(y)) {
+      const diff = Number(y) - Number(x)
+      if (diff !== 0) return diff
+    } else {
+      const diff = y.localeCompare(x)
+      if (diff !== 0) return diff
+    }
+  }
+  return 0
 }
 
 function readStoredSortMode(): SortMode {
@@ -324,11 +337,11 @@ function App(): React.JSX.Element {
   const runningEntries = Object.entries(launches)
   const selectedLaunch = selectedInstanceId ? launches[selectedInstanceId] : undefined
 
-  const loaderCounts = instances.reduce<Partial<Record<LoaderType, number>>>((acc, i) => {
-    acc[i.loader] = (acc[i.loader] ?? 0) + 1
+  const versionCounts = instances.reduce<Record<string, number>>((acc, i) => {
+    acc[i.mcVersion] = (acc[i.mcVersion] ?? 0) + 1
     return acc
   }, {})
-  const presentLoaders = (Object.keys(loaderCounts) as LoaderType[]).filter((l) => l !== 'vanilla')
+  const presentVersions = Object.keys(versionCounts).sort(compareVersionsDesc)
 
   const groupCounts = instances.reduce<Record<string, number>>((acc, i) => {
     if (i.group) acc[i.group] = (acc[i.group] ?? 0) + 1
@@ -337,7 +350,7 @@ function App(): React.JSX.Element {
   const presentGroups = Object.keys(groupCounts).sort((a, b) => a.localeCompare(b))
 
   const filtered = instances.filter((i) => {
-    if (filter.type === 'loader') return i.loader === filter.value
+    if (filter.type === 'version') return i.mcVersion === filter.value
     if (filter.type === 'group') return i.group === filter.value
     return true
   })
@@ -353,8 +366,7 @@ function App(): React.JSX.Element {
   })
   const visibleInstances = sorted
 
-  const filterLabel =
-    filter.type === 'all' ? 'Instanzen' : filter.type === 'loader' ? LOADER_LABELS[filter.value] : filter.value
+  const filterLabel = filter.type === 'all' ? 'Instanzen' : filter.value
 
   return (
     <div className="app-shell">
@@ -375,27 +387,15 @@ function App(): React.JSX.Element {
             Alle Instanzen
             <span className="main-nav-count">{instances.length}</span>
           </button>
-          {loaderCounts.vanilla !== undefined && (
+          {presentVersions.map((version) => (
             <button
+              key={version}
               type="button"
-              className={`main-nav-item${filter.type === 'loader' && filter.value === 'vanilla' ? ' active' : ''}`}
-              onClick={() => setFilter({ type: 'loader', value: 'vanilla' })}
+              className={`main-nav-item${filter.type === 'version' && filter.value === version ? ' active' : ''}`}
+              onClick={() => setFilter({ type: 'version', value: version })}
             >
-              <span className="main-nav-dot loader-vanilla" />
-              Vanilla
-              <span className="main-nav-count">{loaderCounts.vanilla}</span>
-            </button>
-          )}
-          {presentLoaders.map((loader) => (
-            <button
-              key={loader}
-              type="button"
-              className={`main-nav-item${filter.type === 'loader' && filter.value === loader ? ' active' : ''}`}
-              onClick={() => setFilter({ type: 'loader', value: loader })}
-            >
-              <span className={`main-nav-dot loader-${loader}`} />
-              {LOADER_LABELS[loader]}
-              <span className="main-nav-count">{loaderCounts[loader]}</span>
+              {version}
+              <span className="main-nav-count">{versionCounts[version]}</span>
             </button>
           ))}
         </nav>
