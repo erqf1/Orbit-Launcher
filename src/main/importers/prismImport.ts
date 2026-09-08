@@ -11,6 +11,7 @@ import {
   type InstanceSettingsPatch,
   type LoaderType
 } from '../instances/instanceManager'
+import { refocusMainWindow } from '../windowFocus'
 
 // Component uids as actually used in Prism's mmc-pack.json (verified against
 // PrismLauncher source, launcher/minecraft/Component.cpp KNOWN_MODLOADERS).
@@ -268,6 +269,7 @@ export function registerPrismImportHandlers(): void {
   )
   ipcMain.handle('prism:browseFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    refocusMainWindow()
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
   })

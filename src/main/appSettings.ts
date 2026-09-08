@@ -2,6 +2,7 @@ import { ipcMain, app, dialog } from 'electron'
 import { existsSync, readFileSync, writeFileSync, copyFileSync, mkdirSync, unlinkSync } from 'fs'
 import { join, extname, basename } from 'path'
 import { randomUUID } from 'crypto'
+import { refocusMainWindow } from './windowFocus'
 
 interface AppSettings {
   customBackgrounds: string[]
@@ -58,6 +59,7 @@ export async function addCustomBackground(): Promise<string[]> {
     properties: ['openFile'],
     filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
   })
+  refocusMainWindow()
   if (result.canceled || result.filePaths.length === 0) return listCustomBackgrounds()
   const src = result.filePaths[0]
   const ext = extname(src).toLowerCase()

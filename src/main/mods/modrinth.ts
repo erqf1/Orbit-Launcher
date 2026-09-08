@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import { createHash } from 'crypto'
 import { basename, join } from 'path'
 import { getInstanceRoot } from '../instances/instanceManager'
+import { refocusMainWindow } from '../windowFocus'
 
 const MODRINTH_API = 'https://api.modrinth.com/v2'
 const DISABLED_SUFFIX = '.disabled'
@@ -521,6 +522,7 @@ export async function pickAndCheckModFile(): Promise<ModCheckResult | null> {
     properties: ['openFile'],
     filters: [{ name: 'Mod-Datei', extensions: ['jar'] }]
   })
+  refocusMainWindow()
   if (result.canceled || result.filePaths.length === 0) return null
   return checkModFile(result.filePaths[0])
 }

@@ -14,6 +14,7 @@ import {
 import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
 import { mapWithConcurrency, resolveModInfo, type ModFileRef } from '../mods/modrinth'
+import { refocusMainWindow } from '../windowFocus'
 
 export interface ContentFileEntry {
   name: string
@@ -94,6 +95,7 @@ export function renameContentFile(instanceId: string, subfolder: string, oldName
 export async function addContentFiles(instanceId: string, subfolder: string): Promise<number> {
   assertAllowedSubfolder(subfolder)
   const result = await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'] })
+  refocusMainWindow()
   if (result.canceled) return 0
   const dir = join(getInstanceRoot(instanceId), subfolder)
   mkdirSync(dir, { recursive: true })

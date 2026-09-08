@@ -8,6 +8,7 @@ import {
   getInstanceRoot,
   type Instance
 } from '../instances/instanceManager'
+import { refocusMainWindow } from '../windowFocus'
 
 function defaultMinecraftRoot(): string | null {
   if (process.platform === 'win32') {
@@ -93,6 +94,7 @@ export function registerOfficialImportHandlers(): void {
   ipcMain.handle('official:import', (_e, rootOverride?: string) => importOfficialMinecraft(rootOverride))
   ipcMain.handle('official:browseFolder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    refocusMainWindow()
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
   })

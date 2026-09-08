@@ -136,6 +136,10 @@ function InstanceCard(props: Props): React.JSX.Element {
       className="cover-color-input"
       value={instance.coverColor ?? '#5b9dff'}
       onChange={(e) => onSetCoverColor(instance.id, e.target.value)}
+      // The native color picker popup can leave the window without real OS
+      // input focus once it closes (same Windows/Electron quirk as native
+      // file dialogs) - blur is the only event it reliably fires either way.
+      onBlur={() => window.focus()}
     />
   )
 

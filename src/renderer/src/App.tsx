@@ -172,6 +172,19 @@ function App(): React.JSX.Element {
     }
   }, [])
 
+  // Electron/Windows sometimes leaves the window frontmost but without real
+  // OS input focus after a native dialog or picker closes - buttons look
+  // normal but don't respond until something explicitly refocuses. A
+  // capturing-phase listener catches the very first click of a "stuck"
+  // window (mouse hit-testing still works even without keyboard focus) and
+  // requests focus before that click's own handler runs, healing it in place
+  // instead of requiring the user to click twice or alt-tab.
+  useEffect(() => {
+    const handler = (): void => window.focus()
+    document.addEventListener('mousedown', handler, true)
+    return () => document.removeEventListener('mousedown', handler, true)
+  }, [])
+
   async function handleLogin(): Promise<void> {
     setError(null)
     setLoggingIn(true)

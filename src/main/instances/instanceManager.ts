@@ -11,6 +11,7 @@ import {
 } from 'fs'
 import { cp as cpAsync, rm as rmAsync } from 'fs/promises'
 import { join, extname } from 'path'
+import { refocusMainWindow } from '../windowFocus'
 import { randomUUID } from 'crypto'
 import { installFabricProfile } from '../loaders/fabric'
 import { installQuiltProfile } from '../loaders/quilt'
@@ -319,6 +320,7 @@ export async function setInstanceIcon(id: string): Promise<Instance> {
     properties: ['openFile'],
     filters: [{ name: 'Bild', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }]
   })
+  refocusMainWindow()
   if (result.canceled || result.filePaths.length === 0) {
     const instance = getInstance(id)
     if (!instance) throw new Error('Instanz nicht gefunden.')
