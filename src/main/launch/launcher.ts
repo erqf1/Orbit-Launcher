@@ -1,12 +1,61 @@
 import { ipcMain, BrowserWindow, app } from 'electron'
 import { randomUUID } from 'crypto'
-import { exec } from 'child_process'
+import { exec, execFile } from 'child_process'
 import { promisify } from 'util'
 import { Client } from 'minecraft-launcher-core'
 import { getMclcAuthorization, getMclcAuthorizationFor } from '../auth/msmcAuth'
 import { getInstance, getInstanceRoot, markLaunched, addPlaytime } from '../instances/instanceManager'
 
 const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
+
+// Old Minecraft (pre-1.13-ish, LWJGL 2) never declares itself DPI-aware, so
+// on any Windows display above 100% scaling, Windows silently scales its
+// framebuffer itself - the well-known "tiny correctly-rendered patches,
+// rest of the window solid black" glitch. Prism/MultiMC avoid this by
+// marking the java executable DPI-aware via the exact same per-user
+// compatibility flag Windows' own exe Properties > Compatibility > "Change
+// high DPI settings" dialog writes - HKCU-scoped, no elevation needed,
+// harmless to set on modern (LWJGL 3) versions that already handle DPI
+// correctly on their own.
+async function ensureJavaDpiAware(javaPath: string): Promise<void> {
+  if (process.platform !== 'win32') return
+  try {
+    await execFileAsync('reg', [
+      'add',
+      'HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers',
+      '/v',
+      javaPath,
+      '/t',
+      'REG_SZ',
+      '/d',
+      '~ HIGHDPIAWARE',
+      '/f'
+    ])
+  } catch {
+    // Best-effort - a failure here (e.g. reg.exe unavailable) shouldn't
+    // block launching the game, just leaves the DPI glitch unfixed.
+  }
+}
+
+// instance.javaPath is null for "use the system default", in which case
+// MCLC itself just spawns the bare `java` command - resolved here too since
+// the DPI-aware flag has to target java's actual absolute exe path, not the
+// word "java".
+async function resolveJavaPath(explicitPath: string | null): Promise<string> {
+  if (explicitPath) return explicitPath
+  if (process.platform !== 'win32') return 'java'
+  try {
+    const { stdout } = await execFileAsync('where', ['java'])
+    const first = stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line)
+    return first ?? 'java'
+  } catch {
+    return 'java'
+  }
+}
 
 // Different instances may run concurrently, but the same instance can't be
 // launched twice - an earlier version allowed that too and real-world
@@ -75,6 +124,9 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     if (instance.preLaunchCommand?.trim()) {
       await runHookCommand(instance.preLaunchCommand, root, hookEnv)
     }
+
+    const resolvedJavaPath = await resolveJavaPath(instance.javaPath)
+    await ensureJavaDpiAware(resolvedJavaPath)
 
     const launchId = randomUUID()
     activeInstanceIds.add(instanceId)
