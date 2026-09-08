@@ -1805,6 +1805,28 @@ button:not(:disabled):active {
   font-weight: 700;
 }
 
+.instance-detail-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.instance-detail-nav-caret {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.instance-detail-nav-caret.open {
+  transform: rotate(90deg);
+}
+
+.instance-detail-nav-subitem {
+  padding-left: 26px;
+  font-size: 12px;
+}
+
 .instance-detail-nav-item.active::before {
   content: '';
   position: absolute;
@@ -1954,6 +1976,18 @@ button:not(:disabled):active {
 .detail-row-actions {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Groups a row's pill(s) together with its action buttons on the right
+   edge, instead of the pill sitting wherever the title happens to end
+   (leaving an odd stretch of empty space before the buttons for any
+   short title). .mod-title sits alone in .mod-row so it's the only part
+   that stretches/truncates. */
+.mod-row-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 

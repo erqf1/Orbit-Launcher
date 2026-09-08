@@ -49,6 +49,7 @@ const ru: Record<TranslationKey, string> = {
   'common.close': 'Закрыть',
   'common.create': 'Создать',
   'common.language': 'Язык',
+  'common.settings': 'Настройки',
 
   'settings.general': 'Общие',
   'settings.advanced': 'Дополнительно',

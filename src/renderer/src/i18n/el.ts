@@ -49,6 +49,7 @@ const el: Record<TranslationKey, string> = {
   'common.close': 'Κλείσιμο',
   'common.create': 'Δημιουργία',
   'common.language': 'Γλώσσα',
+  'common.settings': 'Ρυθμίσεις',
 
   'settings.general': 'Γενικά',
   'settings.advanced': 'Σύνθετα',

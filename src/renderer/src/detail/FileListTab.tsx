@@ -185,32 +185,32 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                           {(f.title ?? f.name).charAt(0).toUpperCase()}
                         </span>
                       )}
-                      <span className="mod-name-block">
-                        <span className="mod-title">{f.title ?? f.name}</span>
-                        {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
-                        {updates.has(f.name) && (
-                          <span className="pill pill-update">Update: V{updates.get(f.name)!.newVersionNumber}</span>
-                        )}
-                      </span>
+                      <span className="mod-title">{f.title ?? f.name}</span>
                     </span>
                   )}
-                  <span className="detail-row-actions">
+                  <span className="mod-row-end">
+                    {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
                     {updates.has(f.name) && (
-                      <button
-                        type="button"
-                        className="save-button"
-                        onClick={() => handleUpdateOne(f.name)}
-                        disabled={updatingName === f.name || updatingAll}
-                      >
-                        {updatingName === f.name ? 'Aktualisiere…' : 'Aktualisieren'}
-                      </button>
+                      <span className="pill pill-update">Update: V{updates.get(f.name)!.newVersionNumber}</span>
                     )}
-                    <button type="button" onClick={() => startRename(f.name)}>
-                      Umbenennen
-                    </button>
-                    <button type="button" onClick={() => handleRemove(f.name)}>
-                      Löschen
-                    </button>
+                    <span className="detail-row-actions">
+                      {updates.has(f.name) && (
+                        <button
+                          type="button"
+                          className="save-button"
+                          onClick={() => handleUpdateOne(f.name)}
+                          disabled={updatingName === f.name || updatingAll}
+                        >
+                          {updatingName === f.name ? 'Aktualisiere…' : 'Aktualisieren'}
+                        </button>
+                      )}
+                      <button type="button" onClick={() => startRename(f.name)}>
+                        Umbenennen
+                      </button>
+                      <button type="button" onClick={() => handleRemove(f.name)}>
+                        Löschen
+                      </button>
+                    </span>
                   </span>
                 </li>
               ))}

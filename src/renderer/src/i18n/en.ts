@@ -50,6 +50,7 @@ const en = {
   'common.close': 'Close',
   'common.create': 'Create',
   'common.language': 'Language',
+  'common.settings': 'Settings',
 
   'settings.general': 'General',
   'settings.advanced': 'Advanced',

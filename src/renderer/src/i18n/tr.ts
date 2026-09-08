@@ -49,6 +49,7 @@ const tr: Record<TranslationKey, string> = {
   'common.close': 'Kapat',
   'common.create': 'Oluştur',
   'common.language': 'Dil',
+  'common.settings': 'Ayarlar',
 
   'settings.general': 'Genel',
   'settings.advanced': 'Gelişmiş',

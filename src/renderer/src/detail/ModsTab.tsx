@@ -249,36 +249,34 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                           {(mod.title ?? mod.filename).charAt(0).toUpperCase()}
                         </span>
                       )}
-                      <span className="mod-name-block">
-                        <span className="mod-title">
-                          {mod.title ?? mod.filename.replace(/\.disabled$/, '')}
-                        </span>
-                        {mod.versionNumber && <span className="pill pill-version">V{mod.versionNumber}</span>}
-                        {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
-                        {updates.has(mod.filename) && (
-                          <span className="pill pill-update">
-                            Update: V{updates.get(mod.filename)!.newVersionNumber}
-                          </span>
-                        )}
-                      </span>
+                      <span className="mod-title">{mod.title ?? mod.filename.replace(/\.disabled$/, '')}</span>
                     </span>
-                    <span className="detail-row-actions">
+                    <span className="mod-row-end">
+                      {mod.versionNumber && <span className="pill pill-version">V{mod.versionNumber}</span>}
+                      {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
                       {updates.has(mod.filename) && (
-                        <button
-                          type="button"
-                          className="save-button"
-                          onClick={() => handleUpdateOne(mod.filename)}
-                          disabled={updatingFilename === mod.filename || updatingAll}
-                        >
-                          {updatingFilename === mod.filename ? 'Aktualisiere…' : 'Aktualisieren'}
-                        </button>
+                        <span className="pill pill-update">
+                          Update: V{updates.get(mod.filename)!.newVersionNumber}
+                        </span>
                       )}
-                      <button type="button" onClick={() => handleToggle(mod.filename)}>
-                        {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
-                      </button>
-                      <button type="button" onClick={() => handleRemove(mod.filename)}>
-                        Entfernen
-                      </button>
+                      <span className="detail-row-actions">
+                        {updates.has(mod.filename) && (
+                          <button
+                            type="button"
+                            className="save-button"
+                            onClick={() => handleUpdateOne(mod.filename)}
+                            disabled={updatingFilename === mod.filename || updatingAll}
+                          >
+                            {updatingFilename === mod.filename ? 'Aktualisiere…' : 'Aktualisieren'}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => handleToggle(mod.filename)}>
+                          {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
+                        </button>
+                        <button type="button" onClick={() => handleRemove(mod.filename)}>
+                          Entfernen
+                        </button>
+                      </span>
                     </span>
                   </li>
                 ))}

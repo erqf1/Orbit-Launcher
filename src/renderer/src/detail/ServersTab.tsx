@@ -79,19 +79,19 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
                       ) : (
                         <span className="mod-icon mod-icon-fallback">{s.name.charAt(0).toUpperCase()}</span>
                       )}
-                      <span className="mod-name-block">
-                        <span className="mod-title">{s.name}</span>
-                        <span className="pill pill-version">{s.ip}</span>
-                        {isAutoJoin && <span className="pill pill-version">Automatisch beitreten</span>}
-                      </span>
+                      <span className="mod-title">{s.name}</span>
                     </span>
-                    <span className="detail-row-actions">
-                      <button type="button" onClick={() => handleToggleAutoJoin(s.ip)}>
-                        {isAutoJoin ? 'Automatisch entfernen' : 'Automatisch beitreten'}
-                      </button>
-                      <button type="button" onClick={() => handleRemove(i, s.ip)}>
-                        Entfernen
-                      </button>
+                    <span className="mod-row-end">
+                      <span className="pill pill-version">{s.ip}</span>
+                      {isAutoJoin && <span className="pill pill-version">Automatisch beitreten</span>}
+                      <span className="detail-row-actions">
+                        <button type="button" onClick={() => handleToggleAutoJoin(s.ip)}>
+                          {isAutoJoin ? 'Automatisch entfernen' : 'Automatisch beitreten'}
+                        </button>
+                        <button type="button" onClick={() => handleRemove(i, s.ip)}>
+                          Entfernen
+                        </button>
+                      </span>
                     </span>
                   </li>
                 )

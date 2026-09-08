@@ -34,7 +34,7 @@ type TabKey =
   | 'advanced'
   | 'logs'
 
-const TABS: Array<{ key: TabKey; label: string }> = [
+const PRIMARY_TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'version', label: 'Version' },
   { key: 'mods', label: 'Mods' },
   { key: 'resourcepacks', label: 'Resource Packs' },
@@ -42,7 +42,13 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'notes', label: 'Notizen' },
   { key: 'worlds', label: 'Welten' },
   { key: 'servers', label: 'Server' },
-  { key: 'screenshots', label: 'Screenshots' },
+  { key: 'screenshots', label: 'Screenshots' }
+]
+
+// Grouped under one collapsible "Settings" entry instead of three flat
+// top-level tabs - these are the ones a user opens far less often than the
+// content tabs above, so folding them away by default keeps the nav short.
+const SETTINGS_TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'general', label: 'Allgemein' },
   { key: 'advanced', label: 'Erweitert' },
   { key: 'logs', label: 'Logs' }
@@ -487,8 +493,17 @@ function tabLabel(t: ReturnType<typeof useLocale>['t'], tab: { key: TabKey; labe
 function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [tab, setTab] = useState<TabKey>('version')
+  const [settingsExpanded, setSettingsExpanded] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(instance.name)
+
+  // Keeps the group open if the active tab is ever one of its children -
+  // not reachable today (nothing deep-links into general/advanced/logs
+  // yet), but cheap insurance against the active tab being hidden behind
+  // a collapsed group if that ever changes.
+  useEffect(() => {
+    if (SETTINGS_TABS.some((t) => t.key === tab)) setSettingsExpanded(true)
+  }, [tab])
 
   useEffect(() => {
     setNameDraft(instance.name)
@@ -573,7 +588,7 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
             </h2>
           )}
           <nav>
-            {TABS.map((tabDef) => (
+            {PRIMARY_TABS.map((tabDef) => (
               <button
                 key={tabDef.key}
                 type="button"
@@ -584,6 +599,26 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
                 {tabLabel(t, tabDef)}
               </button>
             ))}
+
+            <button
+              type="button"
+              className="instance-detail-nav-item instance-detail-nav-group"
+              onClick={() => setSettingsExpanded((v) => !v)}
+            >
+              <span className={`instance-detail-nav-caret${settingsExpanded ? ' open' : ''}`}>▸</span>
+              {t('common.settings')}
+            </button>
+            {settingsExpanded &&
+              SETTINGS_TABS.map((tabDef) => (
+                <button
+                  key={tabDef.key}
+                  type="button"
+                  className={`instance-detail-nav-item instance-detail-nav-subitem${tab === tabDef.key ? ' active' : ''}`}
+                  onClick={() => setTab(tabDef.key)}
+                >
+                  {tabLabel(t, tabDef)}
+                </button>
+              ))}
           </nav>
           <button
             type="button"

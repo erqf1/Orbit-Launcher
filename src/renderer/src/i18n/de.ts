@@ -49,6 +49,7 @@ const de: Record<TranslationKey, string> = {
   'common.close': 'Schließen',
   'common.create': 'Erstellen',
   'common.language': 'Sprache',
+  'common.settings': 'Einstellungen',
 
   'settings.general': 'Allgemein',
   'settings.advanced': 'Erweitert',
