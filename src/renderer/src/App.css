@@ -68,11 +68,29 @@ body {
   margin: 0;
   font-family: var(--font-body);
   background-color: var(--bg);
-  background-image: url('./assets/texture-bg.svg');
+  background-image: url('./assets/bg-photo.png');
   background-size: cover;
-  background-position: top center;
+  background-position: center;
   background-attachment: fixed;
   color: var(--text);
+  position: relative;
+}
+
+/* LabyMod-style ambient backdrop: the photo above is the raw, unblurred
+   background paint layer; this sits on top of it (but behind .app-shell)
+   and blurs *through* to that photo via backdrop-filter, with its own
+   translucent dark fill as the tint - same technique LabyMod's UI uses a
+   full game screenshot for, dimmed/blurred enough that foreground text
+   stays readable. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 9, 12, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 0;
+  pointer-events: none;
 }
 
 h1,
@@ -86,6 +104,8 @@ button {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 .main-sidebar {
