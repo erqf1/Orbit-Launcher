@@ -257,7 +257,7 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
       </section>
 
       <section>
-        <h3>Mod-Datei prüfen</h3>
+        <h3>Mods importieren</h3>
         <p className="instance-meta">
           Prüft eine heruntergeladene .jar-Datei (z.B. von Discord) gegen Modrinths bekannte Dateien -
           nützlich, um zu sehen, ob eine dir zugeschickte Mod wirklich das ist, was sie zu sein

@@ -3,6 +3,7 @@ import type { Instance, InstanceSettingsPatch, JavaInstallation } from '../types
 import VersionTab from './VersionTab'
 import ModsTab from './ModsTab'
 import FileListTab from './FileListTab'
+import ScreenshotsTab from './ScreenshotsTab'
 import WorldsTab from './WorldsTab'
 import ServersTab from './ServersTab'
 import LogsTab from './LogsTab'
@@ -180,28 +181,6 @@ function SettingsTab({
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Erweitert</h4>
-        <label>
-          Zusätzliche Java-Argumente
-          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
-        </label>
-
-        <label>
-          Zusätzliche Spiel-Argumente
-          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
-        </label>
-
-        <label>
-          Server automatisch beitreten
-          <input
-            value={autoJoinServer}
-            onChange={(e) => setAutoJoinServer(e.target.value)}
-            placeholder="host:port (optional)"
-          />
-        </label>
-      </section>
-
-      <section className="settings-section">
         <h4 className="settings-section-title">Fenster</h4>
         <div className="field-row">
           <label>
@@ -241,6 +220,28 @@ function SettingsTab({
         </label>
       </section>
 
+      <section className="settings-section">
+        <h4 className="settings-section-title">Erweitert</h4>
+        <label>
+          Zusätzliche Java-Argumente
+          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
+        </label>
+
+        <label>
+          Zusätzliche Spiel-Argumente
+          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
+        </label>
+
+        <label>
+          Server automatisch beitreten
+          <input
+            value={autoJoinServer}
+            onChange={(e) => setAutoJoinServer(e.target.value)}
+            placeholder="Serveradresse (optional, auch im Server-Tab einstellbar)"
+          />
+        </label>
+      </section>
+
       <div className="modal-actions">
         <button type="button" className="save-button" onClick={handleSave} disabled={!memoryValid}>
           Speichern
@@ -253,6 +254,23 @@ function SettingsTab({
 
 function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChanged }: Props): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('version')
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(instance.name)
+
+  useEffect(() => {
+    setNameDraft(instance.name)
+  }, [instance.name])
+
+  async function confirmRename(): Promise<void> {
+    const trimmed = nameDraft.trim()
+    if (trimmed && trimmed !== instance.name) {
+      await window.api.renameInstance(instance.id, trimmed)
+      onInstanceChanged()
+    } else {
+      setNameDraft(instance.name)
+    }
+    setEditingName(false)
+  }
 
   function renderTab(): React.JSX.Element {
     switch (tab) {
@@ -283,16 +301,9 @@ function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChange
       case 'worlds':
         return <WorldsTab instanceId={instance.id} />
       case 'servers':
-        return <ServersTab instanceId={instance.id} />
+        return <ServersTab instance={instance} onChanged={onInstanceChanged} />
       case 'screenshots':
-        return (
-          <FileListTab
-            instanceId={instance.id}
-            subfolder="screenshots"
-            addLabel="Bild hinzufügen…"
-            emptyLabel="Keine Screenshots vorhanden."
-          />
-        )
+        return <ScreenshotsTab instanceId={instance.id} />
       case 'settings':
         return <SettingsTab instance={instance} onSaved={onInstanceChanged} />
       case 'logs':
@@ -304,7 +315,26 @@ function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChange
     <div className="modal-backdrop" onClick={onClose}>
       <div className="instance-detail" onClick={(e) => e.stopPropagation()}>
         <div className="instance-detail-sidebar">
-          <h2>{instance.name}</h2>
+          {editingName ? (
+            <input
+              className="rename-input instance-detail-name-input"
+              value={nameDraft}
+              autoFocus
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={confirmRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRename()
+                if (e.key === 'Escape') {
+                  setNameDraft(instance.name)
+                  setEditingName(false)
+                }
+              }}
+            />
+          ) : (
+            <h2 onDoubleClick={() => setEditingName(true)} title="Doppelklick zum Umbenennen">
+              {instance.name}
+            </h2>
+          )}
           <nav>
             {TABS.map((t) => (
               <button

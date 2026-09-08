@@ -21,12 +21,10 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     const trimmed = query.trim()
-    if (!trimmed) {
-      setResults([])
-      setSearching(false)
-      return
-    }
     setSearching(true)
+    // An empty query still searches (searchMods sorts by downloads in that
+    // case) so the dialog opens showing top mods instead of a blank list -
+    // still debounced so it doesn't double-fire while the dialog mounts.
     debounceRef.current = setTimeout(() => {
       window.api
         .searchMods(trimmed, instance.mcVersion, instance.loader)
@@ -93,14 +91,11 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
 
         {error && <p className="error">{error}</p>}
 
+        <p className="mod-browser-results-label">{query.trim() ? 'Suchergebnisse' : 'Top Mods'}</p>
+
         <ul className="mod-list mod-browser-results">
-          {!query.trim() && <li className="mod-browser-hint">Tipp einfach los, es wird live gesucht.</li>}
-          {query.trim() && searching && results.length === 0 && (
-            <li className="mod-browser-hint">Suche…</li>
-          )}
-          {query.trim() && !searching && results.length === 0 && (
-            <li className="mod-browser-hint">Keine Treffer.</li>
-          )}
+          {searching && results.length === 0 && <li className="mod-browser-hint">Suche…</li>}
+          {!searching && results.length === 0 && <li className="mod-browser-hint">Keine Treffer.</li>}
           {results.map((hit) => (
             <li key={hit.projectId}>
               <span className="mod-row">

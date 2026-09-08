@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ServerEntry } from '../types'
+import type { Instance, ServerEntry } from '../types'
 
 interface Props {
-  instanceId: string
+  instance: Instance
+  onChanged: () => void
 }
 
-function ServersTab({ instanceId }: Props): React.JSX.Element {
+function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
   const [servers, setServers] = useState<ServerEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -15,11 +16,11 @@ function ServersTab({ instanceId }: Props): React.JSX.Element {
   const refresh = useCallback(() => {
     setLoading(true)
     window.api
-      .listServers(instanceId)
+      .listServers(instance.id)
       .then(setServers)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false))
-  }, [instanceId])
+  }, [instance.id])
 
   useEffect(() => {
     refresh()
@@ -30,7 +31,7 @@ function ServersTab({ instanceId }: Props): React.JSX.Element {
     if (!name.trim() || !ip.trim()) return
     setError(null)
     try {
-      await window.api.addServer(instanceId, name.trim(), ip.trim())
+      await window.api.addServer(instance.id, name.trim(), ip.trim())
       setName('')
       setIp('')
       refresh()
@@ -39,9 +40,18 @@ function ServersTab({ instanceId }: Props): React.JSX.Element {
     }
   }
 
-  async function handleRemove(index: number): Promise<void> {
-    await window.api.removeServer(instanceId, index)
+  async function handleRemove(index: number, serverIp: string): Promise<void> {
+    await window.api.removeServer(instance.id, index)
+    if (instance.autoJoinServer === serverIp) {
+      await window.api.updateInstanceSettings(instance.id, { autoJoinServer: null })
+      onChanged()
+    }
     refresh()
+  }
+
+  async function handleSetAutoJoin(serverIp: string, checked: boolean): Promise<void> {
+    await window.api.updateInstanceSettings(instance.id, { autoJoinServer: checked ? serverIp : null })
+    onChanged()
   }
 
   return (
@@ -56,10 +66,21 @@ function ServersTab({ instanceId }: Props): React.JSX.Element {
         <ul className="mod-list">
           {servers.map((s, i) => (
             <li key={`${s.name}-${i}`}>
-              <span>
-                {s.name} · {s.ip}
-              </span>
-              <button type="button" onClick={() => handleRemove(i)}>
+              <label className="checkbox-label mod-checkbox">
+                <input
+                  type="checkbox"
+                  checked={instance.autoJoinServer === s.ip}
+                  onChange={(e) => handleSetAutoJoin(s.ip, e.target.checked)}
+                  title="Automatisch beitreten"
+                />
+                <span>
+                  {s.name} · {s.ip}
+                  {instance.autoJoinServer === s.ip && (
+                    <span className="pill pill-version">Automatisch beitreten</span>
+                  )}
+                </span>
+              </label>
+              <button type="button" onClick={() => handleRemove(i, s.ip)}>
                 Entfernen
               </button>
             </li>
@@ -69,7 +90,7 @@ function ServersTab({ instanceId }: Props): React.JSX.Element {
 
       <form className="mod-search" onSubmit={handleAdd}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-        <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="host:port" />
+        <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="Serveradresse" />
         <button type="submit" disabled={!name.trim() || !ip.trim()}>
           Hinzufügen
         </button>

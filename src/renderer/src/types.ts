@@ -26,9 +26,13 @@ export interface Instance {
   iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
+  favorite: boolean
+  group: string | null
 }
 
 export interface InstanceSettingsPatch {
+  favorite?: boolean
+  group?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null

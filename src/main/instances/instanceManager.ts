@@ -56,9 +56,16 @@ export interface Instance {
   iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
+  favorite: boolean
+  // Free-text group name for the sidebar's user-defined groups (like the
+  // loader filter, a group only shows up in the sidebar once at least one
+  // instance is assigned to it - no separate "create empty group" flow).
+  group: string | null
 }
 
 export interface InstanceSettingsPatch {
+  favorite?: boolean
+  group?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
@@ -214,7 +221,9 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     notes: '',
     iconFilename: null,
     createdAt: new Date().toISOString(),
-    lastPlayed: null
+    lastPlayed: null,
+    favorite: false,
+    group: null
   }
 
   const instances = readAll()

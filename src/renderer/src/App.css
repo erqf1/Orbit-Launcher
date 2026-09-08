@@ -115,6 +115,60 @@ button {
   gap: 2px;
 }
 
+.main-sidebar-section-label {
+  margin: 14px 8px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+
+.main-sidebar-sort {
+  margin: 0 8px;
+  width: calc(100% - 16px);
+  padding: 7px 9px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.app-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.view-mode-switch {
+  display: flex;
+  gap: 4px;
+}
+
+.view-mode-switch button {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.view-mode-switch button.active {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.instance-grid.view-list .new-instance-card {
+  min-height: unset;
+  padding: 10px 12px;
+}
+
 .main-sidebar-footer {
   margin-top: auto;
   padding-top: 16px;
@@ -405,6 +459,43 @@ button {
   background: var(--bg-hover);
 }
 
+.account-panel-ask-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.account-panel-ask-toggle input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.play-account-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.play-account-picker-item {
+  text-align: left;
+  background: var(--bg-input);
+  border-color: var(--border-strong);
+  font-weight: 600;
+  padding: 12px 14px;
+}
+
+.play-account-picker-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
 button {
   padding: 9px 16px;
   font-size: 13px;
@@ -655,6 +746,163 @@ button:not(:disabled):active {
   letter-spacing: 0.04em;
 }
 
+.favorite-star {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 2px 5px;
+  font-size: 17px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(8, 9, 12, 0.4);
+  backdrop-filter: blur(4px);
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.favorite-star:hover {
+  color: #ffd166;
+  background: rgba(8, 9, 12, 0.6);
+}
+
+.favorite-star.active {
+  color: #ffd166;
+  text-shadow: 0 0 8px rgba(255, 209, 102, 0.6);
+}
+
+/* Honeycomb view: hexagonal cover art, offset ("brick") tessellation on the
+   grid itself since real hex tiling needs a fixed column count to offset
+   reliably - auto-fill's column count isn't known in pure CSS. */
+.instance-card-hex .instance-cover {
+  height: 128px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.instance-grid.view-honeycomb {
+  grid-template-columns: repeat(2, 1fr);
+  row-gap: 4px;
+}
+
+@media (min-width: 760px) {
+  .instance-grid.view-honeycomb {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (min-width: 1040px) {
+  .instance-grid.view-honeycomb {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+@media (min-width: 1320px) {
+  .instance-grid.view-honeycomb {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.instance-grid.view-honeycomb .instance-card:nth-child(2n) {
+  margin-top: 34px;
+}
+
+/* List view: compact single-line rows instead of a card grid. */
+.instance-grid.view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.instance-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease;
+}
+
+.instance-row:hover {
+  border-color: var(--border-strong);
+}
+
+.instance-row-art {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(150deg, var(--cover-a), var(--cover-b));
+  overflow: hidden;
+}
+
+.instance-row-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.instance-row .favorite-star {
+  position: static;
+  flex-shrink: 0;
+  background: transparent;
+  padding: 2px 4px;
+}
+
+.instance-row-art-glyph {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.instance-row-name {
+  width: 200px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.instance-row-name h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance-row-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instance-row-meta .running-pill {
+  position: static;
+}
+
+.instance-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.instance-row-actions .play-button {
+  padding: 7px 14px;
+}
+
 .running-pill::before {
   content: '';
   width: 5px;
@@ -878,6 +1126,15 @@ button:not(:disabled):active {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.mod-browser-results-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
 }
 
 .mod-list.mod-browser-results {
@@ -1143,6 +1400,14 @@ button:not(:disabled):active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: text;
+}
+
+.instance-detail-name-input {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 6px 8px;
 }
 
 .instance-detail-sidebar nav {
@@ -1329,6 +1594,86 @@ button:not(:disabled):active {
 
 .mod-list li.mod-disabled {
   opacity: 0.55;
+}
+
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.screenshot-thumb {
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.screenshot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.screenshot-thumb:hover {
+  transform: scale(1.04);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  border-color: var(--accent);
+}
+
+.screenshot-thumb-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.screenshot-lightbox {
+  max-width: 90vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  padding: 14px;
+}
+
+.screenshot-lightbox img {
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.screenshot-lightbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.screenshot-lightbox-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
 }
 
 .notes-textarea {

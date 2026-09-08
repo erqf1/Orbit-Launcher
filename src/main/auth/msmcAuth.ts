@@ -7,6 +7,8 @@ import {
   getActiveAccountId,
   setActiveAccountId,
   removeAccount,
+  getAskOnPlay,
+  setAskOnPlay,
   type SavedAccountMeta
 } from './authStore'
 
@@ -18,6 +20,7 @@ export interface LauncherProfile {
 export interface AuthResult {
   profile: LauncherProfile | null
   accounts: SavedAccountMeta[]
+  askOnPlay: boolean
 }
 
 // The JSON shape MCLC's `authorization` launch option expects (see MCLC docs);
@@ -128,7 +131,7 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
       saveAccountToken(profile.id, profile.name, xboxManager.save())
       setActiveAccountId(profile.id)
 
-      return { profile, accounts: listSavedAccounts() }
+      return { profile, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
     } catch (err) {
       throw friendlyAuthError(err)
     }
@@ -140,9 +143,9 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
   // the switcher list is unaffected.
   ipcMain.handle('auth:current', async (): Promise<AuthResult> => {
     const activeId = getActiveAccountId()
-    if (!activeId) return { profile: null, accounts: listSavedAccounts() }
+    if (!activeId) return { profile: null, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
     const profile = await ensureAuthorizationFor(activeId)
-    return { profile, accounts: listSavedAccounts() }
+    return { profile, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
   })
 
   ipcMain.handle('auth:switch', async (_event, id: string): Promise<AuthResult> => {
@@ -153,7 +156,7 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
     } else if (existedBefore) {
       throw new Error('Diese Sitzung ist abgelaufen. Bitte das Konto erneut hinzufügen.')
     }
-    return { profile, accounts: listSavedAccounts() }
+    return { profile, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
   })
 
   ipcMain.handle('auth:remove', async (_event, id: string): Promise<AuthResult> => {
@@ -161,8 +164,15 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
     removeAccount(id)
 
     const activeId = getActiveAccountId()
-    if (!activeId) return { profile: null, accounts: listSavedAccounts() }
+    if (!activeId) return { profile: null, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
     const profile = await ensureAuthorizationFor(activeId)
-    return { profile, accounts: listSavedAccounts() }
+    return { profile, accounts: listSavedAccounts(), askOnPlay: getAskOnPlay() }
+  })
+
+  ipcMain.handle('auth:setAskOnPlay', (_event, value: boolean): AuthResult => {
+    setAskOnPlay(value)
+    const activeId = getActiveAccountId()
+    const profile = activeId ? (listSavedAccounts().find((a) => a.id === activeId) ?? null) : null
+    return { profile, accounts: listSavedAccounts(), askOnPlay: value }
   })
 }

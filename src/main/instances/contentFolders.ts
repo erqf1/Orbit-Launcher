@@ -1,6 +1,16 @@
-import { ipcMain, dialog, shell } from 'electron'
-import { existsSync, mkdirSync, readdirSync, statSync, renameSync, rmSync, copyFileSync, cpSync } from 'fs'
-import { join, basename } from 'path'
+import { ipcMain, dialog, shell, clipboard, ClipboardItem } from 'electron'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  renameSync,
+  rmSync,
+  copyFileSync,
+  cpSync,
+  readFileSync
+} from 'fs'
+import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
 
 export interface ContentFileEntry {
@@ -71,6 +81,45 @@ export async function addContentFiles(instanceId: string, subfolder: string): Pr
   return result.filePaths.length
 }
 
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp'
+}
+
+// Same data: URL approach as instance icons - avoids exposing file:// paths
+// to the renderer (and the CSP changes that would need).
+export function getContentFileDataUrl(instanceId: string, subfolder: string, name: string): string | null {
+  assertAllowedSubfolder(subfolder)
+  assertSafeName(name)
+  const mime = IMAGE_MIME_BY_EXT[extname(name).toLowerCase()]
+  if (!mime) return null
+  const filePath = join(getInstanceRoot(instanceId), subfolder, name)
+  if (!existsSync(filePath)) return null
+  return `data:${mime};base64,${readFileSync(filePath).toString('base64')}`
+}
+
+// Electron 44 replaced the old sync clipboard.writeImage with an async,
+// MIME-typed ClipboardItem API (clipboard-item docs) - construct one
+// directly from the file's bytes rather than round-tripping through
+// nativeImage, which no longer has a matching write path here.
+export async function copyContentFileToClipboard(
+  instanceId: string,
+  subfolder: string,
+  name: string
+): Promise<void> {
+  assertAllowedSubfolder(subfolder)
+  assertSafeName(name)
+  const mime = IMAGE_MIME_BY_EXT[extname(name).toLowerCase()]
+  if (!mime) throw new Error('Kein unterstütztes Bildformat.')
+  const filePath = join(getInstanceRoot(instanceId), subfolder, name)
+  if (!existsSync(filePath)) throw new Error('Datei nicht gefunden.')
+  const blob = new Blob([readFileSync(filePath)], { type: mime })
+  await clipboard.write([new ClipboardItem({ [mime]: blob })])
+}
+
 export function openContentFolder(instanceId: string, subfolder: string): Promise<void> {
   assertAllowedSubfolder(subfolder)
   const dir = join(getInstanceRoot(instanceId), subfolder)
@@ -97,5 +146,11 @@ export function registerContentFolderHandlers(): void {
   )
   ipcMain.handle('content:openFolder', (_e, instanceId: string, subfolder: string) =>
     openContentFolder(instanceId, subfolder)
+  )
+  ipcMain.handle('content:getDataUrl', (_e, instanceId: string, subfolder: string, name: string) =>
+    getContentFileDataUrl(instanceId, subfolder, name)
+  )
+  ipcMain.handle('content:copyToClipboard', (_e, instanceId: string, subfolder: string, name: string) =>
+    copyContentFileToClipboard(instanceId, subfolder, name)
   )
 }

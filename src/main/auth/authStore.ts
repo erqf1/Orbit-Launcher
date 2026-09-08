@@ -19,6 +19,10 @@ export interface SavedAccountMeta {
 interface AccountsIndex {
   activeId: string | null
   accounts: SavedAccountMeta[]
+  // When true, the renderer asks which saved account to launch with every
+  // time "Play" is pressed (for a shared PC/multiple people using the same
+  // launcher) instead of always using the persisted active account.
+  askOnPlay?: boolean
 }
 
 function getAccountsDir(): string {
@@ -60,6 +64,16 @@ export function getActiveAccountId(): string | null {
 export function setActiveAccountId(id: string | null): void {
   const index = readIndex()
   index.activeId = id
+  writeIndex(index)
+}
+
+export function getAskOnPlay(): boolean {
+  return readIndex().askOnPlay ?? false
+}
+
+export function setAskOnPlay(value: boolean): void {
+  const index = readIndex()
+  index.askOnPlay = value
   writeIndex(index)
 }
 

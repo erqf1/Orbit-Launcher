@@ -15,6 +15,7 @@ export interface SavedAccountMeta {
 interface LoginResult {
   profile: LauncherProfile | null
   accounts: SavedAccountMeta[]
+  askOnPlay: boolean
 }
 
 interface LaunchResult {
@@ -63,9 +64,13 @@ export interface Instance {
   iconFilename: string | null
   createdAt: string
   lastPlayed: string | null
+  favorite: boolean
+  group: string | null
 }
 
 export interface InstanceSettingsPatch {
+  favorite?: boolean
+  group?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
@@ -202,6 +207,7 @@ const api = {
   currentAccount: (): Promise<LoginResult> => ipcRenderer.invoke('auth:current'),
   switchAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:switch', id),
   removeAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:remove', id),
+  setAskOnPlay: (value: boolean): Promise<LoginResult> => ipcRenderer.invoke('auth:setAskOnPlay', value),
   launch: (instanceId: string): Promise<LaunchResult> =>
     ipcRenderer.invoke('launch:start', instanceId),
   consumePendingLaunchInstanceId: (): Promise<string | null> =>
@@ -278,6 +284,10 @@ const api = {
     ipcRenderer.invoke('content:add', instanceId, subfolder),
   openContentFolder: (instanceId: string, subfolder: string): Promise<void> =>
     ipcRenderer.invoke('content:openFolder', instanceId, subfolder),
+  getContentFileDataUrl: (instanceId: string, subfolder: string, name: string): Promise<string | null> =>
+    ipcRenderer.invoke('content:getDataUrl', instanceId, subfolder, name),
+  copyContentFileToClipboard: (instanceId: string, subfolder: string, name: string): Promise<void> =>
+    ipcRenderer.invoke('content:copyToClipboard', instanceId, subfolder, name),
 
   listWorlds: (instanceId: string): Promise<WorldEntry[]> => ipcRenderer.invoke('worlds:list', instanceId),
   renameWorld: (instanceId: string, oldName: string, newName: string): Promise<void> =>

@@ -78,7 +78,11 @@ export async function searchMods(
     [`versions:${mcVersion}`],
     ...(loader !== 'vanilla' ? [[`categories:${loader}`]] : [])
   ]
-  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20&facets=${encodeURIComponent(JSON.stringify(facets))}`
+  // An empty query has no natural relevance ranking, so it's used for the
+  // ModBrowserDialog's "browse before you've typed anything" view - sort by
+  // downloads instead so that shows the top mods rather than an arbitrary order.
+  const index = query.trim() ? '' : '&index=downloads'
+  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20${index}&facets=${encodeURIComponent(JSON.stringify(facets))}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
   const data = (await res.json()) as { hits: ModrinthSearchHit[] }

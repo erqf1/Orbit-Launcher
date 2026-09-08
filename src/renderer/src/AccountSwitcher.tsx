@@ -12,12 +12,27 @@ interface Props {
   onRemove: (id: string) => void
   onAddAccount: () => void
   busy: boolean
+  askOnPlay: boolean
+  onToggleAskOnPlay: (value: boolean) => void
 }
 
-function AccountSwitcher({ activeId, accounts, onSwitch, onRemove, onAddAccount, busy }: Props): React.JSX.Element {
+function AccountSwitcher({
+  activeId,
+  accounts,
+  onSwitch,
+  onRemove,
+  onAddAccount,
+  busy,
+  askOnPlay,
+  onToggleAskOnPlay
+}: Props): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const activeAccount = accounts.find((a) => a.id === activeId) ?? null
+  // Falls back to the first saved account rather than showing a bare "…"
+  // placeholder - activeId briefly not matching any account can happen for
+  // a tick right after switching/removing, and there's no reason to ever
+  // show "logged in as nothing" when accounts actually exist.
+  const activeAccount = accounts.find((a) => a.id === activeId) ?? accounts[0] ?? null
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent): void {
@@ -69,6 +84,16 @@ function AccountSwitcher({ activeId, accounts, onSwitch, onRemove, onAddAccount,
           >
             + Weiteres Konto hinzufügen
           </button>
+          {accounts.length > 1 && (
+            <label className="account-panel-ask-toggle">
+              <input
+                type="checkbox"
+                checked={askOnPlay}
+                onChange={(e) => onToggleAskOnPlay(e.target.checked)}
+              />
+              Vor jedem Start fragen, welches Konto
+            </label>
+          )}
         </div>
       )}
     </div>

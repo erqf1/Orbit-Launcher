@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import InstanceCard from './InstanceCard'
+import InstanceCard, { type InstanceViewLayout } from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
@@ -19,6 +19,32 @@ const LOADER_LABELS: Record<LoaderType, string> = {
   legacyfabric: 'Legacy Fabric',
   forge: 'Forge',
   neoforge: 'NeoForge'
+}
+
+type SortMode = 'name' | 'lastPlayed' | 'created'
+type Filter = { type: 'all' } | { type: 'loader'; value: LoaderType } | { type: 'group'; value: string }
+
+const VIEW_MODE_KEY = 'erqf.viewMode'
+const SORT_MODE_KEY = 'erqf.sortMode'
+
+function readStoredViewMode(): InstanceViewLayout {
+  try {
+    const stored = localStorage.getItem(VIEW_MODE_KEY)
+    if (stored === 'grid' || stored === 'list' || stored === 'honeycomb') return stored
+  } catch {
+    // localStorage can throw in restricted contexts - grid is a fine default.
+  }
+  return 'grid'
+}
+
+function readStoredSortMode(): SortMode {
+  try {
+    const stored = localStorage.getItem(SORT_MODE_KEY)
+    if (stored === 'name' || stored === 'lastPlayed' || stored === 'created') return stored
+  } catch {
+    // ignore
+  }
+  return 'name'
 }
 
 // Keyed by instanceId, not launchId: the backend guarantees at most one
@@ -43,7 +69,11 @@ function App(): React.JSX.Element {
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [showPrismImport, setShowPrismImport] = useState(false)
-  const [loaderFilter, setLoaderFilter] = useState<LoaderType | 'all'>('all')
+  const [filter, setFilter] = useState<Filter>({ type: 'all' })
+  const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
+  const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
+  const [askOnPlay, setAskOnPlayState] = useState(false)
+  const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCat, setShowCat] = useState(false)
   const brandClicksRef = useRef(0)
@@ -74,6 +104,7 @@ function App(): React.JSX.Element {
     window.api.currentAccount().then((result) => {
       setAccounts(result.accounts)
       if (result.profile) setActiveAccountId(result.profile.id)
+      setAskOnPlayState(result.askOnPlay)
       // A desktop shortcut re-launches the whole app with a pending instance
       // id (see createDesktopShortcut/setPendingLaunchInstanceIdFromArgv) -
       // only consumed once auth is known, so this doesn't race the login
@@ -110,6 +141,7 @@ function App(): React.JSX.Element {
       const result = await window.api.login()
       setAccounts(result.accounts)
       if (result.profile) setActiveAccountId(result.profile.id)
+      setAskOnPlayState(result.askOnPlay)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -124,6 +156,7 @@ function App(): React.JSX.Element {
       const result = await window.api.switchAccount(id)
       setAccounts(result.accounts)
       setActiveAccountId(result.profile?.id ?? null)
+      setAskOnPlayState(result.askOnPlay)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -139,9 +172,15 @@ function App(): React.JSX.Element {
     const result = await window.api.removeAccount(id)
     setAccounts(result.accounts)
     setActiveAccountId(result.profile?.id ?? null)
+    setAskOnPlayState(result.askOnPlay)
   }
 
-  async function handlePlay(id: string): Promise<void> {
+  async function handleToggleAskOnPlay(value: boolean): Promise<void> {
+    setAskOnPlayState(value)
+    await window.api.setAskOnPlay(value)
+  }
+
+  async function launchWithActiveAccount(id: string): Promise<void> {
     setError(null)
     setLaunches((prev) => ({ ...prev, [id]: { logs: [], closed: false, exitCode: null } }))
     setSelectedInstanceId(id)
@@ -155,6 +194,24 @@ function App(): React.JSX.Element {
         return next
       })
     }
+  }
+
+  async function handlePlay(id: string): Promise<void> {
+    if (askOnPlay && accounts.length > 1) {
+      setPlayPickerInstanceId(id)
+      return
+    }
+    await launchWithActiveAccount(id)
+  }
+
+  async function handlePickAccountForPlay(accountId: string): Promise<void> {
+    const instanceId = playPickerInstanceId
+    setPlayPickerInstanceId(null)
+    if (!instanceId) return
+    if (accountId !== activeAccountId) {
+      await handleSwitchAccount(accountId)
+    }
+    await launchWithActiveAccount(instanceId)
   }
 
   function dismissLaunch(instanceId: string): void {
@@ -232,6 +289,36 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
+  async function handleToggleFavorite(id: string): Promise<void> {
+    const instance = instances.find((i) => i.id === id)
+    if (!instance) return
+    await window.api.updateInstanceSettings(id, { favorite: !instance.favorite })
+    refreshInstances()
+  }
+
+  async function handleSetGroup(id: string, group: string | null): Promise<void> {
+    await window.api.updateInstanceSettings(id, { group })
+    refreshInstances()
+  }
+
+  function setViewMode(mode: InstanceViewLayout): void {
+    setViewModeState(mode)
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, mode)
+    } catch {
+      // per-viewer convenience only - fine if it can't persist
+    }
+  }
+
+  function setSortMode(mode: SortMode): void {
+    setSortModeState(mode)
+    try {
+      localStorage.setItem(SORT_MODE_KEY, mode)
+    } catch {
+      // ignore
+    }
+  }
+
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
   const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
   const runningEntries = Object.entries(launches)
@@ -242,8 +329,32 @@ function App(): React.JSX.Element {
     return acc
   }, {})
   const presentLoaders = (Object.keys(loaderCounts) as LoaderType[]).filter((l) => l !== 'vanilla')
-  const visibleInstances =
-    loaderFilter === 'all' ? instances : instances.filter((i) => i.loader === loaderFilter)
+
+  const groupCounts = instances.reduce<Record<string, number>>((acc, i) => {
+    if (i.group) acc[i.group] = (acc[i.group] ?? 0) + 1
+    return acc
+  }, {})
+  const presentGroups = Object.keys(groupCounts).sort((a, b) => a.localeCompare(b))
+
+  const filtered = instances.filter((i) => {
+    if (filter.type === 'loader') return i.loader === filter.value
+    if (filter.type === 'group') return i.group === filter.value
+    return true
+  })
+  const sorted = [...filtered].sort((a, b) => {
+    if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
+    if (sortMode === 'lastPlayed') {
+      return (b.lastPlayed ? Date.parse(b.lastPlayed) : 0) - (a.lastPlayed ? Date.parse(a.lastPlayed) : 0)
+    }
+    if (sortMode === 'created') {
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt)
+    }
+    return a.name.localeCompare(b.name)
+  })
+  const visibleInstances = sorted
+
+  const filterLabel =
+    filter.type === 'all' ? 'Instanzen' : filter.type === 'loader' ? LOADER_LABELS[filter.value] : filter.value
 
   return (
     <div className="app-shell">
@@ -258,8 +369,8 @@ function App(): React.JSX.Element {
         <nav>
           <button
             type="button"
-            className={`main-nav-item${loaderFilter === 'all' ? ' active' : ''}`}
-            onClick={() => setLoaderFilter('all')}
+            className={`main-nav-item${filter.type === 'all' ? ' active' : ''}`}
+            onClick={() => setFilter({ type: 'all' })}
           >
             Alle Instanzen
             <span className="main-nav-count">{instances.length}</span>
@@ -267,8 +378,8 @@ function App(): React.JSX.Element {
           {loaderCounts.vanilla !== undefined && (
             <button
               type="button"
-              className={`main-nav-item${loaderFilter === 'vanilla' ? ' active' : ''}`}
-              onClick={() => setLoaderFilter('vanilla')}
+              className={`main-nav-item${filter.type === 'loader' && filter.value === 'vanilla' ? ' active' : ''}`}
+              onClick={() => setFilter({ type: 'loader', value: 'vanilla' })}
             >
               <span className="main-nav-dot loader-vanilla" />
               Vanilla
@@ -279,8 +390,8 @@ function App(): React.JSX.Element {
             <button
               key={loader}
               type="button"
-              className={`main-nav-item${loaderFilter === loader ? ' active' : ''}`}
-              onClick={() => setLoaderFilter(loader)}
+              className={`main-nav-item${filter.type === 'loader' && filter.value === loader ? ' active' : ''}`}
+              onClick={() => setFilter({ type: 'loader', value: loader })}
             >
               <span className={`main-nav-dot loader-${loader}`} />
               {LOADER_LABELS[loader]}
@@ -288,6 +399,36 @@ function App(): React.JSX.Element {
             </button>
           ))}
         </nav>
+
+        {presentGroups.length > 0 && (
+          <>
+            <p className="main-sidebar-section-label">Gruppen</p>
+            <nav>
+              {presentGroups.map((group) => (
+                <button
+                  key={group}
+                  type="button"
+                  className={`main-nav-item${filter.type === 'group' && filter.value === group ? ' active' : ''}`}
+                  onClick={() => setFilter({ type: 'group', value: group })}
+                >
+                  {group}
+                  <span className="main-nav-count">{groupCounts[group]}</span>
+                </button>
+              ))}
+            </nav>
+          </>
+        )}
+
+        <p className="main-sidebar-section-label">Sortierung</p>
+        <select
+          className="main-sidebar-sort"
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as SortMode)}
+        >
+          <option value="name">Name (A-Z)</option>
+          <option value="lastPlayed">Zuletzt gespielt</option>
+          <option value="created">Erstellt (neu zuerst)</option>
+        </select>
 
         <div className="main-sidebar-footer">
           <button type="button" onClick={() => setShowPrismImport(true)}>
@@ -305,6 +446,8 @@ function App(): React.JSX.Element {
               onRemove={handleRemoveAccount}
               onAddAccount={handleLogin}
               busy={switchingAccount || loggingIn}
+              askOnPlay={askOnPlay}
+              onToggleAskOnPlay={handleToggleAskOnPlay}
             />
           )}
         </div>
@@ -312,16 +455,43 @@ function App(): React.JSX.Element {
 
       <div className="app-main">
         <div className="app-main-header">
-          <h2>{loaderFilter === 'all' ? 'Instanzen' : LOADER_LABELS[loaderFilter]}</h2>
+          <h2>{filterLabel}</h2>
+          <div className="view-mode-switch">
+            <button
+              type="button"
+              className={viewMode === 'grid' ? 'active' : ''}
+              onClick={() => setViewMode('grid')}
+              title="Kästchen (Standard)"
+            >
+              ▦ Kästchen{viewMode === 'grid' ? ' (Standard)' : ''}
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'list' ? 'active' : ''}
+              onClick={() => setViewMode('list')}
+              title="Liste"
+            >
+              ☰ Liste{viewMode === 'list' ? ' (Standard)' : ''}
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'honeycomb' ? 'active' : ''}
+              onClick={() => setViewMode('honeycomb')}
+              title="Honigwaben"
+            >
+              ⬡ Honigwaben{viewMode === 'honeycomb' ? ' (Standard)' : ''}
+            </button>
+          </div>
         </div>
 
         {error && <p className="error">{error}</p>}
 
-        <div className="instance-grid">
+        <div className={`instance-grid view-${viewMode}`}>
           {visibleInstances.map((instance) => (
             <InstanceCard
               key={instance.id}
               instance={instance}
+              layout={viewMode}
               isLaunching={launches[instance.id] !== undefined && !launches[instance.id].closed}
               playDisabled={!activeAccountId || (launches[instance.id]?.closed === false)}
               manageDisabled={launches[instance.id] !== undefined && !launches[instance.id].closed}
@@ -332,6 +502,8 @@ function App(): React.JSX.Element {
               onDelete={handleDelete}
               onManage={setDetailInstanceId}
               onIconChanged={refreshInstances}
+              onToggleFavorite={handleToggleFavorite}
+              onSetGroup={handleSetGroup}
             />
           ))}
 
@@ -394,6 +566,31 @@ function App(): React.JSX.Element {
           onCancel={() => setCloneAsVersionInstanceId(null)}
           onClone={handleCloneAsVersion}
         />
+      )}
+
+      {playPickerInstanceId && (
+        <div className="modal-backdrop" onClick={() => setPlayPickerInstanceId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Mit welchem Konto starten?</h2>
+            <div className="play-account-picker">
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  className="play-account-picker-item"
+                  onClick={() => handlePickAccountForPlay(account.id)}
+                >
+                  {account.name}
+                </button>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setPlayPickerInstanceId(null)}>
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showCat && (
