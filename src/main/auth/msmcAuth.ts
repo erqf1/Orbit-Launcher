@@ -1,4 +1,5 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
+import { readFileSync } from 'fs'
 import { Auth } from 'msmc'
 import {
   saveAccountToken,
@@ -11,6 +12,7 @@ import {
   setAskOnPlay,
   type SavedAccountMeta
 } from './authStore'
+import { refocusMainWindow } from '../windowFocus'
 
 export interface LauncherProfile {
   name: string
@@ -70,6 +72,93 @@ export function getMclcAuthorization(): MclcAuthorization | null {
   const activeId = getActiveAccountId()
   if (!activeId) return null
   return authorizationCache.get(activeId) ?? null
+}
+
+export interface CapeInfo {
+  id: string
+  url: string
+  alias: string
+  active: boolean
+}
+
+export interface AccountCustomization {
+  skinUrl: string | null
+  variant: 'CLASSIC' | 'SLIM'
+  capes: CapeInfo[]
+}
+
+interface MinecraftServicesProfile {
+  skins?: Array<{ url: string; variant: string; state: string }>
+  capes?: Array<{ id: string; url: string; alias: string; state: string }>
+}
+
+function requireAuth(id: string): MclcAuthorization {
+  const auth = authorizationCache.get(id)
+  if (!auth) throw new Error('Dieses Konto ist nicht angemeldet.')
+  return auth
+}
+
+// Uses the same bearer token cached for launching the game, against Mojang's
+// player-facing Services API (different from the session-server API MCLC
+// itself talks to) - the account's own profile endpoint conveniently
+// includes the currently-equipped skin (texture URL + model variant) and
+// every cape the account owns (only Mojang's own vanilla capes; a
+// third-party service like MinecraftCapes has its own separate API and
+// isn't covered by this).
+export async function getAccountCustomization(id: string): Promise<AccountCustomization | null> {
+  const auth = authorizationCache.get(id)
+  if (!auth) return null
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile', {
+    headers: { Authorization: `Bearer ${auth.access_token}` }
+  })
+  if (!res.ok) return null
+  const data = (await res.json()) as MinecraftServicesProfile
+  const activeSkin = data.skins?.find((s) => s.state === 'ACTIVE')
+  return {
+    skinUrl: activeSkin?.url ?? null,
+    variant: activeSkin?.variant === 'SLIM' ? 'SLIM' : 'CLASSIC',
+    capes: (data.capes ?? []).map((c) => ({ id: c.id, url: c.url, alias: c.alias, active: c.state === 'ACTIVE' }))
+  }
+}
+
+export async function changeSkin(id: string, variant: 'CLASSIC' | 'SLIM'): Promise<AccountCustomization | null> {
+  const auth = requireAuth(id)
+
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Skin', extensions: ['png'] }]
+  })
+  refocusMainWindow()
+  if (result.canceled || result.filePaths.length === 0) return getAccountCustomization(id)
+
+  const form = new FormData()
+  form.append('variant', variant.toLowerCase())
+  form.append('file', new Blob([readFileSync(result.filePaths[0])], { type: 'image/png' }), 'skin.png')
+
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile/skins', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+    body: form
+  })
+  if (!res.ok) throw new Error(`Skin-Upload fehlgeschlagen (HTTP ${res.status}).`)
+  return getAccountCustomization(id)
+}
+
+// capeId null unequips whatever vanilla cape is currently active - Mojang's
+// API only lets one be worn at a time.
+export async function setActiveCape(id: string, capeId: string | null): Promise<AccountCustomization | null> {
+  const auth = requireAuth(id)
+
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile/capes/active', {
+    method: capeId ? 'PUT' : 'DELETE',
+    headers: {
+      Authorization: `Bearer ${auth.access_token}`,
+      ...(capeId ? { 'Content-Type': 'application/json' } : {})
+    },
+    ...(capeId ? { body: JSON.stringify({ capeId }) } : {})
+  })
+  if (!res.ok) throw new Error(`Umhang konnte nicht geändert werden (HTTP ${res.status}).`)
+  return getAccountCustomization(id)
 }
 
 async function applyMinecraftSession(
@@ -198,4 +287,8 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
     const profile = activeId ? (listSavedAccounts().find((a) => a.id === activeId) ?? null) : null
     return { profile, accounts: listSavedAccounts(), askOnPlay: value }
   })
+
+  ipcMain.handle('auth:getCustomization', (_event, id: string) => getAccountCustomization(id))
+  ipcMain.handle('auth:changeSkin', (_event, id: string, variant: 'CLASSIC' | 'SLIM') => changeSkin(id, variant))
+  ipcMain.handle('auth:setActiveCape', (_event, id: string, capeId: string | null) => setActiveCape(id, capeId))
 }

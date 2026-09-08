@@ -65,6 +65,19 @@ export interface CloneContentOptions {
   settings: boolean
 }
 
+export interface CapeInfo {
+  id: string
+  url: string
+  alias: string
+  active: boolean
+}
+
+export interface AccountCustomization {
+  skinUrl: string | null
+  variant: 'CLASSIC' | 'SLIM'
+  capes: CapeInfo[]
+}
+
 export interface LaunchLogEvent {
   launchId: string
   instanceId: string

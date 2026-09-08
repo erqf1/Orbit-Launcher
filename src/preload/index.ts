@@ -18,6 +18,19 @@ interface LoginResult {
   askOnPlay: boolean
 }
 
+export interface CapeInfo {
+  id: string
+  url: string
+  alias: string
+  active: boolean
+}
+
+export interface AccountCustomization {
+  skinUrl: string | null
+  variant: 'CLASSIC' | 'SLIM'
+  capes: CapeInfo[]
+}
+
 interface LaunchResult {
   launchId: string
 }
@@ -235,6 +248,12 @@ const api = {
   switchAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:switch', id),
   removeAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:remove', id),
   setAskOnPlay: (value: boolean): Promise<LoginResult> => ipcRenderer.invoke('auth:setAskOnPlay', value),
+  getAccountCustomization: (id: string): Promise<AccountCustomization | null> =>
+    ipcRenderer.invoke('auth:getCustomization', id),
+  changeSkin: (id: string, variant: 'CLASSIC' | 'SLIM'): Promise<AccountCustomization | null> =>
+    ipcRenderer.invoke('auth:changeSkin', id, variant),
+  setActiveCape: (id: string, capeId: string | null): Promise<AccountCustomization | null> =>
+    ipcRenderer.invoke('auth:setActiveCape', id, capeId),
   launch: (instanceId: string): Promise<LaunchResult> =>
     ipcRenderer.invoke('launch:start', instanceId),
   consumePendingLaunchInstanceId: (): Promise<string | null> =>
