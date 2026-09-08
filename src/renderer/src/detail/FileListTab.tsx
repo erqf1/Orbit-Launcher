@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ContentBrowserDialog from './ContentBrowserDialog'
-import type { ContentFileEntry, Instance } from '../types'
+import type { EnrichedContentFile, Instance } from '../types'
 
 interface BrowseConfig {
   instance: Instance
@@ -17,24 +17,21 @@ interface Props {
   browse?: BrowseConfig
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Props): React.JSX.Element {
-  const [files, setFiles] = useState<ContentFileEntry[]>([])
+  const [files, setFiles] = useState<EnrichedContentFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [renamingName, setRenamingName] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const [showBrowser, setShowBrowser] = useState(false)
 
+  // Resource/shader packs are ordinary Modrinth project types now that
+  // browsing them is wired up, so the same icon/title/version enrichment
+  // installed mods get applies here too - identified by hash, same as mods.
   const refresh = useCallback(() => {
     setLoading(true)
     window.api
-      .listContentFiles(instanceId, subfolder)
+      .listContentFilesEnriched(instanceId, subfolder)
       .then(setFiles)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false))
@@ -100,7 +97,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
       ) : files.length === 0 ? (
         <p className="instance-meta">{emptyLabel}</p>
       ) : (
-        <ul className="mod-list">
+        <ul className="mod-list mods-installed-list">
           {files.map((f) => (
             <li key={f.name}>
               {renamingName === f.name ? (
@@ -116,8 +113,18 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                   }}
                 />
               ) : (
-                <span title={f.name}>
-                  {f.name} · {formatSize(f.size)}
+                <span className="mod-row" title={f.name}>
+                  {f.iconUrl ? (
+                    <img className="mod-icon" src={f.iconUrl} alt="" />
+                  ) : (
+                    <span className="mod-icon mod-icon-fallback">
+                      {(f.title ?? f.name).charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="mod-name-block">
+                    <span className="mod-title">{f.title ?? f.name}</span>
+                    {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
+                  </span>
                 </span>
               )}
               <span className="detail-row-actions">

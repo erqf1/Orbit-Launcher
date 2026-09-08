@@ -230,7 +230,7 @@ function readModFiles(instanceId: string): Array<{ filename: string; enabled: bo
     .map((f) => ({ filename: f, enabled: !f.endsWith(DISABLED_SUFFIX) }))
 }
 
-interface ResolvedModInfo {
+export interface ResolvedModInfo {
   title: string | null
   versionNumber: string | null
   iconUrl: string | null
@@ -245,14 +245,17 @@ const modInfoCache = new Map<string, ResolvedModInfo | null>()
 
 function titleCaseFromFilename(filename: string): string {
   const guess = guessProjectNameFromFilename(filename)
-  const base = guess ?? filename.replace(/\.jar$/i, '')
+  const base = guess ?? filename.replace(/\.(jar|zip)$/i, '')
   return base
     .split(' ')
     .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
     .join(' ')
 }
 
-async function resolveModInfo(filePath: string, filename: string): Promise<ResolvedModInfo> {
+// Exported for contentFolders.ts - resource pack / shader pack zips get the
+// same Modrinth file-hash lookup as mods (Modrinth's version_file endpoint
+// is generic across project types, keyed by hash alone).
+export async function resolveModInfo(filePath: string, filename: string): Promise<ResolvedModInfo> {
   const sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
   if (modInfoCache.has(sha1)) {
     const cached = modInfoCache.get(sha1) ?? null
@@ -405,7 +408,7 @@ const KNOWN_LOADER_WORDS = new Set(['fabric', 'forge', 'neoforge', 'quilt', 'leg
 // this filtering, "sodium" alone returns Sodium as the top hit; "fabric
 // api" (loader word kept because it leads) correctly returns Fabric API.
 function guessProjectNameFromFilename(filename: string): string | null {
-  const base = filename.replace(/\.jar$/i, '')
+  const base = filename.replace(/\.(jar|zip)$/i, '')
   const segments = base.split(/[-_+]+/).filter(Boolean)
   const kept: string[] = []
   segments.forEach((seg, i) => {

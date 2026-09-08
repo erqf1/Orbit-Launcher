@@ -1241,6 +1241,7 @@ button:not(:disabled):active {
 
 .mod-list li {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -1303,14 +1304,24 @@ button:not(:disabled):active {
   gap: 8px;
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .mod-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
+  min-width: 30px;
+  flex: 1 1 auto;
   font-weight: 600;
+}
+
+/* Pills carry short, meaningful text (a version, an IP, a status) - they
+   should never be the thing that shrinks away to nothing when a row is
+   tight on space. Only the title (which has its own ellipsis) gives up
+   width; a shrunk-and-invisible pill was a real bug, caught via screenshot. */
+.mod-name-block .pill {
+  flex-shrink: 0;
 }
 
 .pill-disabled {
@@ -1668,6 +1679,21 @@ button:not(:disabled):active {
   object-fit: contain;
   border-radius: var(--radius-sm);
   display: block;
+  cursor: zoom-in;
+}
+
+/* Discord-style click-to-zoom: swap the fit-to-window cap for the image's
+   native size, scrolling within the lightbox instead of the page. */
+.screenshot-lightbox.zoomed {
+  max-width: 95vw;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.screenshot-lightbox img.zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
 }
 
 .screenshot-lightbox-actions {

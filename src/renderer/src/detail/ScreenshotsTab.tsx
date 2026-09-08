@@ -41,6 +41,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [lightboxName, setLightboxName] = useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [zoomed, setZoomed] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const refresh = useCallback(() => {
@@ -59,6 +60,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
   async function openLightbox(name: string): Promise<void> {
     setLightboxName(name)
     setLightboxUrl(null)
+    setZoomed(false)
     setCopied(false)
     const url = await window.api.getContentFileDataUrl(instanceId, 'screenshots', name)
     setLightboxUrl(url)
@@ -106,9 +108,18 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
 
       {lightboxName && (
         <div className="modal-backdrop" onClick={() => setLightboxName(null)}>
-          <div className="screenshot-lightbox" onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`screenshot-lightbox${zoomed ? ' zoomed' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {lightboxUrl ? (
-              <img src={lightboxUrl} alt={lightboxName} />
+              <img
+                src={lightboxUrl}
+                alt={lightboxName}
+                className={zoomed ? 'zoomed' : ''}
+                onClick={() => setZoomed((z) => !z)}
+                title={zoomed ? 'Klicken zum Verkleinern' : 'Klicken zum Vergrößern'}
+              />
             ) : (
               <p className="instance-meta">Lade…</p>
             )}

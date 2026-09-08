@@ -180,6 +180,12 @@ export interface ContentFileEntry {
   isDirectory: boolean
 }
 
+export interface EnrichedContentFile extends ContentFileEntry {
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
 export interface WorldEntry {
   folderName: string
   sizeBytes: number
@@ -189,6 +195,7 @@ export interface WorldEntry {
 export interface ServerEntry {
   name: string
   ip: string
+  iconDataUrl: string | null
 }
 
 export interface LogFileEntry {
@@ -278,6 +285,8 @@ const api = {
 
   listContentFiles: (instanceId: string, subfolder: string): Promise<ContentFileEntry[]> =>
     ipcRenderer.invoke('content:list', instanceId, subfolder),
+  listContentFilesEnriched: (instanceId: string, subfolder: string): Promise<EnrichedContentFile[]> =>
+    ipcRenderer.invoke('content:listEnriched', instanceId, subfolder),
   removeContentFile: (instanceId: string, subfolder: string, name: string): Promise<void> =>
     ipcRenderer.invoke('content:remove', instanceId, subfolder, name),
   renameContentFile: (instanceId: string, subfolder: string, oldName: string, newName: string): Promise<void> =>

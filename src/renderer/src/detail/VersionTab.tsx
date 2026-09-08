@@ -7,6 +7,15 @@ interface Props {
   onChanged: () => void
 }
 
+const LOADER_LABELS: Record<LoaderType, string> = {
+  vanilla: 'Vanilla',
+  fabric: 'Fabric',
+  quilt: 'Quilt',
+  legacyfabric: 'Legacy Fabric',
+  forge: 'Forge',
+  neoforge: 'NeoForge'
+}
+
 function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
   const [changing, setChanging] = useState(false)
   const [mcVersion, setMcVersion] = useState(instance.mcVersion)
@@ -59,23 +68,25 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
 
   return (
     <div className="detail-tab">
-      <section>
-        <h3>Aktuelle Version</h3>
-        <p className="instance-meta">
-          {instance.mcVersion}
-          {instance.loader !== 'vanilla' && ` · ${instance.loader}`}
-          {instance.loaderVersion && ` ${instance.loaderVersion}`}
-        </p>
+      <section className="settings-section">
+        <h4 className="settings-section-title">Aktuelle Version</h4>
+        <div className="instance-tags">
+          <span className="pill pill-version">{instance.mcVersion}</span>
+          {instance.loader !== 'vanilla' && (
+            <span className={`pill pill-${instance.loader}`}>{LOADER_LABELS[instance.loader]}</span>
+          )}
+          {instance.loaderVersion && <span className="pill pill-version">{instance.loaderVersion}</span>}
+        </div>
         {!changing && (
-          <button type="button" onClick={startChanging}>
+          <button type="button" className="save-button" onClick={startChanging}>
             Version ändern…
           </button>
         )}
       </section>
 
       {changing && (
-        <section>
-          <h3>Neue Version wählen</h3>
+        <section className="settings-section">
+          <h4 className="settings-section-title">Neue Version wählen</h4>
           <p className="instance-meta">
             Ändert diese Instanz direkt (keine Kopie). Danach wird versucht, jeden installierten Mod für
             die neue Version/den neuen Loader neu aufzulösen - Mods ohne passende Version werden dir
@@ -95,7 +106,7 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
             <button type="button" onClick={() => setChanging(false)}>
               Abbrechen
             </button>
-            <button type="button" onClick={handleApply} disabled={!canApply}>
+            <button type="button" className="save-button" onClick={handleApply} disabled={!canApply}>
               {applying ? 'Wende an…' : 'Übernehmen'}
             </button>
           </div>
@@ -103,14 +114,14 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
       )}
 
       {migrationStatus && (
-        <section>
+        <section className="settings-section">
           <p className="instance-meta">{migrationStatus}</p>
         </section>
       )}
 
       {migrationResult && (
-        <section>
-          <h3>Mod-Migration</h3>
+        <section className="settings-section">
+          <h4 className="settings-section-title">Mod-Migration</h4>
           {migrationResult.migrated.length > 0 && (
             <>
               <p className="instance-meta">

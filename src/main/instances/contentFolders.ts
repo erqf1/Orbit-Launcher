@@ -13,13 +13,19 @@ import {
 } from 'fs'
 import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
-import type { ModFileRef } from '../mods/modrinth'
+import { resolveModInfo, type ModFileRef } from '../mods/modrinth'
 
 export interface ContentFileEntry {
   name: string
   size: number
   modifiedAt: string
   isDirectory: boolean
+}
+
+export interface EnrichedContentFile extends ContentFileEntry {
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
 }
 
 // Resource packs and shader packs get simple file management (list/add/
@@ -51,6 +57,25 @@ export function listContentFiles(instanceId: string, subfolder: string): Content
     const stat = statSync(join(dir, name))
     return { name, size: stat.size, modifiedAt: stat.mtime.toISOString(), isDirectory: stat.isDirectory() }
   })
+}
+
+// Resource packs / shader packs are ordinary zip files (unlike screenshots,
+// which never get this) - same Modrinth file-hash enrichment as installed
+// mods (icon/title/version), directory entries skipped since the lookup
+// only makes sense for a single file's hash.
+export async function listContentFilesEnriched(
+  instanceId: string,
+  subfolder: string
+): Promise<EnrichedContentFile[]> {
+  const entries = listContentFiles(instanceId, subfolder)
+  const dir = join(getInstanceRoot(instanceId), subfolder)
+  return Promise.all(
+    entries.map(async (entry): Promise<EnrichedContentFile> => {
+      if (entry.isDirectory) return { ...entry, title: null, versionNumber: null, iconUrl: null }
+      const info = await resolveModInfo(join(dir, entry.name), entry.name)
+      return { ...entry, ...info }
+    })
+  )
 }
 
 export function removeContentFile(instanceId: string, subfolder: string, name: string): void {
@@ -149,6 +174,9 @@ export function openContentFolder(instanceId: string, subfolder: string): Promis
 export function registerContentFolderHandlers(): void {
   ipcMain.handle('content:list', (_e, instanceId: string, subfolder: string) =>
     listContentFiles(instanceId, subfolder)
+  )
+  ipcMain.handle('content:listEnriched', (_e, instanceId: string, subfolder: string) =>
+    listContentFilesEnriched(instanceId, subfolder)
   )
   ipcMain.handle('content:remove', (_e, instanceId: string, subfolder: string, name: string) =>
     removeContentFile(instanceId, subfolder, name)

@@ -142,6 +142,12 @@ export interface ContentFileEntry {
   isDirectory: boolean
 }
 
+export interface EnrichedContentFile extends ContentFileEntry {
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
 export interface WorldEntry {
   folderName: string
   sizeBytes: number
@@ -151,6 +157,7 @@ export interface WorldEntry {
 export interface ServerEntry {
   name: string
   ip: string
+  iconDataUrl: string | null
 }
 
 export interface LogFileEntry {

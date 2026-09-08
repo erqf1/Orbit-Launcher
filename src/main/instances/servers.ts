@@ -7,6 +7,7 @@ import { getInstanceRoot } from './instanceManager'
 export interface ServerEntry {
   name: string
   ip: string
+  iconDataUrl: string | null
 }
 
 // servers.dat is uncompressed big-endian NBT (confirmed live against a real
@@ -48,10 +49,14 @@ function getEntries(root: any): any[] {
 
 export async function listServers(instanceId: string): Promise<ServerEntry[]> {
   const root = await readRoot(instanceId)
-  return getEntries(root).map((entry) => ({
-    name: (entry.name?.value as string) ?? '',
-    ip: (entry.ip?.value as string) ?? ''
-  }))
+  return getEntries(root).map((entry) => {
+    const icon = entry.icon?.value as string | undefined
+    return {
+      name: (entry.name?.value as string) ?? '',
+      ip: (entry.ip?.value as string) ?? '',
+      iconDataUrl: icon ? `data:image/png;base64,${icon}` : null
+    }
+  })
 }
 
 export async function addServer(instanceId: string, name: string, ip: string): Promise<void> {

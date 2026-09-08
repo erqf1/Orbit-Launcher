@@ -49,8 +49,9 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
     refresh()
   }
 
-  async function handleSetAutoJoin(serverIp: string, checked: boolean): Promise<void> {
-    await window.api.updateInstanceSettings(instance.id, { autoJoinServer: checked ? serverIp : null })
+  async function handleToggleAutoJoin(serverIp: string): Promise<void> {
+    const nowActive = instance.autoJoinServer === serverIp
+    await window.api.updateInstanceSettings(instance.id, { autoJoinServer: nowActive ? null : serverIp })
     onChanged()
   }
 
@@ -63,28 +64,34 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
       ) : servers.length === 0 ? (
         <p className="instance-meta">Keine Server in der Liste.</p>
       ) : (
-        <ul className="mod-list">
-          {servers.map((s, i) => (
-            <li key={`${s.name}-${i}`}>
-              <label className="checkbox-label mod-checkbox">
-                <input
-                  type="checkbox"
-                  checked={instance.autoJoinServer === s.ip}
-                  onChange={(e) => handleSetAutoJoin(s.ip, e.target.checked)}
-                  title="Automatisch beitreten"
-                />
-                <span>
-                  {s.name} · {s.ip}
-                  {instance.autoJoinServer === s.ip && (
-                    <span className="pill pill-version">Automatisch beitreten</span>
+        <ul className="mod-list mods-installed-list">
+          {servers.map((s, i) => {
+            const isAutoJoin = instance.autoJoinServer === s.ip
+            return (
+              <li key={`${s.name}-${i}`}>
+                <span className="mod-row">
+                  {s.iconDataUrl ? (
+                    <img className="mod-icon" src={s.iconDataUrl} alt="" />
+                  ) : (
+                    <span className="mod-icon mod-icon-fallback">{s.name.charAt(0).toUpperCase()}</span>
                   )}
+                  <span className="mod-name-block">
+                    <span className="mod-title">{s.name}</span>
+                    <span className="pill pill-version">{s.ip}</span>
+                    {isAutoJoin && <span className="pill pill-version">Automatisch beitreten</span>}
+                  </span>
                 </span>
-              </label>
-              <button type="button" onClick={() => handleRemove(i, s.ip)}>
-                Entfernen
-              </button>
-            </li>
-          ))}
+                <span className="detail-row-actions">
+                  <button type="button" onClick={() => handleToggleAutoJoin(s.ip)}>
+                    {isAutoJoin ? 'Automatisch entfernen' : 'Automatisch beitreten'}
+                  </button>
+                  <button type="button" onClick={() => handleRemove(i, s.ip)}>
+                    Entfernen
+                  </button>
+                </span>
+              </li>
+            )
+          })}
         </ul>
       )}
 
