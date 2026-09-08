@@ -11,6 +11,8 @@ import { registerJavaHandlers } from './java/javaManager'
 import { registerModHandlers } from './mods/modrinth'
 import { registerCuratedModHandlers } from './mods/curated'
 import { registerPrismImportHandlers } from './importers/prismImport'
+import { registerOfficialImportHandlers } from './importers/officialImport'
+import { registerLauncherDetectHandlers } from './importers/launcherDetect'
 import { registerContentFolderHandlers } from './instances/contentFolders'
 import { registerWorldHandlers } from './instances/worlds'
 import { registerServerHandlers } from './instances/servers'
@@ -96,6 +98,8 @@ app.whenReady().then(() => {
   registerModHandlers()
   registerCuratedModHandlers()
   registerPrismImportHandlers()
+  registerOfficialImportHandlers()
+  registerLauncherDetectHandlers()
   registerContentFolderHandlers()
   registerWorldHandlers()
   registerServerHandlers()

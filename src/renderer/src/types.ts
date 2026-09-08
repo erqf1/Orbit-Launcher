@@ -113,6 +113,13 @@ export interface PrismInstanceSummary {
   unsupportedReason: string | null
 }
 
+export interface LauncherOption {
+  id: string
+  label: string
+  detected: boolean
+  supported: boolean
+}
+
 export interface InstalledMod {
   filename: string
   enabled: boolean

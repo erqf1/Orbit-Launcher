@@ -154,6 +154,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
 
   return (
     <div className="detail-tab mods-tab">
+      <div className="mods-tab-columns">
       <section className="mods-installed-section">
         <h3>Installiert ({installed.length})</h3>
         {installed.length === 0 ? (
@@ -345,6 +346,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
           )}
         </div>
       </section>
+      </div>
 
       {error && <p className="error">{error}</p>}
 

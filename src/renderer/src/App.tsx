@@ -3,7 +3,7 @@ import InstanceCard, { type InstanceViewLayout } from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
-import PrismImportDialog from './PrismImportDialog'
+import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import type { Instance, LoaderType } from './types'
 
@@ -81,7 +81,7 @@ function App(): React.JSX.Element {
   const [showCreate, setShowCreate] = useState(false)
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
-  const [showPrismImport, setShowPrismImport] = useState(false)
+  const [showImportPicker, setShowImportPicker] = useState(false)
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
@@ -91,6 +91,7 @@ function App(): React.JSX.Element {
   const [showCat, setShowCat] = useState(false)
   const brandClicksRef = useRef(0)
   const brandClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const authRestoreStarted = useRef(false)
 
   // Hidden easter egg, on a friend's recommendation - five clicks on the
   // brand mark within two seconds reveals a cat for a few seconds.
@@ -114,6 +115,12 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     refreshInstances()
+    // Guards against StrictMode's dev-mode double-invoke firing this twice -
+    // the backend now dedupes concurrent auth restores too (see
+    // ensureAuthorizationFor's inFlightAuth map), but skipping the second
+    // call here entirely avoids a wasted round trip on top of that.
+    if (authRestoreStarted.current) return
+    authRestoreStarted.current = true
     window.api.currentAccount().then((result) => {
       setAccounts(result.accounts)
       if (result.profile) setActiveAccountId(result.profile.id)
@@ -436,8 +443,8 @@ function App(): React.JSX.Element {
         </select>
 
         <div className="main-sidebar-footer">
-          <button type="button" onClick={() => setShowPrismImport(true)}>
-            Von Prism Launcher importieren…
+          <button type="button" onClick={() => setShowImportPicker(true)}>
+            Instanz importieren…
           </button>
           {accounts.length === 0 ? (
             <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
@@ -549,8 +556,8 @@ function App(): React.JSX.Element {
         />
       )}
 
-      {showPrismImport && (
-        <PrismImportDialog onCancel={() => setShowPrismImport(false)} onImported={refreshInstances} />
+      {showImportPicker && (
+        <ImportPickerDialog onCancel={() => setShowImportPicker(false)} onImported={refreshInstances} />
       )}
 
       {detailInstance && (

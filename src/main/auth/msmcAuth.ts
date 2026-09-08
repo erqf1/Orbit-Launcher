@@ -83,32 +83,55 @@ async function applyMinecraftSession(
   return profile
 }
 
+// Guards against two concurrent restores for the same account racing each
+// other - React StrictMode double-invokes effects in dev mode, which fires
+// auth:current twice back-to-back on every startup, and each would
+// otherwise call Auth.refresh() with the *same* refresh token in parallel.
+// Microsoft rotates refresh tokens on use, so two simultaneous refreshes of
+// the same token is a real thundering-herd bug, not just wasted work - one
+// of the two calls can come back rejected, and if that's the one whose IPC
+// response reaches the renderer last, it silently overwrites an otherwise
+// successful login with null (Play stays disabled until the user manually
+// re-picks the account). Fix: concurrent callers for the same id share one
+// in-flight promise instead of each starting their own network round trip.
+const inFlightAuth = new Map<string, Promise<LauncherProfile | null>>()
+
 // Makes sure `id` has a live, cached MCLC authorization, refreshing its
 // saved token if this session hasn't loaded it yet. A saved account whose
 // token has expired beyond refresh is removed from the store rather than
 // left around to fail the same way every time - the caller decides whether
 // that's worth surfacing as an error (a silent startup restore shouldn't
 // bother the user, an explicit switch should).
-async function ensureAuthorizationFor(id: string): Promise<LauncherProfile | null> {
+function ensureAuthorizationFor(id: string): Promise<LauncherProfile | null> {
   if (authorizationCache.has(id)) {
     const meta = listSavedAccounts().find((a) => a.id === id)
-    return meta ? { id: meta.id, name: meta.name } : null
+    return Promise.resolve(meta ? { id: meta.id, name: meta.name } : null)
   }
 
-  const savedToken = loadAccountToken(id)
-  if (!savedToken) return null
+  const existing = inFlightAuth.get(id)
+  if (existing) return existing
 
-  try {
-    const authManager = new Auth('select_account')
-    const xboxManager = await authManager.refresh(savedToken)
-    const minecraft = await xboxManager.getMinecraft()
-    const profile = await applyMinecraftSession(minecraft)
-    saveAccountToken(profile.id, profile.name, xboxManager.save())
-    return profile
-  } catch {
-    removeAccount(id)
-    return null
-  }
+  const attempt = (async (): Promise<LauncherProfile | null> => {
+    const savedToken = loadAccountToken(id)
+    if (!savedToken) return null
+
+    try {
+      const authManager = new Auth('select_account')
+      const xboxManager = await authManager.refresh(savedToken)
+      const minecraft = await xboxManager.getMinecraft()
+      const profile = await applyMinecraftSession(minecraft)
+      saveAccountToken(profile.id, profile.name, xboxManager.save())
+      return profile
+    } catch {
+      removeAccount(id)
+      return null
+    } finally {
+      inFlightAuth.delete(id)
+    }
+  })()
+
+  inFlightAuth.set(id, attempt)
+  return attempt
 }
 
 export function registerAuthHandlers(mainWindow: BrowserWindow): void {

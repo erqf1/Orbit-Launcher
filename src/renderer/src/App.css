@@ -1057,6 +1057,28 @@ button:not(:disabled):active {
   font-weight: 400;
 }
 
+.launcher-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.launcher-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border-color: var(--border-strong);
+  font-weight: 600;
+}
+
+.launcher-picker-item:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
 .locked-version-display {
   margin: 0;
   padding: 8px 10px;
@@ -1206,16 +1228,51 @@ button:not(:disabled):active {
   gap: 20px;
 }
 
+.mods-tab-columns {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.mods-installed-section {
+  flex: 1.6;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .mods-installed-list {
-  max-height: 46vh;
+  max-height: 66vh;
 }
 
 .mods-add-section {
-  border-top: 1px solid var(--border);
-  padding-top: 18px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 340px;
+  max-height: 66vh;
+  overflow-y: auto;
+  border-top: none;
+  border-left: 1px solid var(--border);
+  padding-top: 0;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+@media (max-width: 780px) {
+  .mods-tab-columns {
+    flex-direction: column;
+  }
+
+  .mods-add-section {
+    max-width: none;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 18px;
+  }
 }
 
 .mods-add-subsection {
@@ -1663,6 +1720,9 @@ button:not(:disabled):active {
 .screenshot-lightbox {
   max-width: 90vw;
   max-height: 88vh;
+  transition:
+    max-width 0.28s ease,
+    max-height 0.28s ease;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1680,19 +1740,24 @@ button:not(:disabled):active {
   border-radius: var(--radius-sm);
   display: block;
   cursor: zoom-in;
+  transition:
+    max-width 0.28s ease,
+    max-height 0.28s ease;
 }
 
-/* Discord-style click-to-zoom: swap the fit-to-window cap for the image's
-   native size, scrolling within the lightbox instead of the page. */
+/* Discord-style click-to-zoom: both the lightbox and the image grow to a
+   much larger (but still viewport-bounded, so it stays a smooth CSS
+   transition rather than an unanimatable jump to "native size") target,
+   scrolling within the lightbox if it still doesn't fit. */
 .screenshot-lightbox.zoomed {
-  max-width: 95vw;
-  max-height: 92vh;
+  max-width: 97vw;
+  max-height: 95vh;
   overflow: auto;
 }
 
 .screenshot-lightbox img.zoomed {
-  max-width: none;
-  max-height: none;
+  max-width: 95vw;
+  max-height: 90vh;
   cursor: zoom-out;
 }
 

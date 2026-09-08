@@ -57,6 +57,14 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
 
   return (
     <div className="detail-tab">
+      <form className="mod-search" onSubmit={handleAdd}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+        <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="Serveradresse" />
+        <button type="submit" disabled={!name.trim() || !ip.trim()}>
+          Hinzufügen
+        </button>
+      </form>
+
       {error && <p className="error">{error}</p>}
 
       {loading ? (
@@ -94,14 +102,6 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
           })}
         </ul>
       )}
-
-      <form className="mod-search" onSubmit={handleAdd}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-        <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="Serveradresse" />
-        <button type="submit" disabled={!name.trim() || !ip.trim()}>
-          Hinzufügen
-        </button>
-      </form>
     </div>
   )
 }

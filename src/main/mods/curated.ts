@@ -59,21 +59,34 @@ export interface CuratedMod extends ModSearchResult {
 // Resolves the static slug list into full project info, checking each
 // against the instance's actual mcVersion/loader so incompatible entries
 // (e.g. a mod that hasn't updated to a brand-new MC version yet) show as
-// such instead of silently failing on install.
+// such instead of silently failing on install. Batched at a small
+// concurrency instead of one Promise.all over the whole list - firing
+// every entry's two requests at once (60+ simultaneous requests once this
+// list grew past ~30 mods) tripped Modrinth's rate limiting, and a
+// rate-limited entry just silently vanished from the results instead of
+// erroring loudly - caught by the actual count showing up far short of the
+// full list.
+const CURATED_FETCH_BATCH_SIZE = 6
+
 export async function listCuratedMods(mcVersion: string, loader: string): Promise<CuratedMod[]> {
-  const results = await Promise.all(
-    CURATED_MODS.map(async (entry): Promise<CuratedMod | null> => {
-      try {
-        const [info, versions] = await Promise.all([
-          getProjectInfo(entry.slug),
-          listModVersions(entry.slug, mcVersion, loader)
-        ])
-        return { ...info, category: entry.category, compatible: versions.length > 0 }
-      } catch {
-        return null
-      }
-    })
-  )
+  const results: Array<CuratedMod | null> = []
+  for (let i = 0; i < CURATED_MODS.length; i += CURATED_FETCH_BATCH_SIZE) {
+    const batch = CURATED_MODS.slice(i, i + CURATED_FETCH_BATCH_SIZE)
+    const batchResults = await Promise.all(
+      batch.map(async (entry): Promise<CuratedMod | null> => {
+        try {
+          const [info, versions] = await Promise.all([
+            getProjectInfo(entry.slug),
+            listModVersions(entry.slug, mcVersion, loader)
+          ])
+          return { ...info, category: entry.category, compatible: versions.length > 0 }
+        } catch {
+          return null
+        }
+      })
+    )
+    results.push(...batchResults)
+  }
   return results.filter((r): r is CuratedMod => r !== null)
 }
 

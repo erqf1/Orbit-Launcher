@@ -173,6 +173,13 @@ export interface PrismInstanceSummary {
   unsupportedReason: string | null
 }
 
+export interface LauncherOption {
+  id: string
+  label: string
+  detected: boolean
+  supported: boolean
+}
+
 export interface ContentFileEntry {
   name: string
   size: number
@@ -282,6 +289,12 @@ const api = {
   importPrismInstance: (rootOverride: string | undefined, folderName: string): Promise<Instance> =>
     ipcRenderer.invoke('prism:import', rootOverride, folderName),
   browsePrismFolder: (): Promise<string | null> => ipcRenderer.invoke('prism:browseFolder'),
+
+  detectLaunchers: (): Promise<LauncherOption[]> => ipcRenderer.invoke('launchers:detect'),
+  detectOfficialRoot: (): Promise<string | null> => ipcRenderer.invoke('official:detectRoot'),
+  importOfficialMinecraft: (rootOverride?: string): Promise<Instance> =>
+    ipcRenderer.invoke('official:import', rootOverride),
+  browseOfficialFolder: (): Promise<string | null> => ipcRenderer.invoke('official:browseFolder'),
 
   listContentFiles: (instanceId: string, subfolder: string): Promise<ContentFileEntry[]> =>
     ipcRenderer.invoke('content:list', instanceId, subfolder),
