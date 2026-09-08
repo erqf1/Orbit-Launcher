@@ -15,12 +15,12 @@ import { refocusMainWindow } from '../windowFocus'
 
 // Component uids as actually used in Prism's mmc-pack.json (verified against
 // PrismLauncher source, launcher/minecraft/Component.cpp KNOWN_MODLOADERS).
-// Note: that source has no separate uid for Legacy Fabric - Prism appears to
-// treat it as a plain net.fabricmc.fabric-loader component, so an imported
-// Legacy Fabric instance will be tagged 'fabric' here and its (very old)
-// loader version simply won't resolve against mainline Fabric's meta API -
-// reported per-instance like any other bad version/loader combo rather than
-// silently imported wrong.
+// Note: that source has no separate uid for Legacy Fabric - Prism tags it
+// with the same net.fabricmc.fabric-loader uid as mainline Fabric, so a
+// plain uid lookup can't tell them apart. resolveFabricUidLoader below
+// disambiguates using the instance's Minecraft version instead (mainline
+// Fabric only supports 1.14+; anything older importing that uid is Legacy
+// Fabric in practice).
 const LOADER_UIDS: Record<string, 'fabric' | 'quilt' | 'forge' | 'neoforge'> = {
   'net.fabricmc.fabric-loader': 'fabric',
   'org.quiltmc.quilt-loader': 'quilt',
@@ -29,6 +29,18 @@ const LOADER_UIDS: Record<string, 'fabric' | 'quilt' | 'forge' | 'neoforge'> = {
 }
 const UNSUPPORTED_LOADER_UIDS: Record<string, string> = {
   'com.mumfrey.liteloader': 'LiteLoader wird nicht unterstützt'
+}
+
+// Only handles plain "1.N" / "1.N.M" release strings - snapshot ids (e.g.
+// "13w43a") fall through to mainline fabric, same as before this fix; the
+// vast majority of real Prism instances use release versions.
+function isPreFabricCutoff(mcVersion: string): boolean {
+  const match = /^1\.(\d+)(?:\.\d+)?$/.exec(mcVersion)
+  return match !== null && Number(match[1]) < 14
+}
+
+function resolveFabricUidLoader(mcVersion: string | null): 'fabric' | 'legacyfabric' {
+  return mcVersion && isPreFabricCutoff(mcVersion) ? 'legacyfabric' : 'fabric'
 }
 
 interface MmcPackComponent {
@@ -112,14 +124,22 @@ function summarizeInstance(root: string, folderName: string): PrismInstanceSumma
   }
 
   const pack = readPack(instanceDir)
+  const components = pack?.components ?? []
   let mcVersion: string | null = null
+  for (const component of components) {
+    if (component.uid === 'net.minecraft') mcVersion = component.version ?? null
+  }
+
   let loader: PrismInstanceSummary['loader'] = 'vanilla'
   let loaderVersion: string | null = null
   let unsupportedReason: string | null = null
 
-  for (const component of pack?.components ?? []) {
+  for (const component of components) {
     if (component.uid === 'net.minecraft') {
-      mcVersion = component.version ?? null
+      continue
+    } else if (component.uid === 'net.fabricmc.fabric-loader') {
+      loader = resolveFabricUidLoader(mcVersion)
+      loaderVersion = component.version ?? null
     } else if (component.uid in LOADER_UIDS) {
       loader = LOADER_UIDS[component.uid]
       loaderVersion = component.version ?? null
@@ -184,13 +204,22 @@ export async function importPrismInstance(
   const pack = readPack(instanceDir)
   if (!pack) throw new Error('mmc-pack.json fehlt - keine gültige Prism-Instanz.')
 
+  const components = pack.components ?? []
   let mcVersion: string | null = null
+  for (const component of components) {
+    if (component.uid === 'net.minecraft') mcVersion = component.version ?? null
+  }
+  if (!mcVersion) throw new Error('Minecraft-Version konnte nicht ermittelt werden.')
+
   let loader: LoaderType = 'vanilla'
   let loaderVersion: string | undefined
 
-  for (const component of pack.components ?? []) {
+  for (const component of components) {
     if (component.uid === 'net.minecraft') {
-      mcVersion = component.version ?? null
+      continue
+    } else if (component.uid === 'net.fabricmc.fabric-loader') {
+      loader = resolveFabricUidLoader(mcVersion)
+      loaderVersion = component.version
     } else if (component.uid in LOADER_UIDS) {
       loader = LOADER_UIDS[component.uid]
       loaderVersion = component.version
@@ -198,7 +227,6 @@ export async function importPrismInstance(
       throw new Error(UNSUPPORTED_LOADER_UIDS[component.uid])
     }
   }
-  if (!mcVersion) throw new Error('Minecraft-Version konnte nicht ermittelt werden.')
 
   const instance = await createInstance({
     name: cfg.name || folderName,
