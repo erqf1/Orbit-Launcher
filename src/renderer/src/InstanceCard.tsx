@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import OverflowMenu from './OverflowMenu'
+import { INTL_LOCALE, useLocale } from './i18n'
 import type { Instance } from './types'
 
 export type InstanceViewLayout = 'grid' | 'list'
@@ -60,6 +61,7 @@ function InstanceCard(props: Props): React.JSX.Element {
     onSetGroup,
     onSetCoverColor
   } = props
+  const { t, locale } = useLocale()
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
   const [iconUrl, setIconUrl] = useState<string | null>(null)
@@ -141,19 +143,19 @@ function InstanceCard(props: Props): React.JSX.Element {
   }
 
   const overflowItems = [
-    { label: 'Umbenennen', onClick: () => setEditing(true) },
-    { label: 'Icon ändern…', onClick: handleSetIcon },
-    ...(instance.iconFilename ? [{ label: 'Icon entfernen', onClick: handleClearIcon }] : []),
-    { label: 'Kartenfarbe…', onClick: () => colorInputRef.current?.click() },
+    { label: t('overflow.rename'), onClick: () => setEditing(true) },
+    { label: t('overflow.setIcon'), onClick: handleSetIcon },
+    ...(instance.iconFilename ? [{ label: t('overflow.removeIcon'), onClick: handleClearIcon }] : []),
+    { label: t('overflow.setColor'), onClick: () => colorInputRef.current?.click() },
     ...(instance.coverColor
-      ? [{ label: 'Kartenfarbe zurücksetzen', onClick: () => onSetCoverColor(instance.id, null) }]
+      ? [{ label: t('overflow.resetColor'), onClick: () => onSetCoverColor(instance.id, null) }]
       : []),
-    { label: 'Banner festlegen…', onClick: handleSetBanner },
-    ...(instance.bannerFilename ? [{ label: 'Banner zurücksetzen', onClick: handleClearBanner }] : []),
-    { label: 'Gruppe…', onClick: handleSetGroup },
-    { label: 'Desktop-Verknüpfung erstellen', onClick: handleCreateShortcut },
-    { label: 'Duplizieren…', onClick: () => onCloneAsVersion(instance.id) },
-    { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
+    { label: t('overflow.setBanner'), onClick: handleSetBanner },
+    ...(instance.bannerFilename ? [{ label: t('overflow.resetBanner'), onClick: handleClearBanner }] : []),
+    { label: t('overflow.setGroup'), onClick: handleSetGroup },
+    { label: t('overflow.createShortcut'), onClick: handleCreateShortcut },
+    { label: t('overflow.duplicate'), onClick: () => onCloneAsVersion(instance.id) },
+    { label: t('overflow.delete'), onClick: () => onDelete(instance.id), danger: true }
   ]
 
   const coverColorInput = (
@@ -217,10 +219,10 @@ function InstanceCard(props: Props): React.JSX.Element {
   )
 
   const metaText = isLaunching
-    ? 'Läuft gerade'
+    ? t('instances.playing')
     : instance.lastPlayed
-      ? `Zuletzt gespielt: ${new Date(instance.lastPlayed).toLocaleString('de-DE')}`
-      : 'Noch nie gestartet'
+      ? t('instances.lastPlayed', { date: new Date(instance.lastPlayed).toLocaleString(INTL_LOCALE[locale]) })
+      : t('instances.neverStarted')
 
   if (layout === 'list') {
     return (
@@ -239,13 +241,13 @@ function InstanceCard(props: Props): React.JSX.Element {
         {favoriteButton}
         <div className="instance-row-name">{nameElement}</div>
         {tags}
-        <div className="instance-row-meta">{isLaunching && <span className="running-pill">läuft</span>}{metaText}</div>
+        <div className="instance-row-meta">{isLaunching && <span className="running-pill">{t('instances.running')}</span>}{metaText}</div>
         <div className="instance-row-actions">
           <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
-            {isLaunching ? 'Läuft…' : 'Play'}
+            {isLaunching ? t('instances.playing') : t('instances.play')}
           </button>
           <button onClick={() => onManage(instance.id)} disabled={manageDisabled}>
-            Verwalten
+            {t('instances.manage')}
           </button>
           <OverflowMenu disabled={manageDisabled} items={overflowItems} />
         </div>
@@ -260,7 +262,7 @@ function InstanceCard(props: Props): React.JSX.Element {
         className={`instance-cover loader-${instance.loader}${bannerUrl ? ' has-banner' : ''}`}
         style={coverStyle}
       >
-        {isLaunching && <span className="running-pill">läuft</span>}
+        {isLaunching && <span className="running-pill">{t('instances.running')}</span>}
         {favoriteButton}
         {iconUrl ? (
           <img className="instance-cover-icon" src={iconUrl} alt="" />
@@ -281,10 +283,10 @@ function InstanceCard(props: Props): React.JSX.Element {
 
         <div className="instance-card-actions">
           <button className="play-button" onClick={() => onPlay(instance.id)} disabled={playDisabled}>
-            {isLaunching ? 'Läuft…' : 'Play'}
+            {isLaunching ? t('instances.playing') : t('instances.play')}
           </button>
           <button onClick={() => onManage(instance.id)} disabled={manageDisabled}>
-            Verwalten
+            {t('instances.manage')}
           </button>
         </div>
       </div>

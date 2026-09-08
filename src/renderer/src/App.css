@@ -264,8 +264,15 @@ button {
 
 .main-sidebar-footer > button,
 .main-sidebar-footer .account-switcher,
-.main-sidebar-footer .account-trigger {
+.main-sidebar-footer .account-trigger,
+.main-sidebar-footer .language-switcher {
   width: 100%;
+}
+
+.language-switcher {
+  font-size: 12px;
+  padding: 6px 8px;
+  background: var(--bg-input);
 }
 
 .main-sidebar-footer .account-trigger {

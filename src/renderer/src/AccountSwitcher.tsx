@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocale } from './i18n'
 import type { AccountCustomization } from './types'
 
 interface Account {
@@ -102,6 +103,7 @@ function AccountSwitcher({
   askOnPlay,
   onToggleAskOnPlay
 }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [customization, setCustomization] = useState<AccountCustomization | null>(null)
   const [pendingVariant, setPendingVariant] = useState<'CLASSIC' | 'SLIM'>('CLASSIC')
@@ -171,7 +173,7 @@ function AccountSwitcher({
           <span className="account-face-avatar" style={faceAvatarStyle(customization.skinUrl, 20)} />
         )}
         <span className="account">
-          Angemeldet als <strong>{activeAccount?.name ?? '…'}</strong>
+          {t('app.loggedInAs')} <strong>{activeAccount?.name ?? '…'}</strong>
         </span>
       </button>
       {open && (
@@ -192,7 +194,7 @@ function AccountSwitcher({
               <button
                 type="button"
                 className="account-panel-remove"
-                title="Konto entfernen"
+                title={t('account.removeAccount')}
                 onClick={() => onRemove(account.id)}
               >
                 ×
@@ -207,7 +209,7 @@ function AccountSwitcher({
               onAddAccount()
             }}
           >
-            + Weiteres Konto hinzufügen
+            {t('account.addAccount')}
           </button>
           {accounts.length > 1 && (
             <label className="account-panel-ask-toggle">
@@ -216,13 +218,13 @@ function AccountSwitcher({
                 checked={askOnPlay}
                 onChange={(e) => onToggleAskOnPlay(e.target.checked)}
               />
-              Vor jedem Start fragen, welches Konto
+              {t('account.askBeforePlay')}
             </label>
           )}
 
           {activeAccount && (
             <div className="account-customization">
-              <div className="account-customization-title">Skin & Umhang</div>
+              <div className="account-customization-title">{t('account.skinAndCape')}</div>
 
               <div className="skin-preview-row">
                 {customization?.skinUrl ? (
@@ -248,7 +250,7 @@ function AccountSwitcher({
                     </button>
                   </div>
                   <button type="button" className="save-button" onClick={handleChangeSkin} disabled={busySkin}>
-                    {busySkin ? '…' : 'Skin ändern…'}
+                    {busySkin ? '…' : t('account.changeSkin')}
                   </button>
 
                   <div className="cape-list">
@@ -259,7 +261,7 @@ function AccountSwitcher({
                       disabled={busySkin}
                     >
                       <span className="cape-option cape-option-none">✕</span>
-                      Kein Umhang
+                      {t('account.noCape')}
                     </button>
                     {customization?.capes.map((cape) => (
                       <button
@@ -277,7 +279,7 @@ function AccountSwitcher({
                     ))}
                   </div>
                   {customization && customization.capes.length === 0 && (
-                    <p className="instance-meta">Keine offiziellen Umhänge für dieses Konto.</p>
+                    <p className="instance-meta">{t('account.noCapes')}</p>
                   )}
                 </div>
               </div>

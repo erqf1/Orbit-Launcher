@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { Instance, InstanceSettingsPatch, JavaCompatCheck, JavaInstallation } from '../types'
 import VersionTab from './VersionTab'
 import ModsTab from './ModsTab'
@@ -97,6 +98,7 @@ function GeneralTab({
   accounts: Account[]
   onSaved: () => void
 }): React.JSX.Element {
+  const { t } = useLocale()
   const [javaOptions, setJavaOptions] = useState<JavaInstallation[]>([])
   const [loadingJava, setLoadingJava] = useState(true)
   const [javaPath, setJavaPath] = useState(instance.javaPath ?? '')
@@ -196,10 +198,10 @@ function GeneralTab({
   return (
     <div className="detail-tab">
       <section className="settings-section">
-        <h4 className="settings-section-title">Spielfenster</h4>
+        <h4 className="settings-section-title">{t('settings.gameWindow')}</h4>
         <div className="field-row">
           <label>
-            Fensterbreite
+            {t('settings.windowWidth')}
             <input
               type="number"
               value={windowWidth}
@@ -209,7 +211,7 @@ function GeneralTab({
             />
           </label>
           <label>
-            Fensterhöhe
+            {t('settings.windowHeight')}
             <input
               type="number"
               value={windowHeight}
@@ -222,7 +224,7 @@ function GeneralTab({
 
         <label className="checkbox-label">
           <input type="checkbox" checked={fullscreen} onChange={(e) => setFullscreen(e.target.checked)} />
-          Vollbild starten
+          {t('settings.fullscreen')}
         </label>
         <label className="checkbox-label">
           <input
@@ -230,7 +232,7 @@ function GeneralTab({
             checked={closeOnLaunch}
             onChange={(e) => setCloseOnLaunch(e.target.checked)}
           />
-          Launcher-Fenster ausblenden, während diese Instanz läuft
+          {t('settings.hideWhileRunning')}
         </label>
         <label className="checkbox-label">
           <input
@@ -238,28 +240,28 @@ function GeneralTab({
             checked={quitAppOnGameClose}
             onChange={(e) => setQuitAppOnGameClose(e.target.checked)}
           />
-          Launcher beenden, sobald das Spiel geschlossen wird
+          {t('settings.quitOnClose')}
         </label>
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Spielzeit</h4>
-        <p className="instance-meta">Gesamt: {formatPlaytime(instance.totalPlaytimeMs)}</p>
+        <h4 className="settings-section-title">{t('settings.playtime')}</h4>
+        <p className="instance-meta">{t('settings.playtimeTotal', { time: formatPlaytime(instance.totalPlaytimeMs) })}</p>
         <label className="checkbox-label">
           <input type="checkbox" checked={trackPlaytime} onChange={(e) => setTrackPlaytime(e.target.checked)} />
-          Spielzeit für diese Instanz aufzeichnen
+          {t('settings.trackPlaytime')}
         </label>
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Konto &amp; Server</h4>
+        <h4 className="settings-section-title">{t('settings.accountAndServer')}</h4>
         <label className="checkbox-label">
           <input
             type="checkbox"
             checked={overrideAccount}
             onChange={(e) => setOverrideAccount(e.target.checked)}
           />
-          Abweichendes Konto für diese Instanz verwenden
+          {t('settings.overrideAccount')}
         </label>
         {overrideAccount && (
           <select value={overrideAccountId} onChange={(e) => setOverrideAccountId(e.target.value)}>
@@ -278,7 +280,7 @@ function GeneralTab({
             checked={autoJoinEnabled}
             onChange={(e) => setAutoJoinEnabled(e.target.checked)}
           />
-          Automatisch einem Server beitreten
+          {t('settings.autoJoin')}
         </label>
         {autoJoinEnabled && (
           <input
@@ -290,9 +292,9 @@ function GeneralTab({
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Java &amp; Speicher</h4>
+        <h4 className="settings-section-title">{t('settings.javaAndMemory')}</h4>
         <label>
-          Java-Installation
+          {t('settings.javaInstallation')}
           {loadingJava ? (
             <p className="instance-meta">Suche Java-Installationen…</p>
           ) : (
@@ -307,7 +309,7 @@ function GeneralTab({
           )}
         </label>
         <button type="button" onClick={handleBrowseJava} disabled={browsingJava}>
-          {browsingJava ? '…' : 'Durchsuchen…'}
+          {browsingJava ? '…' : t('settings.browse')}
         </button>
 
         {compat?.mismatch && !skipJavaCompatWarning && (
@@ -322,16 +324,16 @@ function GeneralTab({
             checked={skipJavaCompatWarning}
             onChange={(e) => setSkipJavaCompatWarning(e.target.checked)}
           />
-          Java-Kompatibilitätswarnung ausblenden
+          {t('settings.skipJavaWarning')}
         </label>
 
         <div className="field-row">
           <label>
-            Min. Speicher
+            {t('settings.memoryMin')}
             <input value={memoryMin} onChange={(e) => setMemoryMin(e.target.value)} placeholder="2G" />
           </label>
           <label>
-            Max. Speicher
+            {t('settings.memoryMax')}
             <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
           </label>
         </div>
@@ -347,9 +349,9 @@ function GeneralTab({
 
       <div className="modal-actions">
         <button type="button" className="save-button" onClick={handleSave} disabled={!memoryValid}>
-          Speichern
+          {t('common.save')}
         </button>
-        {saved && <span className="instance-meta">Gespeichert.</span>}
+        {saved && <span className="instance-meta">{t('common.saved')}</span>}
       </div>
     </div>
   )
@@ -362,6 +364,7 @@ function AdvancedTab({
   instance: Instance
   onSaved: () => void
 }): React.JSX.Element {
+  const { t } = useLocale()
   const [jvmArgs, setJvmArgs] = useState(instance.jvmArgs ?? '')
   const [mcArgs, setMcArgs] = useState(instance.mcArgs ?? '')
   const [preLaunchCommand, setPreLaunchCommand] = useState(instance.preLaunchCommand ?? '')
@@ -398,21 +401,21 @@ function AdvancedTab({
   return (
     <div className="detail-tab">
       <section className="settings-section">
-        <h4 className="settings-section-title">Argumente</h4>
+        <h4 className="settings-section-title">{t('settings.arguments')}</h4>
         <label>
-          Zusätzliche Java-Argumente
+          {t('settings.jvmArgs')}
           <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
         </label>
         <label>
-          Zusätzliche Spiel-Argumente
+          {t('settings.mcArgs')}
           <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
         </label>
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Eigene Befehle</h4>
+        <h4 className="settings-section-title">{t('settings.customCommands')}</h4>
         <label>
-          Vor dem Start ausführen
+          {t('settings.preLaunch')}
           <input
             value={preLaunchCommand}
             onChange={(e) => setPreLaunchCommand(e.target.value)}
@@ -420,7 +423,7 @@ function AdvancedTab({
           />
         </label>
         <label>
-          Nach dem Beenden ausführen
+          {t('settings.postExit')}
           <input
             value={postExitCommand}
             onChange={(e) => setPostExitCommand(e.target.value)}
@@ -434,7 +437,7 @@ function AdvancedTab({
       </section>
 
       <section className="settings-section">
-        <h4 className="settings-section-title">Umgebungsvariablen</h4>
+        <h4 className="settings-section-title">{t('settings.envVars')}</h4>
         {envVars.length > 0 && (
           <div className="env-var-list">
             {envVars.map((v, i) => (
@@ -457,21 +460,32 @@ function AdvancedTab({
           </div>
         )}
         <button type="button" onClick={addEnvVar}>
-          + Variable hinzufügen
+          {t('settings.addEnvVar')}
         </button>
       </section>
 
       <div className="modal-actions">
         <button type="button" className="save-button" onClick={handleSave}>
-          Speichern
+          {t('common.save')}
         </button>
-        {saved && <span className="instance-meta">Gespeichert.</span>}
+        {saved && <span className="instance-meta">{t('common.saved')}</span>}
       </div>
     </div>
   )
 }
 
+// Only general/advanced have translation keys so far - TABS itself stays a
+// plain module-level constant (the rest of its labels are still German
+// literals), and this covers the two that are translated without needing
+// to move the whole array inside the component just for that.
+function tabLabel(t: ReturnType<typeof useLocale>['t'], tab: { key: TabKey; label: string }): string {
+  if (tab.key === 'general') return t('settings.general')
+  if (tab.key === 'advanced') return t('settings.advanced')
+  return tab.label
+}
+
 function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [tab, setTab] = useState<TabKey>('version')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(instance.name)
@@ -559,15 +573,15 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
             </h2>
           )}
           <nav>
-            {TABS.map((t) => (
+            {TABS.map((tabDef) => (
               <button
-                key={t.key}
+                key={tabDef.key}
                 type="button"
-                className={`instance-detail-nav-item${tab === t.key ? ' active' : ''}`}
-                onClick={() => setTab(t.key)}
-                disabled={t.key === 'mods' && instance.loader === 'vanilla'}
+                className={`instance-detail-nav-item${tab === tabDef.key ? ' active' : ''}`}
+                onClick={() => setTab(tabDef.key)}
+                disabled={tabDef.key === 'mods' && instance.loader === 'vanilla'}
               >
-                {t.label}
+                {tabLabel(t, tabDef)}
               </button>
             ))}
           </nav>

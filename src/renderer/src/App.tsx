@@ -5,6 +5,8 @@ import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
+import LanguageSwitcher from './LanguageSwitcher'
+import { useLocale } from './i18n'
 import type { CloneContentOptions, Instance, LoaderType } from './types'
 import logo from './assets/logo.png'
 import bgPhoto1 from './assets/bg-photo-1.png'
@@ -88,6 +90,7 @@ interface LaunchSession {
 }
 
 function App(): React.JSX.Element {
+  const { t } = useLocale()
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loggingIn, setLoggingIn] = useState(false)
@@ -480,7 +483,7 @@ function App(): React.JSX.Element {
             className={`main-nav-item${filter.type === 'all' ? ' active' : ''}`}
             onClick={() => setFilter({ type: 'all' })}
           >
-            Alle Instanzen
+            {t('nav.allInstances')}
             <span className="main-nav-count">{instances.length}</span>
           </button>
           {presentVersions.map((version) => (
@@ -515,18 +518,19 @@ function App(): React.JSX.Element {
           </>
         )}
 
-        <p className="main-sidebar-section-label">Sortierung</p>
+        <p className="main-sidebar-section-label">{t('nav.sortLabel')}</p>
         <select
           className="main-sidebar-sort"
           value={sortMode}
           onChange={(e) => setSortMode(e.target.value as SortMode)}
         >
-          <option value="name">Name (A-Z)</option>
-          <option value="lastPlayed">Zuletzt gespielt</option>
-          <option value="created">Erstellt (neu zuerst)</option>
+          <option value="name">{t('sort.name')}</option>
+          <option value="lastPlayed">{t('sort.lastPlayed')}</option>
+          <option value="created">{t('sort.created')}</option>
         </select>
 
         <div className="main-sidebar-footer">
+          <LanguageSwitcher />
           <button type="button" onClick={() => setShowImportPicker(true)}>
             Instanz importieren…
           </button>
@@ -557,17 +561,18 @@ function App(): React.JSX.Element {
               type="button"
               className={viewMode === 'grid' ? 'active' : ''}
               onClick={() => setViewMode('grid')}
-              title="Kästchen (Standard)"
+              title={`${t('view.grid')}${t('view.default')}`}
             >
-              ▦ Kästchen (Standard)
+              ▦ {t('view.grid')}
+              {t('view.default')}
             </button>
             <button
               type="button"
               className={viewMode === 'list' ? 'active' : ''}
               onClick={() => setViewMode('list')}
-              title="Liste"
+              title={t('view.list')}
             >
-              ☰ Liste
+              ☰ {t('view.list')}
             </button>
           </div>
         </div>
@@ -596,7 +601,7 @@ function App(): React.JSX.Element {
           ))}
 
           <button className="instance-card new-instance-card" onClick={() => setShowCreate(true)}>
-            + Neue Instanz
+            {t('instances.new')}
           </button>
         </div>
 
