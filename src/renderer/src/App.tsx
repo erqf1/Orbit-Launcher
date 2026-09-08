@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import InstanceCard from './InstanceCard'
 import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
@@ -32,6 +32,25 @@ function App(): React.JSX.Element {
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [showPrismImport, setShowPrismImport] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showCat, setShowCat] = useState(false)
+  const brandClicksRef = useRef(0)
+  const brandClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hidden easter egg, on a friend's recommendation - five clicks on the
+  // brand mark within two seconds reveals a cat for a few seconds.
+  function handleBrandClick(): void {
+    brandClicksRef.current += 1
+    if (brandClickTimerRef.current) clearTimeout(brandClickTimerRef.current)
+    brandClickTimerRef.current = setTimeout(() => {
+      brandClicksRef.current = 0
+    }, 2000)
+
+    if (brandClicksRef.current >= 5) {
+      brandClicksRef.current = 0
+      setShowCat(true)
+      setTimeout(() => setShowCat(false), 4000)
+    }
+  }
 
   const refreshInstances = useCallback(() => {
     window.api.listInstances().then(setInstances)
@@ -176,7 +195,9 @@ function App(): React.JSX.Element {
     <div className="app">
       <header className="app-header">
         <div className="brand">
-          <span className="brand-mark">E</span>
+          <span className="brand-mark" onClick={handleBrandClick}>
+            E
+          </span>
           <h1>Erqf Launcher</h1>
         </div>
         {!profile ? (
@@ -270,6 +291,13 @@ function App(): React.JSX.Element {
             })}
           </div>
           <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
+        </div>
+      )}
+
+      {showCat && (
+        <div className="hidden-cat">
+          <pre>{' /\\_/\\\n( o.o )\n > ^ <'}</pre>
+          <span>Mrau!</span>
         </div>
       )}
     </div>

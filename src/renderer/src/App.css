@@ -71,6 +71,48 @@ body {
   font-size: 15px;
   color: #0c1116;
   flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hidden-cat {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 200;
+  animation: cat-pop 0.2s ease-out;
+}
+
+.hidden-cat pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--accent);
+}
+
+.hidden-cat span {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@keyframes cat-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .app-header h1 {
