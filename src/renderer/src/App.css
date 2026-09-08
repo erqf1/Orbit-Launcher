@@ -68,7 +68,10 @@ body {
   margin: 0;
   font-family: var(--font-body);
   background-color: var(--bg);
-  background-image: url('./assets/bg-photo.png');
+  /* Set at runtime (App.tsx sets --bg-photo on the root element) so the
+     background arrows can cycle through multiple screenshots without a
+     separate CSS rule per image. */
+  background-image: var(--bg-photo);
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -93,6 +96,59 @@ body::before {
   pointer-events: none;
 }
 
+.bg-switcher {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(8, 9, 12, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow-modal);
+}
+
+.bg-switcher-arrow {
+  padding: 4px 9px;
+  font-size: 13px;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.bg-switcher-arrow:not(:disabled):hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.bg-switcher-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bg-switcher-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.bg-switcher-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
 h1,
 h2,
 h3,
@@ -111,7 +167,9 @@ button {
 .main-sidebar {
   width: 250px;
   flex-shrink: 0;
-  background: var(--bg-elevated);
+  background: rgba(24, 27, 34, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -576,7 +634,9 @@ button:not(:disabled):active {
 
 .instance-card {
   position: relative;
-  background: var(--bg-card);
+  background: rgba(28, 32, 41, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
@@ -819,7 +879,9 @@ button:not(:disabled):active {
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: var(--bg-card);
+  background: rgba(28, 32, 41, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   transition: border-color 0.15s ease;

@@ -6,6 +6,10 @@ import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import type { Instance, LoaderType } from './types'
+import bgPhoto1 from './assets/bg-photo-1.png'
+import bgPhoto2 from './assets/bg-photo-2.png'
+import bgPhoto3 from './assets/bg-photo-3.png'
+import bgPhoto4 from './assets/bg-photo-4.png'
 
 interface Account {
   name: string
@@ -17,6 +21,18 @@ type Filter = { type: 'all' } | { type: 'version'; value: string } | { type: 'gr
 
 const VIEW_MODE_KEY = 'erqf.viewMode'
 const SORT_MODE_KEY = 'erqf.sortMode'
+const BG_INDEX_KEY = 'erqf.bgIndex'
+const BACKGROUNDS = [bgPhoto4, bgPhoto1, bgPhoto2, bgPhoto3]
+
+function readStoredBgIndex(): number {
+  try {
+    const stored = Number(localStorage.getItem(BG_INDEX_KEY))
+    if (Number.isInteger(stored) && stored >= 0 && stored < BACKGROUNDS.length) return stored
+  } catch {
+    // ignore
+  }
+  return 0
+}
 
 function readStoredViewMode(): InstanceViewLayout {
   try {
@@ -85,6 +101,7 @@ function App(): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
+  const [bgIndex, setBgIndexState] = useState<number>(readStoredBgIndex)
   const [askOnPlay, setAskOnPlayState] = useState(false)
   const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -343,6 +360,22 @@ function App(): React.JSX.Element {
       // ignore
     }
   }
+
+  function setBgIndex(index: number): void {
+    const wrapped = (index + BACKGROUNDS.length) % BACKGROUNDS.length
+    setBgIndexState(wrapped)
+    try {
+      localStorage.setItem(BG_INDEX_KEY, String(wrapped))
+    } catch {
+      // ignore
+    }
+  }
+
+  // --bg-photo is read by body's background-image in App.css - set here
+  // instead of a static CSS url() so the arrows can switch it live.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--bg-photo', `url(${BACKGROUNDS[bgIndex]})`)
+  }, [bgIndex])
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
   const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
@@ -628,6 +661,36 @@ function App(): React.JSX.Element {
           <span>Mrau!</span>
         </div>
       )}
+
+      <div className="bg-switcher">
+        <button
+          type="button"
+          className="bg-switcher-arrow"
+          onClick={() => setBgIndex(bgIndex - 1)}
+          title="Vorheriger Hintergrund"
+        >
+          ‹
+        </button>
+        <div className="bg-switcher-dots">
+          {BACKGROUNDS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`bg-switcher-dot${i === bgIndex ? ' active' : ''}`}
+              onClick={() => setBgIndex(i)}
+              title={`Hintergrund ${i + 1}`}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          className="bg-switcher-arrow"
+          onClick={() => setBgIndex(bgIndex + 1)}
+          title="Nächster Hintergrund"
+        >
+          ›
+        </button>
+      </div>
     </div>
   )
 }
