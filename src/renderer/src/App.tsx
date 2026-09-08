@@ -6,7 +6,6 @@ import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import type { Instance, LoaderType } from './types'
-import defaultBgPhoto from './assets/bg-photo-1.png'
 
 interface Account {
   name: string
@@ -18,17 +17,6 @@ type Filter = { type: 'all' } | { type: 'version'; value: string } | { type: 'gr
 
 const VIEW_MODE_KEY = 'erqf.viewMode'
 const SORT_MODE_KEY = 'erqf.sortMode'
-const BG_INDEX_KEY = 'erqf.bgIndex'
-
-function readStoredBgIndex(): number {
-  try {
-    const stored = Number(localStorage.getItem(BG_INDEX_KEY))
-    if (Number.isInteger(stored) && stored >= 0) return stored
-  } catch {
-    // ignore
-  }
-  return 0
-}
 
 function readStoredViewMode(): InstanceViewLayout {
   try {
@@ -97,8 +85,6 @@ function App(): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
-  const [customBackgrounds, setCustomBackgrounds] = useState<string[]>([])
-  const [bgIndex, setBgIndexState] = useState<number>(readStoredBgIndex)
   const [askOnPlay, setAskOnPlayState] = useState(false)
   const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -357,49 +343,6 @@ function App(): React.JSX.Element {
       // ignore
     }
   }
-
-  useEffect(() => {
-    window.api
-      .listCustomBackgrounds()
-      .then(setCustomBackgrounds)
-      .catch(() => setCustomBackgrounds([]))
-  }, [])
-
-  // Bundled default photo is always background 0; any PNGs the user adds
-  // via the switcher's "+" get appended after it, so the arrows work over
-  // a list that isn't limited to hardcoded assets.
-  const backgrounds = [defaultBgPhoto, ...customBackgrounds]
-
-  function setBgIndex(index: number): void {
-    const wrapped = (index + backgrounds.length) % backgrounds.length
-    setBgIndexState(wrapped)
-    try {
-      localStorage.setItem(BG_INDEX_KEY, String(wrapped))
-    } catch {
-      // ignore
-    }
-  }
-
-  async function handleAddBackground(): Promise<void> {
-    const updated = await window.api.addCustomBackground()
-    setCustomBackgrounds(updated)
-    setBgIndex(updated.length)
-  }
-
-  async function handleRemoveCurrentBackground(): Promise<void> {
-    if (bgIndex === 0) return
-    const updated = await window.api.removeCustomBackground(bgIndex - 1)
-    setCustomBackgrounds(updated)
-    setBgIndex(0)
-  }
-
-  // --bg-photo is read by body's background-image in App.css - set here
-  // instead of a static CSS url() so the arrows can switch it live.
-  useEffect(() => {
-    const list = [defaultBgPhoto, ...customBackgrounds]
-    const clamped = ((bgIndex % list.length) + list.length) % list.length
-    document.documentElement.style.setProperty('--bg-photo', `url(${list[clamped]})`)
-  }, [bgIndex, customBackgrounds])
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
   const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
@@ -686,49 +629,6 @@ function App(): React.JSX.Element {
         </div>
       )}
 
-      <div className="bg-switcher">
-        <button
-          type="button"
-          className="bg-switcher-arrow"
-          onClick={() => setBgIndex(bgIndex - 1)}
-          title="Vorheriger Hintergrund"
-        >
-          ‹
-        </button>
-        <div className="bg-switcher-dots">
-          {backgrounds.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`bg-switcher-dot${i === bgIndex ? ' active' : ''}`}
-              onClick={() => setBgIndex(i)}
-              title={`Hintergrund ${i + 1}`}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          className="bg-switcher-arrow"
-          onClick={() => setBgIndex(bgIndex + 1)}
-          title="Nächster Hintergrund"
-        >
-          ›
-        </button>
-        <span className="bg-switcher-divider" />
-        <button type="button" className="bg-switcher-arrow" onClick={handleAddBackground} title="Eigenes Bild hinzufügen">
-          +
-        </button>
-        {bgIndex > 0 && (
-          <button
-            type="button"
-            className="bg-switcher-arrow"
-            onClick={handleRemoveCurrentBackground}
-            title="Dieses Bild entfernen"
-          >
-            ×
-          </button>
-        )}
-      </div>
     </div>
   )
 }
