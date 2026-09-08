@@ -183,14 +183,14 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
   }, {})
 
   return (
-    <div className="detail-tab">
-      <section>
+    <div className="detail-tab mods-tab">
+      <section className="mods-installed-section">
         <h3>Installiert ({installed.length})</h3>
         {installed.length === 0 ? (
           <p className="instance-meta">Keine Mods installiert.</p>
         ) : (
           <>
-            <ul className="mod-list">
+            <ul className="mod-list mods-installed-list">
               {installed.map((mod) => (
                 <li key={mod.filename} className={mod.enabled ? '' : 'mod-disabled'}>
                   <label className="checkbox-label mod-checkbox">
@@ -256,135 +256,144 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
         )}
       </section>
 
-      <section>
-        <h3>Mods importieren</h3>
-        <p className="instance-meta">
-          Prüft eine heruntergeladene .jar-Datei (z.B. von Discord) gegen Modrinths bekannte Dateien -
-          nützlich, um zu sehen, ob eine dir zugeschickte Mod wirklich das ist, was sie zu sein
-          vorgibt.
-        </p>
-        <button type="button" onClick={handlePickFileToCheck} disabled={checking}>
-          {checking ? 'Prüfe…' : 'Datei auswählen…'}
-        </button>
+      <section className="mods-add-section">
+        <h3>Mods hinzufügen</h3>
 
-        {checkResult && (
-          <div className="mod-check-result">
-            {checkResult.status === 'verified' && (
-              <p className="mod-check-ok">
-                Bestätigt: Das ist <strong>{checkResult.matchedProject?.title ?? checkResult.filename}</strong>
-                {checkResult.matchedVersionNumber ? `, Version ${checkResult.matchedVersionNumber}` : ''} -
-                identisch mit der offiziellen Modrinth-Datei.
-              </p>
-            )}
-            {checkResult.status === 'nameMismatch' && checkResult.matchedProject && (
-              <p className="error">
-                Warnung: Diese Datei ist tatsächlich <strong>{checkResult.matchedProject.title}</strong>
-                {checkResult.matchedVersionNumber ? ` (${checkResult.matchedVersionNumber})` : ''}
-                {checkResult.claimedProject
-                  ? `, nicht ${checkResult.claimedProject.title} wie der Dateiname suggeriert.`
-                  : ', nicht was der Dateiname suggeriert.'}
-              </p>
-            )}
-            {checkResult.status === 'nameMismatch' && !checkResult.matchedProject && (
-              <p className="error">
-                Warnung: Der Dateiname deutet auf <strong>{checkResult.claimedProject?.title}</strong> hin,
-                aber diese Datei stimmt mit keiner offiziellen Version davon überein - möglicherweise
-                verändert oder gefälscht.
-              </p>
-            )}
-            {checkResult.status === 'unrecognized' && (
-              <p className="error">
-                Warnung: Diese Datei wurde nicht auf Modrinth gefunden. Das kann eine legitime Mod
-                sein, die nicht über Modrinth vertrieben wird - trotzdem Vorsicht walten lassen.
-              </p>
-            )}
-            <div className="modal-actions">
-              <button type="button" onClick={() => setCheckResult(null)}>
-                Verwerfen
-              </button>
-              <button type="button" onClick={handleInstallChecked} disabled={installingChecked}>
-                {installingChecked
-                  ? 'Installiere…'
-                  : checkResult.status === 'verified'
-                    ? 'Installieren'
-                    : 'Trotzdem installieren'}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section>
-        <div className="mod-section-header">
-          <h3>Empfohlene Mods</h3>
-          <button type="button" onClick={toggleCuratedSection}>
-            {showCurated ? 'Verbergen' : 'Anzeigen'}
+        <div className="mods-add-source">
+          <button type="button" className="save-button" onClick={() => setShowModBrowser(true)}>
+            Modrinth durchsuchen…
           </button>
         </div>
 
-        {showCurated &&
-          (loadingCurated ? (
-            <p className="instance-meta">Lade Empfehlungen…</p>
-          ) : (
-            <>
-              <div className="mod-section-header">
-                <p className="instance-meta">{selectableCurated.length} verfügbar</p>
-                <button type="button" onClick={toggleSelectAllCurated} disabled={selectableCurated.length === 0}>
-                  {allCuratedSelected ? 'Alle abwählen' : 'Alle auswählen'}
+        <div className="mods-add-subsection">
+          <div className="mod-section-header">
+            <h4>Empfohlene Mods</h4>
+            <button type="button" onClick={toggleCuratedSection}>
+              {showCurated ? '▲ Verbergen' : '▼ Anzeigen'}
+            </button>
+          </div>
+
+          {showCurated &&
+            (loadingCurated ? (
+              <p className="instance-meta">Lade Empfehlungen…</p>
+            ) : (
+              <>
+                <div className="mod-section-header">
+                  <p className="instance-meta">{selectableCurated.length} verfügbar</p>
+                  <button
+                    type="button"
+                    onClick={toggleSelectAllCurated}
+                    disabled={selectableCurated.length === 0}
+                  >
+                    {allCuratedSelected ? 'Alle abwählen' : 'Alle auswählen'}
+                  </button>
+                </div>
+                {Object.entries(curatedByCategory).map(([category, mods]) => (
+                  <div key={category} className="curated-category">
+                    <h4>{category}</h4>
+                    <ul className="mod-list">
+                      {mods.map((mod) => (
+                        <li key={mod.projectId}>
+                          <label className="checkbox-label mod-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={selectedCurated.has(mod.projectId)}
+                              disabled={
+                                !mod.compatible || installed.some((m) => m.filename.includes(mod.slug))
+                              }
+                              onChange={() => toggleSelected(mod.projectId)}
+                            />
+                            <span className="mod-row">
+                              {mod.iconUrl ? (
+                                <img className="mod-icon" src={mod.iconUrl} alt="" />
+                              ) : (
+                                <span className="mod-icon mod-icon-fallback">
+                                  {mod.title.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                              <span className="mod-name-block">
+                                <span className="mod-title">{mod.title}</span>
+                                {!mod.compatible && <span className="pill pill-disabled">Nicht kompatibel</span>}
+                                {mod.compatible && installed.some((m) => m.filename.includes(mod.slug)) && (
+                                  <span className="pill pill-version">Installiert</span>
+                                )}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="save-button"
+                  onClick={handleInstallSelected}
+                  disabled={selectedCurated.size === 0 || installingBatch}
+                >
+                  {installingBatch ? 'Installiere…' : `Ausgewählte installieren (${selectedCurated.size})`}
+                </button>
+              </>
+            ))}
+        </div>
+
+        <div className="mods-add-subsection">
+          <h4>Manuell Mods hinzufügen</h4>
+          <p className="instance-meta">
+            Prüft eine heruntergeladene .jar-Datei (z.B. von Discord) gegen Modrinths bekannte Dateien -
+            nützlich, um zu sehen, ob eine dir zugeschickte Mod wirklich das ist, was sie zu sein
+            vorgibt.
+          </p>
+          <button type="button" onClick={handlePickFileToCheck} disabled={checking}>
+            {checking ? 'Prüfe…' : 'Datei auswählen…'}
+          </button>
+
+          {checkResult && (
+            <div className="mod-check-result">
+              {checkResult.status === 'verified' && (
+                <p className="mod-check-ok">
+                  Bestätigt: Das ist <strong>{checkResult.matchedProject?.title ?? checkResult.filename}</strong>
+                  {checkResult.matchedVersionNumber ? `, Version ${checkResult.matchedVersionNumber}` : ''} -
+                  identisch mit der offiziellen Modrinth-Datei.
+                </p>
+              )}
+              {checkResult.status === 'nameMismatch' && checkResult.matchedProject && (
+                <p className="error">
+                  Warnung: Diese Datei ist tatsächlich <strong>{checkResult.matchedProject.title}</strong>
+                  {checkResult.matchedVersionNumber ? ` (${checkResult.matchedVersionNumber})` : ''}
+                  {checkResult.claimedProject
+                    ? `, nicht ${checkResult.claimedProject.title} wie der Dateiname suggeriert.`
+                    : ', nicht was der Dateiname suggeriert.'}
+                </p>
+              )}
+              {checkResult.status === 'nameMismatch' && !checkResult.matchedProject && (
+                <p className="error">
+                  Warnung: Der Dateiname deutet auf <strong>{checkResult.claimedProject?.title}</strong> hin,
+                  aber diese Datei stimmt mit keiner offiziellen Version davon überein - möglicherweise
+                  verändert oder gefälscht.
+                </p>
+              )}
+              {checkResult.status === 'unrecognized' && (
+                <p className="error">
+                  Warnung: Diese Datei wurde nicht auf Modrinth gefunden. Das kann eine legitime Mod
+                  sein, die nicht über Modrinth vertrieben wird - trotzdem Vorsicht walten lassen.
+                </p>
+              )}
+              <div className="modal-actions">
+                <button type="button" onClick={() => setCheckResult(null)}>
+                  Verwerfen
+                </button>
+                <button type="button" onClick={handleInstallChecked} disabled={installingChecked}>
+                  {installingChecked
+                    ? 'Installiere…'
+                    : checkResult.status === 'verified'
+                      ? 'Installieren'
+                      : 'Trotzdem installieren'}
                 </button>
               </div>
-              {Object.entries(curatedByCategory).map(([category, mods]) => (
-                <div key={category} className="curated-category">
-                  <h4>{category}</h4>
-                  <ul className="mod-list">
-                    {mods.map((mod) => (
-                      <li key={mod.projectId}>
-                        <label className="checkbox-label mod-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={selectedCurated.has(mod.projectId)}
-                            disabled={
-                              !mod.compatible || installed.some((m) => m.filename.includes(mod.slug))
-                            }
-                            onChange={() => toggleSelected(mod.projectId)}
-                          />
-                          <span className="mod-row">
-                            {mod.iconUrl ? (
-                              <img className="mod-icon" src={mod.iconUrl} alt="" />
-                            ) : (
-                              <span className="mod-icon mod-icon-fallback">{mod.title.charAt(0).toUpperCase()}</span>
-                            )}
-                            <span className="mod-name-block">
-                              <span className="mod-title">{mod.title}</span>
-                              {!mod.compatible && <span className="pill pill-disabled">Nicht kompatibel</span>}
-                              {mod.compatible && installed.some((m) => m.filename.includes(mod.slug)) && (
-                                <span className="pill pill-version">Installiert</span>
-                              )}
-                            </span>
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="save-button"
-                onClick={handleInstallSelected}
-                disabled={selectedCurated.size === 0 || installingBatch}
-              >
-                {installingBatch ? 'Installiere…' : `Ausgewählte installieren (${selectedCurated.size})`}
-              </button>
-            </>
-          ))}
-      </section>
-
-      <section>
-        <h3>Weitere Mods</h3>
-        <button type="button" onClick={() => setShowModBrowser(true)}>
-          Modrinth durchsuchen…
-        </button>
+            </div>
+          )}
+        </div>
       </section>
 
       {error && <p className="error">{error}</p>}

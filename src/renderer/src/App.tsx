@@ -314,6 +314,11 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
+  async function handleSetCoverColor(id: string, coverColor: string | null): Promise<void> {
+    await window.api.updateInstanceSettings(id, { coverColor })
+    refreshInstances()
+  }
+
   function setViewMode(mode: InstanceViewLayout): void {
     setViewModeState(mode)
     try {
@@ -463,7 +468,7 @@ function App(): React.JSX.Element {
               onClick={() => setViewMode('grid')}
               title="Kästchen (Standard)"
             >
-              ▦ Kästchen{viewMode === 'grid' ? ' (Standard)' : ''}
+              ▦ Kästchen (Standard)
             </button>
             <button
               type="button"
@@ -471,7 +476,7 @@ function App(): React.JSX.Element {
               onClick={() => setViewMode('list')}
               title="Liste"
             >
-              ☰ Liste{viewMode === 'list' ? ' (Standard)' : ''}
+              ☰ Liste
             </button>
           </div>
         </div>
@@ -496,6 +501,7 @@ function App(): React.JSX.Element {
               onIconChanged={refreshInstances}
               onToggleFavorite={handleToggleFavorite}
               onSetGroup={handleSetGroup}
+              onSetCoverColor={handleSetCoverColor}
             />
           ))}
 

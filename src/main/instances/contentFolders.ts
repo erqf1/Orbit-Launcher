@@ -8,10 +8,12 @@ import {
   rmSync,
   copyFileSync,
   cpSync,
-  readFileSync
+  readFileSync,
+  writeFileSync
 } from 'fs'
 import { join, basename, extname } from 'path'
 import { getInstanceRoot } from './instanceManager'
+import type { ModFileRef } from '../mods/modrinth'
 
 export interface ContentFileEntry {
   name: string
@@ -120,6 +122,21 @@ export async function copyContentFileToClipboard(
   await clipboard.write([new ClipboardItem({ [mime]: blob })])
 }
 
+// Downloads a Modrinth file straight into a resourcepacks/shaderpacks
+// folder - the mods-folder equivalent (installMod in modrinth.ts) is kept
+// separate since it's mods-specific already; this one covers the other two
+// subfolders that also gained Modrinth browsing.
+export async function installContentFile(instanceId: string, subfolder: string, file: ModFileRef): Promise<void> {
+  assertAllowedSubfolder(subfolder)
+  assertSafeName(file.filename)
+  const dir = join(getInstanceRoot(instanceId), subfolder)
+  mkdirSync(dir, { recursive: true })
+  const res = await fetch(file.url)
+  if (!res.ok) throw new Error(`Download fehlgeschlagen (HTTP ${res.status}).`)
+  const buffer = Buffer.from(await res.arrayBuffer())
+  writeFileSync(join(dir, file.filename), buffer)
+}
+
 export function openContentFolder(instanceId: string, subfolder: string): Promise<void> {
   assertAllowedSubfolder(subfolder)
   const dir = join(getInstanceRoot(instanceId), subfolder)
@@ -152,5 +169,8 @@ export function registerContentFolderHandlers(): void {
   )
   ipcMain.handle('content:copyToClipboard', (_e, instanceId: string, subfolder: string, name: string) =>
     copyContentFileToClipboard(instanceId, subfolder, name)
+  )
+  ipcMain.handle('content:installFromUrl', (_e, instanceId: string, subfolder: string, file: ModFileRef) =>
+    installContentFile(instanceId, subfolder, file)
   )
 }

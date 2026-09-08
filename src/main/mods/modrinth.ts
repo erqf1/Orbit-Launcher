@@ -89,6 +89,37 @@ export async function searchMods(
   return data.hits.map(mapSearchHit)
 }
 
+// Resource packs and shader packs aren't loader-specific on Modrinth (no
+// `categories:<loader>` facet makes sense for them), just version-scoped -
+// shared by both since the query shape is otherwise identical to searchMods.
+export async function searchContent(
+  query: string,
+  projectType: 'resourcepack' | 'shader',
+  mcVersion: string
+): Promise<ModSearchResult[]> {
+  const facets = [[`project_type:${projectType}`], [`versions:${mcVersion}`]]
+  const index = query.trim() ? '' : '&index=downloads'
+  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20${index}&facets=${encodeURIComponent(JSON.stringify(facets))}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
+  const data = (await res.json()) as { hits: ModrinthSearchHit[] }
+  return data.hits.map(mapSearchHit)
+}
+
+export async function listContentVersions(projectId: string, mcVersion: string): Promise<ModFileRef | null> {
+  const url = `${MODRINTH_API}/project/${encodeURIComponent(projectId)}/version?game_versions=${encodeURIComponent(JSON.stringify([mcVersion]))}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Versionen konnten nicht geladen werden (HTTP ${res.status}).`)
+  const versions = (await res.json()) as Array<{
+    files: Array<{ url: string; filename: string; primary: boolean }>
+  }>
+  for (const v of versions) {
+    const file = v.files.find((f) => f.primary) ?? v.files[0]
+    if (file) return { url: file.url, filename: file.filename }
+  }
+  return null
+}
+
 // Unscoped by mc version/loader - used only to guess "does this filename
 // plausibly name a real Modrinth project", not to find something
 // install-ready.
@@ -515,5 +546,13 @@ export function registerModHandlers(): void {
   ipcMain.handle('mods:pickAndCheckFile', () => pickAndCheckModFile())
   ipcMain.handle('mods:installFromFile', (_event, instanceId: string, filePath: string) =>
     installModFromFile(instanceId, filePath)
+  )
+  ipcMain.handle(
+    'content:search',
+    (_event, query: string, projectType: 'resourcepack' | 'shader', mcVersion: string) =>
+      searchContent(query, projectType, mcVersion)
+  )
+  ipcMain.handle('content:bestVersion', (_event, projectId: string, mcVersion: string) =>
+    listContentVersions(projectId, mcVersion)
   )
 }

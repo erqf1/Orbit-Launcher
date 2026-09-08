@@ -66,11 +66,13 @@ export interface Instance {
   lastPlayed: string | null
   favorite: boolean
   group: string | null
+  coverColor: string | null
 }
 
 export interface InstanceSettingsPatch {
   favorite?: boolean
   group?: string | null
+  coverColor?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
@@ -288,6 +290,15 @@ const api = {
     ipcRenderer.invoke('content:getDataUrl', instanceId, subfolder, name),
   copyContentFileToClipboard: (instanceId: string, subfolder: string, name: string): Promise<void> =>
     ipcRenderer.invoke('content:copyToClipboard', instanceId, subfolder, name),
+  searchContent: (
+    query: string,
+    projectType: 'resourcepack' | 'shader',
+    mcVersion: string
+  ): Promise<ModSearchResult[]> => ipcRenderer.invoke('content:search', query, projectType, mcVersion),
+  getBestContentVersion: (projectId: string, mcVersion: string): Promise<ModFileRef | null> =>
+    ipcRenderer.invoke('content:bestVersion', projectId, mcVersion),
+  installContentFileFromUrl: (instanceId: string, subfolder: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('content:installFromUrl', instanceId, subfolder, file),
 
   listWorlds: (instanceId: string): Promise<WorldEntry[]> => ipcRenderer.invoke('worlds:list', instanceId),
   renameWorld: (instanceId: string, oldName: string, newName: string): Promise<void> =>

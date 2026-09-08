@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import OverflowMenu from './OverflowMenu'
 import type { Instance } from './types'
 
@@ -19,6 +19,20 @@ interface Props {
   onIconChanged: () => void
   onToggleFavorite: (id: string) => void
   onSetGroup: (id: string, group: string | null) => void
+  onSetCoverColor: (id: string, color: string | null) => void
+}
+
+// Builds the cover's two-stop gradient from a single user-picked color -
+// darkened by scaling each channel down, same visual idea as the existing
+// per-loader gradients (a lighter top, darker bottom).
+function darken(hex: string, factor: number): string {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!match) return hex
+  const num = parseInt(match[1], 16)
+  const r = Math.round(((num >> 16) & 0xff) * factor)
+  const g = Math.round(((num >> 8) & 0xff) * factor)
+  const b = Math.round((num & 0xff) * factor)
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
 }
 
 const LOADER_LABELS: Record<string, string> = {
@@ -45,11 +59,13 @@ function InstanceCard(props: Props): React.JSX.Element {
     onManage,
     onIconChanged,
     onToggleFavorite,
-    onSetGroup
+    onSetGroup,
+    onSetCoverColor
   } = props
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(instance.name)
   const [iconUrl, setIconUrl] = useState<string | null>(null)
+  const colorInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -105,12 +121,30 @@ function InstanceCard(props: Props): React.JSX.Element {
     { label: 'Umbenennen', onClick: () => setEditing(true) },
     { label: 'Icon ändern…', onClick: handleSetIcon },
     ...(instance.iconFilename ? [{ label: 'Icon entfernen', onClick: handleClearIcon }] : []),
+    { label: 'Kartenfarbe…', onClick: () => colorInputRef.current?.click() },
+    ...(instance.coverColor
+      ? [{ label: 'Kartenfarbe zurücksetzen', onClick: () => onSetCoverColor(instance.id, null) }]
+      : []),
     { label: 'Gruppe…', onClick: handleSetGroup },
     { label: 'Desktop-Verknüpfung erstellen', onClick: handleCreateShortcut },
     { label: 'Duplizieren', onClick: () => onClone(instance.id) },
     { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
     { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
   ]
+
+  const coverColorInput = (
+    <input
+      ref={colorInputRef}
+      type="color"
+      className="cover-color-input"
+      value={instance.coverColor ?? '#5b9dff'}
+      onChange={(e) => onSetCoverColor(instance.id, e.target.value)}
+    />
+  )
+
+  const coverStyle = instance.coverColor
+    ? ({ '--cover-a': instance.coverColor, '--cover-b': darken(instance.coverColor, 0.5) } as React.CSSProperties)
+    : undefined
 
   const nameElement = editing ? (
     <input
@@ -160,7 +194,8 @@ function InstanceCard(props: Props): React.JSX.Element {
   if (layout === 'list') {
     return (
       <div className="instance-row">
-        <div className={`instance-row-art loader-${instance.loader}`}>
+        {coverColorInput}
+        <div className={`instance-row-art loader-${instance.loader}`} style={coverStyle}>
           {iconUrl ? (
             <img src={iconUrl} alt="" />
           ) : (
@@ -186,7 +221,8 @@ function InstanceCard(props: Props): React.JSX.Element {
 
   return (
     <div className="instance-card">
-      <div className={`instance-cover loader-${instance.loader}`}>
+      {coverColorInput}
+      <div className={`instance-cover loader-${instance.loader}`} style={coverStyle}>
         {isLaunching && <span className="running-pill">läuft</span>}
         {favoriteButton}
         {iconUrl ? (

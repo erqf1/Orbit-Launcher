@@ -28,11 +28,13 @@ export interface Instance {
   lastPlayed: string | null
   favorite: boolean
   group: string | null
+  coverColor: string | null
 }
 
 export interface InstanceSettingsPatch {
   favorite?: boolean
   group?: string | null
+  coverColor?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null

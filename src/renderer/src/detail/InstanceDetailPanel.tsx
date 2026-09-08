@@ -285,6 +285,7 @@ function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChange
             subfolder="resourcepacks"
             addLabel="Datei hinzufügen…"
             emptyLabel="Keine Resource Packs installiert."
+            browse={{ instance, subfolder: 'resourcepacks', projectType: 'resourcepack', title: 'Resource Packs durchsuchen' }}
           />
         )
       case 'shaderpacks':
@@ -294,6 +295,7 @@ function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChange
             subfolder="shaderpacks"
             addLabel="Datei hinzufügen…"
             emptyLabel="Keine Shader Packs installiert."
+            browse={{ instance, subfolder: 'shaderpacks', projectType: 'shader', title: 'Shader Packs durchsuchen' }}
           />
         )
       case 'notes':

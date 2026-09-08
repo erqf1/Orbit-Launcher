@@ -559,7 +559,6 @@ button:not(:disabled):active {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
@@ -583,6 +582,10 @@ button:not(:disabled):active {
   padding: 12px 14px;
   overflow: hidden;
   flex-shrink: 0;
+  /* .instance-card no longer clips overflow (that was also trapping the
+     overflow-menu dropdown inside the card's bounds) - round the cover's
+     own top corners to match instead. */
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .instance-cover::before {
@@ -746,6 +749,16 @@ button:not(:disabled):active {
   padding: 3px 9px 3px 7px;
   border-radius: 999px;
   letter-spacing: 0.04em;
+}
+
+.cover-color-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .favorite-star {
@@ -1172,6 +1185,46 @@ button:not(:disabled):active {
   gap: 6px;
   max-height: 220px;
   overflow-y: auto;
+}
+
+/* Mods tab: the installed list is the primary content, everything else
+   (Modrinth search, curated list, manual import) lives below it in
+   whatever space remains, visually separated as its own block. */
+.mods-tab {
+  gap: 20px;
+}
+
+.mods-installed-list {
+  max-height: 46vh;
+}
+
+.mods-add-section {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mods-add-subsection {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mods-add-subsection h4 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.mods-add-subsection .mod-section-header h4 {
+  margin: 0;
 }
 
 .mod-list li {

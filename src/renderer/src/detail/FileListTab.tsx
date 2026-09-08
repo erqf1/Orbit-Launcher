@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ContentFileEntry } from '../types'
+import ContentBrowserDialog from './ContentBrowserDialog'
+import type { ContentFileEntry, Instance } from '../types'
+
+interface BrowseConfig {
+  instance: Instance
+  subfolder: 'resourcepacks' | 'shaderpacks'
+  projectType: 'resourcepack' | 'shader'
+  title: string
+}
 
 interface Props {
   instanceId: string
   subfolder: string
   addLabel: string
   emptyLabel: string
+  browse?: BrowseConfig
 }
 
 function formatSize(bytes: number): string {
@@ -14,12 +23,13 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function FileListTab({ instanceId, subfolder, addLabel, emptyLabel }: Props): React.JSX.Element {
+function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Props): React.JSX.Element {
   const [files, setFiles] = useState<ContentFileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [renamingName, setRenamingName] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
+  const [showBrowser, setShowBrowser] = useState(false)
 
   const refresh = useCallback(() => {
     setLoading(true)
@@ -70,6 +80,11 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel }: Props): Re
   return (
     <div className="detail-tab">
       <div className="detail-tab-header">
+        {browse && (
+          <button type="button" className="save-button" onClick={() => setShowBrowser(true)}>
+            Modrinth durchsuchen…
+          </button>
+        )}
         <button type="button" onClick={handleAdd}>
           {addLabel}
         </button>
@@ -116,6 +131,17 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel }: Props): Re
             </li>
           ))}
         </ul>
+      )}
+
+      {browse && showBrowser && (
+        <ContentBrowserDialog
+          instance={browse.instance}
+          subfolder={browse.subfolder}
+          projectType={browse.projectType}
+          title={browse.title}
+          onClose={() => setShowBrowser(false)}
+          onInstalled={refresh}
+        />
       )}
     </div>
   )

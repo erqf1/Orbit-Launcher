@@ -61,11 +61,15 @@ export interface Instance {
   // loader filter, a group only shows up in the sidebar once at least one
   // instance is assigned to it - no separate "create empty group" flow).
   group: string | null
+  // User-chosen hex color (e.g. "#5b9dff") for the card's cover art
+  // gradient, or null to use the default per-loader color.
+  coverColor: string | null
 }
 
 export interface InstanceSettingsPatch {
   favorite?: boolean
   group?: string | null
+  coverColor?: string | null
   memoryMin?: string
   memoryMax?: string
   javaPath?: string | null
@@ -223,7 +227,8 @@ export async function createInstance(input: CreateInstanceInput): Promise<Instan
     createdAt: new Date().toISOString(),
     lastPlayed: null,
     favorite: false,
-    group: null
+    group: null,
+    coverColor: null
   }
 
   const instances = readAll()
