@@ -54,6 +54,16 @@ export interface CloneAsVersionInput {
   loaderVersion?: string
 }
 
+export interface CloneContentOptions {
+  mods: boolean
+  worlds: boolean
+  resourcepacks: boolean
+  shaderpacks: boolean
+  screenshots: boolean
+  servers: boolean
+  settings: boolean
+}
+
 export interface LaunchLogEvent {
   launchId: string
   instanceId: string

@@ -5,7 +5,7 @@ import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
-import type { Instance, LoaderType } from './types'
+import type { CloneContentOptions, Instance, LoaderType } from './types'
 import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
 import bgPhoto3 from './assets/bg-photo-3.png'
@@ -295,20 +295,29 @@ function App(): React.JSX.Element {
     id: string,
     mcVersion: string,
     loader: LoaderType,
-    loaderVersion?: string
+    loaderVersion: string | undefined,
+    contentOptions: CloneContentOptions
   ): Promise<void> {
-    await window.api.cloneInstanceAsVersion(id, { mcVersion, loader, loaderVersion })
+    const source = instances.find((i) => i.id === id)
+    // Nothing about the version/loader actually changed - take the fast,
+    // offline exact-copy path instead of reinstalling a loader profile that
+    // would just end up identical to what's already there.
+    const unchanged =
+      !!source &&
+      mcVersion === source.mcVersion &&
+      loader === source.loader &&
+      (loader === 'vanilla' || loaderVersion === (source.loaderVersion ?? undefined))
+    if (unchanged) {
+      await window.api.cloneInstance(id, contentOptions)
+    } else {
+      await window.api.cloneInstanceAsVersion(id, { mcVersion, loader, loaderVersion }, contentOptions)
+    }
     setCloneAsVersionInstanceId(null)
     refreshInstances()
   }
 
   async function handleRename(id: string, name: string): Promise<void> {
     await window.api.renameInstance(id, name)
-    refreshInstances()
-  }
-
-  async function handleClone(id: string): Promise<void> {
-    await window.api.cloneInstance(id)
     refreshInstances()
   }
 
@@ -583,7 +592,6 @@ function App(): React.JSX.Element {
               manageDisabled={launches[instance.id] !== undefined && !launches[instance.id].closed}
               onPlay={handlePlay}
               onRename={handleRename}
-              onClone={handleClone}
               onCloneAsVersion={setCloneAsVersionInstanceId}
               onDelete={handleDelete}
               onManage={setDetailInstanceId}

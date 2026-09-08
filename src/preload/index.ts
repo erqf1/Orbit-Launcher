@@ -92,6 +92,16 @@ export interface CloneAsVersionInput {
   loaderVersion?: string
 }
 
+export interface CloneContentOptions {
+  mods: boolean
+  worlds: boolean
+  resourcepacks: boolean
+  shaderpacks: boolean
+  screenshots: boolean
+  servers: boolean
+  settings: boolean
+}
+
 export interface JavaInstallation {
   path: string
   version: string
@@ -235,9 +245,13 @@ const api = {
   renameInstance: (id: string, name: string): Promise<Instance> =>
     ipcRenderer.invoke('instances:rename', id, name),
   deleteInstance: (id: string): Promise<void> => ipcRenderer.invoke('instances:delete', id),
-  cloneInstance: (id: string): Promise<Instance> => ipcRenderer.invoke('instances:clone', id),
-  cloneInstanceAsVersion: (id: string, input: CloneAsVersionInput): Promise<Instance> =>
-    ipcRenderer.invoke('instances:cloneAsVersion', id, input),
+  cloneInstance: (id: string, contentOptions: CloneContentOptions): Promise<Instance> =>
+    ipcRenderer.invoke('instances:clone', id, contentOptions),
+  cloneInstanceAsVersion: (
+    id: string,
+    input: CloneAsVersionInput,
+    contentOptions: CloneContentOptions
+  ): Promise<Instance> => ipcRenderer.invoke('instances:cloneAsVersion', id, input, contentOptions),
   changeInstanceVersion: (id: string, input: CloneAsVersionInput): Promise<Instance> =>
     ipcRenderer.invoke('instances:changeVersion', id, input),
   updateInstanceSettings: (id: string, patch: InstanceSettingsPatch): Promise<Instance> =>

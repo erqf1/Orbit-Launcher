@@ -12,7 +12,6 @@ interface Props {
   manageDisabled: boolean
   onPlay: (id: string) => void
   onRename: (id: string, name: string) => void
-  onClone: (id: string) => void
   onCloneAsVersion: (id: string) => void
   onDelete: (id: string) => void
   onManage: (id: string) => void
@@ -53,7 +52,6 @@ function InstanceCard(props: Props): React.JSX.Element {
     manageDisabled,
     onPlay,
     onRename,
-    onClone,
     onCloneAsVersion,
     onDelete,
     onManage,
@@ -127,8 +125,7 @@ function InstanceCard(props: Props): React.JSX.Element {
       : []),
     { label: 'Gruppe…', onClick: handleSetGroup },
     { label: 'Desktop-Verknüpfung erstellen', onClick: handleCreateShortcut },
-    { label: 'Duplizieren', onClick: () => onClone(instance.id) },
-    { label: 'Duplizieren als…', onClick: () => onCloneAsVersion(instance.id) },
+    { label: 'Duplizieren…', onClick: () => onCloneAsVersion(instance.id) },
     { label: 'Löschen', onClick: () => onDelete(instance.id), danger: true }
   ]
 

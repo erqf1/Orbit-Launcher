@@ -9,6 +9,7 @@ import {
   unlinkSync,
   chmodSync
 } from 'fs'
+import { cp as cpAsync, rm as rmAsync } from 'fs/promises'
 import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
 import { installFabricProfile } from '../loaders/fabric'
@@ -94,6 +95,29 @@ export interface CloneAsVersionInput {
   mcVersion: string
   loader: LoaderType
   loaderVersion?: string
+}
+
+// Which parts of the source instance a duplicate should carry over - shown
+// as checkboxes in the duplicate dialog so e.g. a "fresh start with the same
+// mods" clone doesn't also drag along the source's saves/screenshots.
+export interface CloneContentOptions {
+  mods: boolean
+  worlds: boolean
+  resourcepacks: boolean
+  shaderpacks: boolean
+  screenshots: boolean
+  servers: boolean
+  settings: boolean
+}
+
+const DEFAULT_CLONE_CONTENT: CloneContentOptions = {
+  mods: true,
+  worlds: true,
+  resourcepacks: true,
+  shaderpacks: true,
+  screenshots: true,
+  servers: true,
+  settings: true
 }
 
 interface LoaderInstallResult {
@@ -390,16 +414,64 @@ export function clearInstanceIcon(id: string): Instance {
   return instance
 }
 
+// Deletes whichever subfolders/files the caller opted out of from a freshly
+// copied clone - applied after the full copy rather than copying selectively
+// up front, so this stays a plain allowlist-free cleanup pass.
+async function applyCloneContentOptions(root: string, options: CloneContentOptions): Promise<void> {
+  const removals: Promise<void>[] = []
+  if (!options.mods) removals.push(rmAsync(join(root, 'mods'), { recursive: true, force: true }))
+  if (!options.worlds) removals.push(rmAsync(join(root, 'saves'), { recursive: true, force: true }))
+  if (!options.resourcepacks) removals.push(rmAsync(join(root, 'resourcepacks'), { recursive: true, force: true }))
+  if (!options.shaderpacks) removals.push(rmAsync(join(root, 'shaderpacks'), { recursive: true, force: true }))
+  if (!options.screenshots) removals.push(rmAsync(join(root, 'screenshots'), { recursive: true, force: true }))
+  if (!options.servers) removals.push(rmAsync(join(root, 'servers.dat'), { force: true }))
+  if (!options.settings) {
+    removals.push(rmAsync(join(root, 'config'), { recursive: true, force: true }))
+    removals.push(rmAsync(join(root, 'options.txt'), { force: true }))
+  }
+  await Promise.all(removals)
+}
+
+// Settings fields live in instances.json, not on disk, so opting out of
+// "settings" resets them to the same defaults createInstance uses instead of
+// inheriting the source's tuning.
+function applyCloneSettingsReset(clone: Instance, options: CloneContentOptions): void {
+  if (!options.settings) {
+    clone.memoryMin = '512M'
+    clone.memoryMax = '4G'
+    clone.javaPath = null
+    clone.jvmArgs = null
+    clone.mcArgs = null
+    clone.windowWidth = null
+    clone.windowHeight = null
+    clone.fullscreen = false
+    clone.closeOnLaunch = false
+    clone.notes = ''
+  }
+  if (!options.servers) clone.autoJoinServer = null
+}
+
 // Copies the source instance's already-installed files (including any
 // fabric/quilt profile json) rather than reinstalling the loader, so
 // cloning needs no network access and always matches the source exactly.
-export function cloneInstance(id: string): Instance {
+// Uses the async fs.cp rather than cpSync - an instance folder can hold
+// hundreds of MB of downloaded assets/libraries, and the sync copy used to
+// block the whole main process (and therefore the entire UI) for as long as
+// the copy took, reported by Windows as "Keine Rückmeldung".
+export async function cloneInstance(
+  id: string,
+  contentOptions: CloneContentOptions = DEFAULT_CLONE_CONTENT
+): Promise<Instance> {
   const source = getInstance(id)
   if (!source) throw new Error('Instanz nicht gefunden.')
 
   const newId = randomUUID()
   const existingFolders = new Set(readAll().map((i) => (i.folderName ?? i.id).toLowerCase()))
   const folderName = uniqueFolderName(sanitizeFolderName(`${source.name} (Kopie)`), existingFolders)
+  const root = join(app.getPath('userData'), 'instances', folderName)
+
+  await cpAsync(getInstanceRoot(source.id), root, { recursive: true, force: true })
+  await applyCloneContentOptions(root, contentOptions)
 
   const clone: Instance = {
     ...source,
@@ -409,11 +481,7 @@ export function cloneInstance(id: string): Instance {
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
-
-  cpSync(getInstanceRoot(source.id), join(app.getPath('userData'), 'instances', folderName), {
-    recursive: true,
-    force: true
-  })
+  applyCloneSettingsReset(clone, contentOptions)
 
   const instances = readAll()
   instances.push(clone)
@@ -428,7 +496,8 @@ export function cloneInstance(id: string): Instance {
 // available loader versions for the target mcVersion, let the user pick).
 export async function cloneInstanceAsVersion(
   id: string,
-  input: CloneAsVersionInput
+  input: CloneAsVersionInput,
+  contentOptions: CloneContentOptions = DEFAULT_CLONE_CONTENT
 ): Promise<Instance> {
   const source = getInstance(id)
   if (!source) throw new Error('Instanz nicht gefunden.')
@@ -440,7 +509,8 @@ export async function cloneInstanceAsVersion(
     existingFolders
   )
   const root = join(app.getPath('userData'), 'instances', folderName)
-  cpSync(getInstanceRoot(source.id), root, { recursive: true, force: true })
+  await cpAsync(getInstanceRoot(source.id), root, { recursive: true, force: true })
+  await applyCloneContentOptions(root, contentOptions)
 
   let loaderInstall: LoaderInstallResult
   try {
@@ -463,6 +533,7 @@ export async function cloneInstanceAsVersion(
     createdAt: new Date().toISOString(),
     lastPlayed: null
   }
+  applyCloneSettingsReset(clone, contentOptions)
 
   const instances = readAll()
   instances.push(clone)
@@ -505,9 +576,13 @@ export function registerInstanceHandlers(): void {
   ipcMain.handle('instances:create', (_event, input: CreateInstanceInput) => createInstance(input))
   ipcMain.handle('instances:rename', (_event, id: string, name: string) => renameInstance(id, name))
   ipcMain.handle('instances:delete', (_event, id: string) => deleteInstance(id))
-  ipcMain.handle('instances:clone', (_event, id: string) => cloneInstance(id))
-  ipcMain.handle('instances:cloneAsVersion', (_event, id: string, input: CloneAsVersionInput) =>
-    cloneInstanceAsVersion(id, input)
+  ipcMain.handle('instances:clone', (_event, id: string, contentOptions?: CloneContentOptions) =>
+    cloneInstance(id, contentOptions)
+  )
+  ipcMain.handle(
+    'instances:cloneAsVersion',
+    (_event, id: string, input: CloneAsVersionInput, contentOptions?: CloneContentOptions) =>
+      cloneInstanceAsVersion(id, input, contentOptions)
   )
   ipcMain.handle('instances:changeVersion', (_event, id: string, input: CloneAsVersionInput) =>
     changeInstanceVersion(id, input)
