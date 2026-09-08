@@ -7,8 +7,14 @@ interface LauncherProfile {
   id: string
 }
 
+export interface SavedAccountMeta {
+  id: string
+  name: string
+}
+
 interface LoginResult {
   profile: LauncherProfile | null
+  accounts: SavedAccountMeta[]
 }
 
 interface LaunchResult {
@@ -181,6 +187,8 @@ function onEvent<T>(channel: string, callback: (payload: T) => void): () => void
 const api = {
   login: (): Promise<LoginResult> => ipcRenderer.invoke('auth:login'),
   currentAccount: (): Promise<LoginResult> => ipcRenderer.invoke('auth:current'),
+  switchAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:switch', id),
+  removeAccount: (id: string): Promise<LoginResult> => ipcRenderer.invoke('auth:remove', id),
   launch: (instanceId: string): Promise<LaunchResult> =>
     ipcRenderer.invoke('launch:start', instanceId),
 

@@ -4,9 +4,10 @@ import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import PrismImportDialog from './PrismImportDialog'
+import AccountSwitcher from './AccountSwitcher'
 import type { Instance, LoaderType } from './types'
 
-interface Profile {
+interface Account {
   name: string
   id: string
 }
@@ -22,8 +23,10 @@ interface LaunchSession {
 }
 
 function App(): React.JSX.Element {
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [loggingIn, setLoggingIn] = useState(false)
+  const [switchingAccount, setSwitchingAccount] = useState(false)
   const [instances, setInstances] = useState<Instance[]>([])
   const [launches, setLaunches] = useState<Record<string, LaunchSession>>({})
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
@@ -59,7 +62,8 @@ function App(): React.JSX.Element {
   useEffect(() => {
     refreshInstances()
     window.api.currentAccount().then((result) => {
-      if (result.profile) setProfile(result.profile)
+      setAccounts(result.accounts)
+      if (result.profile) setActiveAccountId(result.profile.id)
     })
   }, [refreshInstances])
 
@@ -87,12 +91,37 @@ function App(): React.JSX.Element {
     setLoggingIn(true)
     try {
       const result = await window.api.login()
-      setProfile(result.profile)
+      setAccounts(result.accounts)
+      if (result.profile) setActiveAccountId(result.profile.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoggingIn(false)
     }
+  }
+
+  async function handleSwitchAccount(id: string): Promise<void> {
+    setError(null)
+    setSwitchingAccount(true)
+    try {
+      const result = await window.api.switchAccount(id)
+      setAccounts(result.accounts)
+      setActiveAccountId(result.profile?.id ?? null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSwitchingAccount(false)
+    }
+  }
+
+  async function handleRemoveAccount(id: string): Promise<void> {
+    const account = accounts.find((a) => a.id === id)
+    const sure = window.confirm(`Konto "${account?.name ?? id}" wirklich entfernen?`)
+    if (!sure) return
+    setError(null)
+    const result = await window.api.removeAccount(id)
+    setAccounts(result.accounts)
+    setActiveAccountId(result.profile?.id ?? null)
   }
 
   async function handlePlay(id: string): Promise<void> {
@@ -200,14 +229,19 @@ function App(): React.JSX.Element {
           </span>
           <h1>Erqf Launcher</h1>
         </div>
-        {!profile ? (
+        {accounts.length === 0 ? (
           <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
             {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
           </button>
         ) : (
-          <div className="account">
-            Angemeldet als <strong>{profile.name}</strong>
-          </div>
+          <AccountSwitcher
+            activeId={activeAccountId}
+            accounts={accounts}
+            onSwitch={handleSwitchAccount}
+            onRemove={handleRemoveAccount}
+            onAddAccount={handleLogin}
+            busy={switchingAccount || loggingIn}
+          />
         )}
       </header>
 
@@ -219,7 +253,7 @@ function App(): React.JSX.Element {
             key={instance.id}
             instance={instance}
             isLaunching={launches[instance.id] !== undefined && !launches[instance.id].closed}
-            playDisabled={!profile || (launches[instance.id]?.closed === false)}
+            playDisabled={!activeAccountId || (launches[instance.id]?.closed === false)}
             manageDisabled={launches[instance.id] !== undefined && !launches[instance.id].closed}
             onPlay={handlePlay}
             onRename={handleRename}

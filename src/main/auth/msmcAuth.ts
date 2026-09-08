@@ -1,10 +1,23 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { Auth } from 'msmc'
-import { saveAuthToken, loadAuthToken, clearAuthToken } from './authStore'
+import {
+  saveAccountToken,
+  loadAccountToken,
+  listSavedAccounts,
+  getActiveAccountId,
+  setActiveAccountId,
+  removeAccount,
+  type SavedAccountMeta
+} from './authStore'
 
 export interface LauncherProfile {
   name: string
   id: string
+}
+
+export interface AuthResult {
+  profile: LauncherProfile | null
+  accounts: SavedAccountMeta[]
 }
 
 // The JSON shape MCLC's `authorization` launch option expects (see MCLC docs);
@@ -44,14 +57,16 @@ function friendlyAuthError(err: unknown): Error {
   return new Error(FRIENDLY_AUTH_ERRORS[message] ?? message)
 }
 
-// Holds the most recently signed-in account for the lifetime of the app.
-// The underlying Xbox session is additionally persisted to disk (see
-// authStore.ts) so it survives a restart without a fresh interactive login.
-let currentAuthorization: MclcAuthorization | null = null
-let currentProfile: LauncherProfile | null = null
+// Cached per-account MCLC authorization for this run of the app, keyed by
+// Minecraft profile id (the same id persisted in authStore's account
+// index) - so switching back to an already-used account within the same
+// session doesn't need a fresh network refresh.
+const authorizationCache = new Map<string, MclcAuthorization>()
 
 export function getMclcAuthorization(): MclcAuthorization | null {
-  return currentAuthorization
+  const activeId = getActiveAccountId()
+  if (!activeId) return null
+  return authorizationCache.get(activeId) ?? null
 }
 
 async function applyMinecraftSession(
@@ -60,17 +75,48 @@ async function applyMinecraftSession(
   if (!minecraft.profile) {
     throw new Error('Dieses Microsoft-Konto besitzt kein Minecraft: Java Edition.')
   }
-  currentAuthorization = minecraft.mclc() as unknown as MclcAuthorization
-  currentProfile = { name: minecraft.profile.name, id: minecraft.profile.id }
-  return currentProfile
+  const profile: LauncherProfile = { name: minecraft.profile.name, id: minecraft.profile.id }
+  authorizationCache.set(profile.id, minecraft.mclc() as unknown as MclcAuthorization)
+  return profile
+}
+
+// Makes sure `id` has a live, cached MCLC authorization, refreshing its
+// saved token if this session hasn't loaded it yet. A saved account whose
+// token has expired beyond refresh is removed from the store rather than
+// left around to fail the same way every time - the caller decides whether
+// that's worth surfacing as an error (a silent startup restore shouldn't
+// bother the user, an explicit switch should).
+async function ensureAuthorizationFor(id: string): Promise<LauncherProfile | null> {
+  if (authorizationCache.has(id)) {
+    const meta = listSavedAccounts().find((a) => a.id === id)
+    return meta ? { id: meta.id, name: meta.name } : null
+  }
+
+  const savedToken = loadAccountToken(id)
+  if (!savedToken) return null
+
+  try {
+    const authManager = new Auth('select_account')
+    const xboxManager = await authManager.refresh(savedToken)
+    const minecraft = await xboxManager.getMinecraft()
+    const profile = await applyMinecraftSession(minecraft)
+    saveAccountToken(profile.id, profile.name, xboxManager.save())
+    return profile
+  } catch {
+    removeAccount(id)
+    return null
+  }
 }
 
 export function registerAuthHandlers(mainWindow: BrowserWindow): void {
-  ipcMain.handle('auth:login', async () => {
+  ipcMain.handle('auth:login', async (): Promise<AuthResult> => {
     try {
       const authManager = new Auth('select_account')
       // parent + modal so the popup is clearly anchored to the main window
       // instead of a possibly-easy-to-miss separate top-level window.
+      // 'select_account' also means adding a second/third account here
+      // always offers Microsoft's own account picker rather than silently
+      // reusing whatever session the login webview already has cached.
       const xboxManager = await authManager.launch('electron', {
         width: 520,
         height: 700,
@@ -79,33 +125,44 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
       })
       const minecraft = await xboxManager.getMinecraft()
       const profile = await applyMinecraftSession(minecraft)
-      saveAuthToken(xboxManager.save())
+      saveAccountToken(profile.id, profile.name, xboxManager.save())
+      setActiveAccountId(profile.id)
 
-      return { profile }
+      return { profile, accounts: listSavedAccounts() }
     } catch (err) {
       throw friendlyAuthError(err)
     }
   })
 
-  // Tries to silently restore a saved session before falling back to "not
-  // signed in" - called once on app start by the renderer. A failed/expired
-  // saved token is treated as a normal "please sign in again", not an error.
-  ipcMain.handle('auth:current', async () => {
-    if (currentProfile) return { profile: currentProfile }
+  // Tries to silently restore the active saved account before falling back
+  // to "not signed in" - called once on app start by the renderer. A
+  // failed/expired saved token only drops that one account, the rest of
+  // the switcher list is unaffected.
+  ipcMain.handle('auth:current', async (): Promise<AuthResult> => {
+    const activeId = getActiveAccountId()
+    if (!activeId) return { profile: null, accounts: listSavedAccounts() }
+    const profile = await ensureAuthorizationFor(activeId)
+    return { profile, accounts: listSavedAccounts() }
+  })
 
-    const savedToken = loadAuthToken()
-    if (!savedToken) return { profile: null }
-
-    try {
-      const authManager = new Auth('select_account')
-      const xboxManager = await authManager.refresh(savedToken)
-      const minecraft = await xboxManager.getMinecraft()
-      const profile = await applyMinecraftSession(minecraft)
-      saveAuthToken(xboxManager.save())
-      return { profile }
-    } catch {
-      clearAuthToken()
-      return { profile: null }
+  ipcMain.handle('auth:switch', async (_event, id: string): Promise<AuthResult> => {
+    const existedBefore = listSavedAccounts().some((a) => a.id === id)
+    const profile = await ensureAuthorizationFor(id)
+    if (profile) {
+      setActiveAccountId(id)
+    } else if (existedBefore) {
+      throw new Error('Diese Sitzung ist abgelaufen. Bitte das Konto erneut hinzufügen.')
     }
+    return { profile, accounts: listSavedAccounts() }
+  })
+
+  ipcMain.handle('auth:remove', async (_event, id: string): Promise<AuthResult> => {
+    authorizationCache.delete(id)
+    removeAccount(id)
+
+    const activeId = getActiveAccountId()
+    if (!activeId) return { profile: null, accounts: listSavedAccounts() }
+    const profile = await ensureAuthorizationFor(activeId)
+    return { profile, accounts: listSavedAccounts() }
   })
 }
