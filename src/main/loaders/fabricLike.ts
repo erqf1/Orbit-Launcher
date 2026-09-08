@@ -14,10 +14,51 @@ interface FabricLikeLoaderEntry {
   loader: { version: string; stable: boolean }
 }
 
+interface FabricLikeLibrary {
+  name: string
+  url?: string
+  // Old Mojang-style per-OS native declaration (classifier suffix per
+  // platform) - used by e.g. Legacy Fabric's lwjgl-platform entries for
+  // very old Minecraft versions. MCLC's custom-profile downloader
+  // (downloadToDirectory in its handler.js) only ever reads a library's
+  // plain `name`/`url` and has no idea this field exists, so it guesses a
+  // bare "<artifact>-<version>.jar" filename - which 404s, since libraries
+  // declared this way only ever publish classified jars (there's no
+  // unclassified one on the server at all). Only MCLC's getNatives() (for
+  // *vanilla* libraries only) understands the modern equivalent,
+  // downloads.classifiers - so profile libraries never benefit from it.
+  natives?: Record<string, string>
+  [key: string]: unknown
+}
+
 interface FabricLikeProfile {
   id: string
   mainClass: string
+  libraries?: FabricLikeLibrary[]
   [key: string]: unknown
+}
+
+function currentNativesOs(): 'windows' | 'linux' | 'osx' {
+  if (process.platform === 'darwin') return 'osx'
+  if (process.platform === 'linux') return 'linux'
+  return 'windows'
+}
+
+// Rewrites any library using the legacy natives-map format into a plain
+// Maven coordinate with an explicit classifier segment
+// (group:artifact:version:natives-windows) - downloadToDirectory's own
+// fallback naming already handles a 4-part name correctly, so this is
+// enough to make it fetch the real, existing classified jar instead of
+// guessing a bare filename that was never published.
+function resolveLegacyNatives(libraries: FabricLikeLibrary[]): void {
+  const os = currentNativesOs()
+  for (const lib of libraries) {
+    if (!lib.natives || lib.downloads) continue
+    const classifier = lib.natives[os]
+    if (!classifier) continue
+    lib.name = `${lib.name}:${classifier}`
+    delete lib.natives
+  }
 }
 
 export async function listLoaderVersions(
@@ -51,6 +92,7 @@ export async function installFabricLikeProfile(
     throw new Error(`Loader-Profil konnte nicht geladen werden (HTTP ${res.status}).`)
   }
   const profile = (await res.json()) as FabricLikeProfile
+  resolveLegacyNatives(profile.libraries ?? [])
 
   const versionDir = join(instanceRoot, 'versions', profile.id)
   mkdirSync(versionDir, { recursive: true })

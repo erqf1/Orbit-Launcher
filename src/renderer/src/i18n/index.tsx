@@ -53,10 +53,20 @@ function readStoredLocale(): Locale {
 
 type TranslateFn = (key: TranslationKey, vars?: Record<string, string | number>) => string
 
+// Shared by the real provider and the pre-mount default context value below
+// - a useLocale() call that somehow fires before/outside LocaleProvider
+// (e.g. a transient state during hot-reload) should still interpolate
+// correctly instead of leaking a raw "{date}" placeholder onto the screen.
+function translate(locale: Locale, key: TranslationKey, vars?: Record<string, string | number>): string {
+  const template = DICTIONARIES[locale]?.[key] ?? en[key]
+  if (!vars) return template
+  return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match))
+}
+
 const LocaleContext = createContext<{ locale: Locale; setLocale: (l: Locale) => void; t: TranslateFn }>({
   locale: 'en',
   setLocale: () => {},
-  t: (key) => en[key]
+  t: (key, vars) => translate('en', key, vars)
 })
 
 export function LocaleProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -76,9 +86,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }): Rea
   }
 
   function t(key: TranslationKey, vars?: Record<string, string | number>): string {
-    const template = DICTIONARIES[locale][key] ?? en[key]
-    if (!vars) return template
-    return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match))
+    return translate(locale, key, vars)
   }
 
   return <LocaleContext.Provider value={{ locale, setLocale, t }}>{children}</LocaleContext.Provider>
