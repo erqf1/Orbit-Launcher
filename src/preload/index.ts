@@ -339,6 +339,10 @@ const api = {
   readLogFile: (instanceId: string, folder: string, name: string): Promise<string> =>
     ipcRenderer.invoke('logs:read', instanceId, folder, name),
 
+  listCustomBackgrounds: (): Promise<string[]> => ipcRenderer.invoke('background:list'),
+  addCustomBackground: (): Promise<string[]> => ipcRenderer.invoke('background:add'),
+  removeCustomBackground: (index: number): Promise<string[]> => ipcRenderer.invoke('background:remove', index),
+
   onLog: (callback: (event: LaunchLogEvent) => void): (() => void) => onEvent('launch:log', callback),
   onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>
     onEvent('launch:progress', callback),
