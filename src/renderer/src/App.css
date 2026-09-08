@@ -149,6 +149,12 @@ body::before {
   box-shadow: 0 0 6px var(--accent-glow);
 }
 
+.bg-switcher-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
 h1,
 h2,
 h3,
@@ -995,6 +1001,7 @@ button:not(:disabled):active {
 }
 
 .play-button:not(:disabled):hover {
+  background: linear-gradient(135deg, var(--success), #1f9d64);
   filter: brightness(1.08);
   box-shadow: 0 8px 22px var(--success-glow);
 }
@@ -1365,6 +1372,11 @@ button:not(:disabled):active {
   gap: 10px;
 }
 
+.mods-add-source button,
+.mods-add-subsection button {
+  width: 100%;
+}
+
 .mods-add-subsection h4 {
   margin: 0;
   font-size: 12.5px;
@@ -1385,7 +1397,7 @@ button:not(:disabled):active {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--bg-input);
+  background: rgba(36, 40, 51, 0.72);
   border-radius: var(--radius-sm);
   font-size: 13px;
 }
@@ -1533,7 +1545,9 @@ button:not(:disabled):active {
 }
 
 .instance-detail {
-  background: var(--bg-elevated);
+  background: rgba(24, 27, 34, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
@@ -1738,6 +1752,7 @@ button:not(:disabled):active {
 }
 
 .save-button:not(:disabled):hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   filter: brightness(1.08);
   box-shadow: 0 8px 22px var(--accent-glow);
 }

@@ -75,70 +75,83 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
   }
 
   return (
-    <div className="detail-tab">
-      <div className="detail-tab-header">
-        {browse && (
-          <button type="button" className="save-button" onClick={() => setShowBrowser(true)}>
-            Modrinth durchsuchen…
-          </button>
-        )}
-        <button type="button" onClick={handleAdd}>
-          {addLabel}
-        </button>
-        <button type="button" onClick={handleOpenFolder}>
-          Ordner öffnen
-        </button>
-      </div>
+    <div className="detail-tab mods-tab">
+      <div className="mods-tab-columns">
+        <section className="mods-installed-section">
+          <h3>
+            {files.length} {files.length === 1 ? 'Datei' : 'Dateien'}
+          </h3>
 
-      {error && <p className="error">{error}</p>}
+          {error && <p className="error">{error}</p>}
 
-      {loading ? (
-        <p className="instance-meta">Lade…</p>
-      ) : files.length === 0 ? (
-        <p className="instance-meta">{emptyLabel}</p>
-      ) : (
-        <ul className="mod-list mods-installed-list">
-          {files.map((f) => (
-            <li key={f.name}>
-              {renamingName === f.name ? (
-                <input
-                  className="rename-input"
-                  autoFocus
-                  value={renameDraft}
-                  onChange={(e) => setRenameDraft(e.target.value)}
-                  onBlur={confirmRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmRename()
-                    if (e.key === 'Escape') setRenamingName(null)
-                  }}
-                />
-              ) : (
-                <span className="mod-row" title={f.name}>
-                  {f.iconUrl ? (
-                    <img className="mod-icon" src={f.iconUrl} alt="" />
+          {loading ? (
+            <p className="instance-meta">Lade…</p>
+          ) : files.length === 0 ? (
+            <p className="instance-meta">{emptyLabel}</p>
+          ) : (
+            <ul className="mod-list mods-installed-list">
+              {files.map((f) => (
+                <li key={f.name}>
+                  {renamingName === f.name ? (
+                    <input
+                      className="rename-input"
+                      autoFocus
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={confirmRename}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') confirmRename()
+                        if (e.key === 'Escape') setRenamingName(null)
+                      }}
+                    />
                   ) : (
-                    <span className="mod-icon mod-icon-fallback">
-                      {(f.title ?? f.name).charAt(0).toUpperCase()}
+                    <span className="mod-row" title={f.name}>
+                      {f.iconUrl ? (
+                        <img className="mod-icon" src={f.iconUrl} alt="" />
+                      ) : (
+                        <span className="mod-icon mod-icon-fallback">
+                          {(f.title ?? f.name).charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      <span className="mod-name-block">
+                        <span className="mod-title">{f.title ?? f.name}</span>
+                        {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
+                      </span>
                     </span>
                   )}
-                  <span className="mod-name-block">
-                    <span className="mod-title">{f.title ?? f.name}</span>
-                    {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
+                  <span className="detail-row-actions">
+                    <button type="button" onClick={() => startRename(f.name)}>
+                      Umbenennen
+                    </button>
+                    <button type="button" onClick={() => handleRemove(f.name)}>
+                      Löschen
+                    </button>
                   </span>
-                </span>
-              )}
-              <span className="detail-row-actions">
-                <button type="button" onClick={() => startRename(f.name)}>
-                  Umbenennen
-                </button>
-                <button type="button" onClick={() => handleRemove(f.name)}>
-                  Löschen
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mods-add-section">
+          <h3>Hinzufügen</h3>
+          {browse && (
+            <div className="mods-add-source">
+              <button type="button" className="save-button" onClick={() => setShowBrowser(true)}>
+                Modrinth durchsuchen…
+              </button>
+            </div>
+          )}
+          <div className="mods-add-subsection">
+            <button type="button" onClick={handleAdd}>
+              {addLabel}
+            </button>
+            <button type="button" onClick={handleOpenFolder}>
+              Ordner öffnen
+            </button>
+          </div>
+        </section>
+      </div>
 
       {browse && showBrowser && (
         <ContentBrowserDialog

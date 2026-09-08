@@ -17,6 +17,7 @@ import { registerContentFolderHandlers } from './instances/contentFolders'
 import { registerWorldHandlers } from './instances/worlds'
 import { registerServerHandlers } from './instances/servers'
 import { registerLogHandlers } from './instances/logs'
+import { registerAppSettingsHandlers } from './appSettings'
 
 // `require`, not `import * as fs from 'fs'`: the latter produced a
 // read-only ESM namespace object under esbuild's interop, which is what
@@ -104,6 +105,7 @@ app.whenReady().then(() => {
   registerWorldHandlers()
   registerServerHandlers()
   registerLogHandlers()
+  registerAppSettingsHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
