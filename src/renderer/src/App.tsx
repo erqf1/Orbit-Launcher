@@ -556,7 +556,6 @@ function App(): React.JSX.Element {
       {detailInstance && (
         <InstanceDetailPanel
           instance={detailInstance}
-          allInstances={instances}
           onClose={() => setDetailInstanceId(null)}
           onInstanceChanged={refreshInstances}
         />

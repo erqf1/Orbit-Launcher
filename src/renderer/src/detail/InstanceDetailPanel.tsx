@@ -10,7 +10,6 @@ import LogsTab from './LogsTab'
 
 interface Props {
   instance: Instance
-  allInstances: Instance[]
   onClose: () => void
   onInstanceChanged: () => void
 }
@@ -252,7 +251,7 @@ function SettingsTab({
   )
 }
 
-function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChanged }: Props): React.JSX.Element {
+function InstanceDetailPanel({ instance, onClose, onInstanceChanged }: Props): React.JSX.Element {
   const [tab, setTab] = useState<TabKey>('version')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(instance.name)
@@ -277,7 +276,7 @@ function InstanceDetailPanel({ instance, allInstances, onClose, onInstanceChange
       case 'version':
         return <VersionTab instance={instance} onChanged={onInstanceChanged} />
       case 'mods':
-        return <ModsTab instance={instance} allInstances={allInstances} />
+        return <ModsTab instance={instance} />
       case 'resourcepacks':
         return (
           <FileListTab

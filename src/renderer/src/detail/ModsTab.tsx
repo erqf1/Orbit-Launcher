@@ -4,11 +4,11 @@ import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResul
 
 interface Props {
   instance: Instance
-  allInstances: Instance[]
 }
 
-function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
+function ModsTab({ instance }: Props): React.JSX.Element {
   const [installed, setInstalled] = useState<InstalledMod[]>([])
+  const [installedSearch, setInstalledSearch] = useState('')
   const [showModBrowser, setShowModBrowser] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,14 +18,9 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
   const [selectedCurated, setSelectedCurated] = useState<Set<string>>(new Set())
   const [installingBatch, setInstallingBatch] = useState(false)
 
-  const [selectedInstalled, setSelectedInstalled] = useState<Set<string>>(new Set())
-  const [copyTargetId, setCopyTargetId] = useState('')
-  const [copying, setCopying] = useState(false)
-
   const [checkResult, setCheckResult] = useState<ModCheckResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [installingChecked, setInstallingChecked] = useState(false)
-  const [copyMessage, setCopyMessage] = useState<string | null>(null)
 
   const refreshInstalled = useCallback(() => {
     window.api.listMods(instance.id).then(setInstalled)
@@ -146,36 +141,11 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
     }
   }
 
-  function toggleInstalledSelected(filename: string): void {
-    setSelectedInstalled((prev) => {
-      const next = new Set(prev)
-      if (next.has(filename)) next.delete(filename)
-      else next.add(filename)
-      return next
-    })
-  }
-
-  const copyTargets = allInstances.filter(
-    (i) => i.id !== instance.id && i.loader === instance.loader && i.mcVersion === instance.mcVersion
-  )
-
-  async function handleCopyMods(): Promise<void> {
-    if (!copyTargetId || selectedInstalled.size === 0) return
-    setError(null)
-    setCopyMessage(null)
-    setCopying(true)
-    try {
-      const targetName = copyTargets.find((i) => i.id === copyTargetId)?.name ?? copyTargetId
-      const count = selectedInstalled.size
-      await window.api.copyMods(instance.id, copyTargetId, [...selectedInstalled])
-      setSelectedInstalled(new Set())
-      setCopyMessage(`${count} Mod(s) nach „${targetName}“ kopiert.`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setCopying(false)
-    }
-  }
+  const visibleInstalled = installedSearch.trim()
+    ? installed.filter((mod) =>
+        (mod.title ?? mod.filename).toLowerCase().includes(installedSearch.trim().toLowerCase())
+      )
+    : installed
 
   const curatedByCategory = curated.reduce<Record<string, CuratedMod[]>>((acc, mod) => {
     ;(acc[mod.category] ??= []).push(mod)
@@ -190,15 +160,20 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
           <p className="instance-meta">Keine Mods installiert.</p>
         ) : (
           <>
-            <ul className="mod-list mods-installed-list">
-              {installed.map((mod) => (
-                <li key={mod.filename} className={mod.enabled ? '' : 'mod-disabled'}>
-                  <label className="checkbox-label mod-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedInstalled.has(mod.filename)}
-                      onChange={() => toggleInstalledSelected(mod.filename)}
-                    />
+            {installed.length > 6 && (
+              <input
+                className="mod-browser-search-input"
+                value={installedSearch}
+                onChange={(e) => setInstalledSearch(e.target.value)}
+                placeholder="Mods durchsuchen…"
+              />
+            )}
+            {visibleInstalled.length === 0 ? (
+              <p className="instance-meta">Keine Treffer.</p>
+            ) : (
+              <ul className="mod-list mods-installed-list">
+                {visibleInstalled.map((mod) => (
+                  <li key={mod.filename} className={mod.enabled ? '' : 'mod-disabled'}>
                     <span className="mod-row">
                       {mod.iconUrl ? (
                         <img className="mod-icon" src={mod.iconUrl} alt="" />
@@ -215,43 +190,18 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
                         {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
                       </span>
                     </span>
-                  </label>
-                  <span className="detail-row-actions">
-                    <button type="button" onClick={() => handleToggle(mod.filename)}>
-                      {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
-                    </button>
-                    <button type="button" onClick={() => handleRemove(mod.filename)}>
-                      Entfernen
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            {copyTargets.length > 0 ? (
-              <div className="mod-copy-bar">
-                <select value={copyTargetId} onChange={(e) => setCopyTargetId(e.target.value)}>
-                  <option value="">Zielinstanz wählen…</option>
-                  {copyTargets.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleCopyMods}
-                  disabled={!copyTargetId || selectedInstalled.size === 0 || copying}
-                >
-                  {copying ? 'Kopiere…' : `Kopieren (${selectedInstalled.size})`}
-                </button>
-              </div>
-            ) : (
-              <p className="instance-meta">
-                Keine kompatible Instanz (gleiche Version + Loader) zum Kopieren gefunden.
-              </p>
+                    <span className="detail-row-actions">
+                      <button type="button" onClick={() => handleToggle(mod.filename)}>
+                        {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
+                      </button>
+                      <button type="button" onClick={() => handleRemove(mod.filename)}>
+                        Entfernen
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
-            {copyMessage && <p className="instance-meta">{copyMessage}</p>}
           </>
         )}
       </section>

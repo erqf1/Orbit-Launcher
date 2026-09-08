@@ -1318,29 +1318,6 @@ button:not(:disabled):active {
   color: var(--danger);
 }
 
-.mod-copy-bar {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.mod-copy-bar select {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-input);
-  color: var(--text);
-  font-size: 13px;
-}
-
-.mod-copy-bar button {
-  flex-shrink: 0;
-  padding: 8px 12px;
-  font-size: 12px;
-}
-
 .mod-check-result {
   margin-top: 10px;
   padding: 10px 12px;
