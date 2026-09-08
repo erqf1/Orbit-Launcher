@@ -139,6 +139,15 @@ export interface ModMigrationResult {
   failed: Array<{ oldFilename: string; title: string | null; reason: string }>
 }
 
+export interface ModCheckResult {
+  status: 'verified' | 'nameMismatch' | 'unrecognized'
+  filePath: string
+  filename: string
+  matchedProject?: { projectId: string; title: string; slug: string }
+  matchedVersionNumber?: string
+  claimedProject?: { projectId: string; title: string; slug: string }
+}
+
 export interface CuratedMod extends ModSearchResult {
   category: string
   compatible: boolean
@@ -230,6 +239,9 @@ const api = {
     ipcRenderer.invoke('mods:copyTo', sourceInstanceId, targetInstanceId, filenames),
   migrateMods: (instanceId: string, mcVersion: string, loader: string): Promise<ModMigrationResult> =>
     ipcRenderer.invoke('mods:migrate', instanceId, mcVersion, loader),
+  pickAndCheckModFile: (): Promise<ModCheckResult | null> => ipcRenderer.invoke('mods:pickAndCheckFile'),
+  installModFromFile: (instanceId: string, filePath: string): Promise<void> =>
+    ipcRenderer.invoke('mods:installFromFile', instanceId, filePath),
   getModDependencies: (
     projectId: string,
     mcVersion: string,

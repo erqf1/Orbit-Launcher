@@ -116,6 +116,15 @@ export interface ModMigrationResult {
   failed: Array<{ oldFilename: string; title: string | null; reason: string }>
 }
 
+export interface ModCheckResult {
+  status: 'verified' | 'nameMismatch' | 'unrecognized'
+  filePath: string
+  filename: string
+  matchedProject?: { projectId: string; title: string; slug: string }
+  matchedVersionNumber?: string
+  claimedProject?: { projectId: string; title: string; slug: string }
+}
+
 export interface ContentFileEntry {
   name: string
   size: number

@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'fs'
 import { createHash } from 'crypto'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { getInstanceRoot } from '../instances/instanceManager'
 
 const MODRINTH_API = 'https://api.modrinth.com/v2'
@@ -45,6 +45,26 @@ function assertSafeFilename(filename: string): void {
   }
 }
 
+interface ModrinthSearchHit {
+  project_id: string
+  slug: string
+  title: string
+  description: string
+  icon_url: string | null
+  downloads: number
+}
+
+function mapSearchHit(hit: ModrinthSearchHit): ModSearchResult {
+  return {
+    projectId: hit.project_id,
+    slug: hit.slug,
+    title: hit.title,
+    description: hit.description,
+    iconUrl: hit.icon_url,
+    downloads: hit.downloads
+  }
+}
+
 export async function searchMods(
   query: string,
   mcVersion: string,
@@ -58,24 +78,20 @@ export async function searchMods(
   const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20&facets=${encodeURIComponent(JSON.stringify(facets))}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
-  const data = (await res.json()) as {
-    hits: Array<{
-      project_id: string
-      slug: string
-      title: string
-      description: string
-      icon_url: string | null
-      downloads: number
-    }>
-  }
-  return data.hits.map((hit) => ({
-    projectId: hit.project_id,
-    slug: hit.slug,
-    title: hit.title,
-    description: hit.description,
-    iconUrl: hit.icon_url,
-    downloads: hit.downloads
-  }))
+  const data = (await res.json()) as { hits: ModrinthSearchHit[] }
+  return data.hits.map(mapSearchHit)
+}
+
+// Unscoped by mc version/loader - used only to guess "does this filename
+// plausibly name a real Modrinth project", not to find something
+// install-ready.
+async function searchModsByNameOnly(query: string): Promise<ModSearchResult[]> {
+  const facets = [['project_type:mod']]
+  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=5&facets=${encodeURIComponent(JSON.stringify(facets))}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
+  const data = (await res.json()) as { hits: ModrinthSearchHit[] }
+  return data.hits.map(mapSearchHit)
 }
 
 export async function getProjectInfo(projectId: string): Promise<ModSearchResult> {
@@ -268,6 +284,134 @@ export async function migrateMods(
   return { migrated, failed }
 }
 
+export interface ModCheckResult {
+  status: 'verified' | 'nameMismatch' | 'unrecognized'
+  filePath: string
+  filename: string
+  matchedProject?: { projectId: string; title: string; slug: string }
+  matchedVersionNumber?: string
+  claimedProject?: { projectId: string; title: string; slug: string }
+}
+
+const KNOWN_LOADER_WORDS = new Set(['fabric', 'forge', 'neoforge', 'quilt', 'legacyfabric', 'rift'])
+
+// Turns a filename like "sodium-fabric-0.5.8.jar" into a plausible search
+// term ("sodium") by dropping version-number-shaped segments and loader
+// qualifiers - but only drops a loader word if it isn't the very first
+// segment, since real project names can legitimately start with one
+// ("Fabric API", "Fabric Language Kotlin"). Verified live against Modrinth
+// search: "sodium fabric" as a raw query returns unrelated results before
+// this filtering, "sodium" alone returns Sodium as the top hit; "fabric
+// api" (loader word kept because it leads) correctly returns Fabric API.
+function guessProjectNameFromFilename(filename: string): string | null {
+  const base = filename.replace(/\.jar$/i, '')
+  const segments = base.split(/[-_+]+/).filter(Boolean)
+  const kept: string[] = []
+  segments.forEach((seg, i) => {
+    if (/^v?\d/.test(seg)) return
+    if (/^mc\d/i.test(seg)) return
+    if (i > 0 && KNOWN_LOADER_WORDS.has(seg.toLowerCase())) return
+    kept.push(seg)
+  })
+  const guess = kept.join(' ').trim()
+  return guess.length >= 3 ? guess : null
+}
+
+function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[-_\s]+/g, ' ').trim()
+}
+
+async function resolveClaimedProject(
+  guess: string | null
+): Promise<{ projectId: string; title: string; slug: string } | null> {
+  if (!guess) return null
+  const hits = await searchModsByNameOnly(guess).catch(() => [])
+  const top = hits[0]
+  if (top && normalizeForMatch(top.slug) === normalizeForMatch(guess)) {
+    return { projectId: top.projectId, title: top.title, slug: top.slug }
+  }
+  return null
+}
+
+// Checks whether a mod jar picked from anywhere on disk (e.g. one someone
+// sent over Discord) is a genuine, unmodified Modrinth release - not just
+// "does a mod with this name exist", but "is *this exact file* byte-for-
+// byte what Modrinth actually published". A hash match is the only real
+// proof; a filename alone proves nothing (that's exactly what someone
+// impersonating a mod would fake).
+//
+// Modrinth's file records only carry sha1 and sha512 - no sha256, despite
+// that being the more obvious guess - confirmed live: the same file 200s
+// on /version_file/{sha1} and 404s on the sha256 variant, and the returned
+// file's `hashes` object simply has no sha256 key. sha1 is used here for
+// exactly that reason, not as a weaker default.
+//
+// A hash match alone isn't the whole story: caught empirically while
+// testing this (a real, unmodified mod jar copied and renamed to look like
+// Sodium) - the file is a 100% genuine Modrinth release, just not of the
+// project its filename claims. That's arguably the more realistic
+// impersonation than a fully fake file, so a hash match is additionally
+// cross-checked against what the filename claims, and downgraded to
+// nameMismatch (with *both* the real matched project and the claimed one
+// populated) if they disagree.
+export async function checkModFile(filePath: string): Promise<ModCheckResult> {
+  const filename = basename(filePath)
+  const sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
+  const guess = guessProjectNameFromFilename(filename)
+
+  const directRes = await fetch(`${MODRINTH_API}/version_file/${sha1}?algorithm=sha1`)
+  if (directRes.ok) {
+    const version = (await directRes.json()) as { project_id: string; version_number: string }
+    const project = await getProjectInfo(version.project_id).catch(() => null)
+    const matchedProject = project
+      ? { projectId: project.projectId, title: project.title, slug: project.slug }
+      : undefined
+
+    if (guess && matchedProject && normalizeForMatch(matchedProject.slug) !== normalizeForMatch(guess)) {
+      const claimedProject = await resolveClaimedProject(guess)
+      return {
+        status: 'nameMismatch',
+        filePath,
+        filename,
+        matchedProject,
+        matchedVersionNumber: version.version_number,
+        claimedProject: claimedProject ?? undefined
+      }
+    }
+
+    return { status: 'verified', filePath, filename, matchedProject, matchedVersionNumber: version.version_number }
+  }
+
+  // Not byte-identical to anything Modrinth has - if the filename
+  // confidently names a real project (exact match after normalizing),
+  // that's a specific, actionable warning ("claims to be X, isn't a real
+  // X release") rather than a generic shrug.
+  const claimedProject = await resolveClaimedProject(guess)
+  if (claimedProject) {
+    return { status: 'nameMismatch', filePath, filename, claimedProject }
+  }
+
+  return { status: 'unrecognized', filePath, filename }
+}
+
+export async function pickAndCheckModFile(): Promise<ModCheckResult | null> {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Mod-Datei', extensions: ['jar'] }]
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+  return checkModFile(result.filePaths[0])
+}
+
+// Copies a file from anywhere on disk (typically one just run through
+// checkModFile) into an instance's mods folder - used for "install anyway"
+// after a warning, or straightforward install after a clean check.
+export function installModFromFile(instanceId: string, filePath: string): void {
+  const modsDir = join(getInstanceRoot(instanceId), 'mods')
+  mkdirSync(modsDir, { recursive: true })
+  copyFileSync(filePath, join(modsDir, basename(filePath)))
+}
+
 export function registerModHandlers(): void {
   ipcMain.handle('mods:search', (_event, query: string, mcVersion: string, loader: string) =>
     searchMods(query, mcVersion, loader)
@@ -297,5 +441,9 @@ export function registerModHandlers(): void {
   )
   ipcMain.handle('mods:migrate', (_event, instanceId: string, mcVersion: string, loader: string) =>
     migrateMods(instanceId, mcVersion, loader)
+  )
+  ipcMain.handle('mods:pickAndCheckFile', () => pickAndCheckModFile())
+  ipcMain.handle('mods:installFromFile', (_event, instanceId: string, filePath: string) =>
+    installModFromFile(instanceId, filePath)
   )
 }

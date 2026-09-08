@@ -705,6 +705,23 @@ button:not(:disabled):hover {
   font-size: 12px;
 }
 
+.mod-check-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+}
+
+.mod-check-result p {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.mod-check-ok {
+  color: var(--success);
+}
+
 .log {
   background: #0a0b0d;
   border: 1px solid var(--border);

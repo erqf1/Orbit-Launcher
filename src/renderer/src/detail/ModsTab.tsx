@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { CuratedMod, Instance, InstalledMod, ModSearchResult } from '../types'
+import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult } from '../types'
 
 interface Props {
   instance: Instance
@@ -23,6 +23,10 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
   const [selectedInstalled, setSelectedInstalled] = useState<Set<string>>(new Set())
   const [copyTargetId, setCopyTargetId] = useState('')
   const [copying, setCopying] = useState(false)
+
+  const [checkResult, setCheckResult] = useState<ModCheckResult | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [installingChecked, setInstallingChecked] = useState(false)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
 
   const refreshInstalled = useCallback(() => {
@@ -87,6 +91,34 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
   async function handleToggle(filename: string): Promise<void> {
     await window.api.toggleModEnabled(instance.id, filename)
     refreshInstalled()
+  }
+
+  async function handlePickFileToCheck(): Promise<void> {
+    setError(null)
+    setChecking(true)
+    setCheckResult(null)
+    try {
+      const result = await window.api.pickAndCheckModFile()
+      setCheckResult(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  async function handleInstallChecked(): Promise<void> {
+    if (!checkResult) return
+    setInstallingChecked(true)
+    try {
+      await window.api.installModFromFile(instance.id, checkResult.filePath)
+      setCheckResult(null)
+      refreshInstalled()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setInstallingChecked(false)
+    }
   }
 
   function toggleCuratedSection(): void {
@@ -234,6 +266,64 @@ function ModsTab({ instance, allInstances }: Props): React.JSX.Element {
             )}
             {copyMessage && <p className="instance-meta">{copyMessage}</p>}
           </>
+        )}
+      </section>
+
+      <section>
+        <h3>Mod-Datei prüfen</h3>
+        <p className="instance-meta">
+          Prüft eine heruntergeladene .jar-Datei (z.B. von Discord) gegen Modrinths bekannte Dateien -
+          nützlich, um zu sehen, ob eine dir zugeschickte Mod wirklich das ist, was sie zu sein
+          vorgibt.
+        </p>
+        <button type="button" onClick={handlePickFileToCheck} disabled={checking}>
+          {checking ? 'Prüfe…' : 'Datei auswählen…'}
+        </button>
+
+        {checkResult && (
+          <div className="mod-check-result">
+            {checkResult.status === 'verified' && (
+              <p className="mod-check-ok">
+                Bestätigt: Das ist <strong>{checkResult.matchedProject?.title ?? checkResult.filename}</strong>
+                {checkResult.matchedVersionNumber ? `, Version ${checkResult.matchedVersionNumber}` : ''} -
+                identisch mit der offiziellen Modrinth-Datei.
+              </p>
+            )}
+            {checkResult.status === 'nameMismatch' && checkResult.matchedProject && (
+              <p className="error">
+                Warnung: Diese Datei ist tatsächlich <strong>{checkResult.matchedProject.title}</strong>
+                {checkResult.matchedVersionNumber ? ` (${checkResult.matchedVersionNumber})` : ''}
+                {checkResult.claimedProject
+                  ? `, nicht ${checkResult.claimedProject.title} wie der Dateiname suggeriert.`
+                  : ', nicht was der Dateiname suggeriert.'}
+              </p>
+            )}
+            {checkResult.status === 'nameMismatch' && !checkResult.matchedProject && (
+              <p className="error">
+                Warnung: Der Dateiname deutet auf <strong>{checkResult.claimedProject?.title}</strong> hin,
+                aber diese Datei stimmt mit keiner offiziellen Version davon überein - möglicherweise
+                verändert oder gefälscht.
+              </p>
+            )}
+            {checkResult.status === 'unrecognized' && (
+              <p className="error">
+                Warnung: Diese Datei wurde nicht auf Modrinth gefunden. Das kann eine legitime Mod
+                sein, die nicht über Modrinth vertrieben wird - trotzdem Vorsicht walten lassen.
+              </p>
+            )}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setCheckResult(null)}>
+                Verwerfen
+              </button>
+              <button type="button" onClick={handleInstallChecked} disabled={installingChecked}>
+                {installingChecked
+                  ? 'Installiere…'
+                  : checkResult.status === 'verified'
+                    ? 'Installieren'
+                    : 'Trotzdem installieren'}
+              </button>
+            </div>
+          </div>
         )}
       </section>
 
