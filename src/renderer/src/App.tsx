@@ -4,6 +4,7 @@ import CreateInstanceDialog from './CreateInstanceDialog'
 import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
+import ZipImportDialog from './ZipImportDialog'
 import AccountSwitcher from './AccountSwitcher'
 import LanguageSwitcher from './LanguageSwitcher'
 import ServerHostCard from './ServerHostCard'
@@ -111,6 +112,7 @@ function App(): React.JSX.Element {
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
   const [cloneAsVersionInstanceId, setCloneAsVersionInstanceId] = useState<string | null>(null)
   const [showImportPicker, setShowImportPicker] = useState(false)
+  const [showZipImport, setShowZipImport] = useState(false)
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
@@ -656,11 +658,6 @@ function App(): React.JSX.Element {
 
         <div className="main-sidebar-footer">
           <LanguageSwitcher />
-          {mainView === 'instances' && (
-          <button type="button" onClick={() => setShowImportPicker(true)}>
-            Instanz importieren…
-          </button>
-          )}
           {accounts.length === 0 ? (
             <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
               {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
@@ -801,11 +798,23 @@ function App(): React.JSX.Element {
           onCancel={() => setShowCreate(false)}
           onCreate={handleCreate}
           presetVersion={filter.type === 'version' ? filter.value : undefined}
+          onImportInstead={() => {
+            setShowCreate(false)
+            setShowImportPicker(true)
+          }}
+          onImportZip={() => {
+            setShowCreate(false)
+            setShowZipImport(true)
+          }}
         />
       )}
 
       {showImportPicker && (
         <ImportPickerDialog onCancel={() => setShowImportPicker(false)} onImported={refreshInstances} />
+      )}
+
+      {showZipImport && (
+        <ZipImportDialog onCancel={() => setShowZipImport(false)} onImported={refreshInstances} />
       )}
 
       {showCreateServer && (

@@ -371,6 +371,15 @@ export interface ServerFileEntry {
   editable: boolean
 }
 
+export type PaperConfigValue = string | number | boolean
+
+export type ZipFormat = 'mrpack' | 'curseforge' | 'unknown'
+
+export interface ZipImportResult {
+  instance: Instance
+  failures: string[]
+}
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -476,6 +485,24 @@ const api = {
     ipcRenderer.invoke('official:import', rootOverride),
   browseOfficialFolder: (): Promise<string | null> => ipcRenderer.invoke('official:browseFolder'),
 
+  browseGenericImportFolder: (): Promise<string | null> => ipcRenderer.invoke('folderImport:browseFolder'),
+  importGenericFolder: (
+    folderPath: string,
+    name: string,
+    mcVersion: string,
+    loader: LoaderType,
+    loaderVersion?: string
+  ): Promise<Instance> => ipcRenderer.invoke('folderImport:import', folderPath, name, mcVersion, loader, loaderVersion),
+
+  browseZipFile: (): Promise<string | null> => ipcRenderer.invoke('zipImport:browseZipFile'),
+  detectZipFormat: (zipPath: string): Promise<ZipFormat> => ipcRenderer.invoke('zipImport:detectFormat', zipPath),
+  importZip: (zipPath: string): Promise<ZipImportResult> => ipcRenderer.invoke('zipImport:import', zipPath),
+
+  getCurseForgeApiKey: (): Promise<string | null> => ipcRenderer.invoke('appSettings:getCurseForgeApiKey'),
+  setCurseForgeApiKey: (key: string | null): Promise<void> =>
+    ipcRenderer.invoke('appSettings:setCurseForgeApiKey', key),
+  openExternalUrl: (url: string): Promise<void> => ipcRenderer.invoke('shell:openExternal', url),
+
   listContentFiles: (instanceId: string, subfolder: string): Promise<ContentFileEntry[]> =>
     ipcRenderer.invoke('content:list', instanceId, subfolder),
   listContentFilesEnriched: (instanceId: string, subfolder: string): Promise<EnrichedContentFile[]> =>
@@ -558,6 +585,11 @@ const api = {
     ipcRenderer.invoke('servers:hostPropertiesWrite', id, patch),
   acceptServerEula: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostEulaAccept', id),
   getServerEulaStatus: (id: string): Promise<boolean> => ipcRenderer.invoke('servers:hostEulaStatus', id),
+
+  readPaperConfig: (id: string): Promise<Record<string, PaperConfigValue>> =>
+    ipcRenderer.invoke('servers:hostPaperConfigRead', id),
+  writePaperConfig: (id: string, patch: Record<string, PaperConfigValue>): Promise<void> =>
+    ipcRenderer.invoke('servers:hostPaperConfigWrite', id, patch),
 
   searchPlugins: (query: string, mcVersion: string): Promise<ModSearchResult[]> =>
     ipcRenderer.invoke('plugins:search', query, mcVersion),

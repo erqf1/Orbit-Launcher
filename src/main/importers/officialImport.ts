@@ -58,7 +58,7 @@ function guessLatestVersion(root: string): string | null {
 // the whole .minecraft wholesale like Prism's importer does, since assets/
 // and libraries/ there can be many GB and this app downloads its own copies
 // at launch time anyway.
-const COPYABLE_ENTRIES = [
+export const COPYABLE_ENTRIES = [
   'saves',
   'resourcepacks',
   'shaderpacks',
