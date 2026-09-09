@@ -184,6 +184,7 @@ const ru: Record<TranslationKey, string> = {
   'mods.installedHeading': 'Установлено ({count})',
   'mods.updating': 'Обновление…',
   'mods.updateAll': 'Обновить все ({count})',
+  'mods.updateAllFailures': 'Не удалось обновить {count} мод(ов), остальные обновлены:\n{details}',
   'mods.checkingUpdates': 'Поиск…',
   'mods.checkUpdates': 'Проверить обновления',
   'mods.empty': 'Моды не установлены.',
@@ -394,6 +395,15 @@ const ru: Record<TranslationKey, string> = {
   'serverHost.tunnel.tutorialStep3':
     'Выбери в качестве цели своего агента (того самого, с секретным ключом, который ты настроил выше) и создай туннель.',
   'serverHost.tunnel.tutorialStep4': 'Скопируй адрес, который тебе назначат, и вставь его в поле "Публичный адрес" ниже.',
+  'serverHost.tunnel.notConfigured': 'playit.gg ещё не настроен - теперь это единая, разовая настройка для всех серверов.',
+  'serverHost.tunnel.openSettings': 'Настройки playit.gg…',
+  'serverHost.tunnel.portMismatch': 'Этот сервер работает на порту {serverPort}, но туннель настроен на порт {tunnelPort} - друзья не смогут попасть на сервер через туннель, пока порты не совпадут.',
+
+  'playitSettings.title': 'Настройки playit.gg',
+  'playitSettings.explainer': 'Один общий туннель playit.gg для всех твоих серверов - настрой его один раз, после этого через него будет доступен только один сервер за раз.',
+  'playitSettings.openButton': 'Настройки playit.gg…',
+  'playitSettings.portTitle': 'Порт туннеля',
+  'playitSettings.portExplainer': 'Локальный порт, на который указывает туннель - должен совпадать с портом сервера, который ты сейчас запускаешь через него (по умолчанию: 25565).',
   'serverHost.tunnel.autoStart': 'Запускать туннель автоматически вместе с сервером',
   'serverHost.tunnel.start': 'Запустить туннель',
   'serverHost.tunnel.starting': 'Запуск…',

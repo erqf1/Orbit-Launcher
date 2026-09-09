@@ -268,8 +268,6 @@ export interface ServerInstance {
   createdAt: string
   lastStarted: string | null
   tunnelEnabled: boolean
-  tunnelPublicAddress: string | null
-  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -279,8 +277,6 @@ export interface ServerSettingsPatch {
   jvmArgs?: string | null
   serverPort?: number
   tunnelEnabled?: boolean
-  tunnelPublicAddress?: string | null
-  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -340,6 +336,12 @@ export interface TunnelAddressAssignedEvent {
 
 export interface TunnelClosedEvent {
   serverId: string
+}
+
+export interface PlayitTunnelConfig {
+  secretKey: string | null
+  localPort: number
+  publicAddress: string | null
 }
 
 export interface ServerFileEntry {

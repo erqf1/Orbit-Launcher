@@ -1,43 +1,35 @@
 import { useEffect, useRef, useState } from 'react'
+import PlayitSettingsDialog from '../PlayitSettingsDialog'
 import { useLocale } from '../i18n'
-import type { ServerInstance } from '../types'
+import type { PlayitTunnelConfig, ServerInstance } from '../types'
 
 interface Props {
   server: ServerInstance
   onChanged: () => void
 }
 
-// playit.gg was chosen (over Tailscale) specifically so friends need zero
-// setup - only the host runs this. Confirmed live by actually running the
-// downloaded agent: it has NO headless "print a claim URL, then poll until
-// claimed" mode - without an already-claimed secret it just waits forever
-// for its own GUI companion app over IPC. The only real automatable path is
-// a secret key the user generates once themselves via playit's web wizard
-// (requires their own playit.gg login, which is exactly why this can't be
-// automated further) and pastes in below - after that, starting/stopping
-// (including auto-start alongside the server, see the checkbox below) is
-// fully hands-off.
-const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
-
-// Verified live: a claimed agent connects and authenticates fine on its own
-// (tunnel_count=0 forever in its own logs) but never creates an actual
-// tunnel/address by itself - playit.gg's agent key is read-only, tunnel
-// creation is dashboard-only. So starting the agent here is necessary but
-// not sufficient; this second one-time step is what actually produces the
-// address that goes in the "Public Address" field below.
-const PLAYIT_NEW_TUNNEL_URL = 'https://playit.gg/account/setup/new-tunnel'
-
+// playit.gg is one shared account-wide agent/tunnel now (see
+// PlayitSettingsDialog and appSettings.ts) rather than a per-server setup -
+// this tab just starts/stops that shared tunnel for this server and toggles
+// whether it should auto-start when this server does. Secret key, tunnel
+// port, and the assigned public address are all configured once, from
+// anywhere, via PlayitSettingsDialog.
 function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
   const { t } = useLocale()
+  const [config, setConfig] = useState<PlayitTunnelConfig | null>(null)
   const [running, setRunning] = useState(false)
   const [logs, setLogs] = useState<string[]>([])
-  const [secretKeyInput, setSecretKeyInput] = useState('')
-  const [manualAddress, setManualAddress] = useState(server.tunnelPublicAddress ?? '')
   const [autoStart, setAutoStart] = useState(server.tunnelEnabled)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [savedKey, setSavedKey] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const logRef = useRef<HTMLPreElement>(null)
+
+  function loadConfig(): void {
+    window.api.getPlayitTunnelConfig().then(setConfig)
+  }
+
+  useEffect(loadConfig, [])
 
   useEffect(() => {
     let cancelled = false
@@ -54,11 +46,8 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
       if (event.serverId !== server.id) return
       setLogs((prev) => [...prev, event.line])
     })
-    const offAddress = window.api.onTunnelAddressAssigned((event) => {
-      if (event.serverId !== server.id) return
-      // Only auto-fill if the user hasn't already typed/saved something -
-      // never clobber a value they entered themselves.
-      setManualAddress((prev) => prev || event.address)
+    const offAddress = window.api.onTunnelAddressAssigned(() => {
+      loadConfig()
       onChanged()
     })
     const offClosed = window.api.onTunnelClosed((event) => {
@@ -75,21 +64,6 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
   }, [logs])
-
-  async function handleSaveSecretKey(): Promise<void> {
-    const trimmed = secretKeyInput.trim()
-    if (!trimmed) return
-    await window.api.setTunnelSecretKey(server.id, trimmed)
-    setSecretKeyInput('')
-    setSavedKey(true)
-    setTimeout(() => setSavedKey(false), 2000)
-    onChanged()
-  }
-
-  async function handleClearSecretKey(): Promise<void> {
-    await window.api.setTunnelSecretKey(server.id, null)
-    onChanged()
-  }
 
   async function handleToggleAutoStart(value: boolean): Promise<void> {
     setAutoStart(value)
@@ -112,66 +86,33 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
   }
 
   async function handleStop(): Promise<void> {
-    await window.api.stopTunnel(server.id)
+    await window.api.stopTunnel()
     setRunning(false)
   }
 
-  async function handleSaveManualAddress(): Promise<void> {
-    await window.api.updateHostedServerSettings(server.id, {
-      tunnelPublicAddress: manualAddress.trim() || null
-    })
-    onChanged()
+  function handleSettingsClosed(): void {
+    setShowSettings(false)
+    loadConfig()
   }
 
   return (
     <div className="detail-tab">
       <p className="instance-meta">{t('serverHost.tunnel.explainer')}</p>
 
-      <section className="settings-section">
-        <h4 className="settings-section-title">{t('serverHost.tunnel.secretTitle')}</h4>
-        {server.tunnelSecretKey ? (
-          <>
-            <p className="instance-meta">{t('serverHost.tunnel.secretConfigured')}</p>
-            <button type="button" onClick={handleClearSecretKey}>
-              {t('serverHost.tunnel.secretClear')}
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="instance-meta">{t('serverHost.tunnel.secretExplainer')}</p>
-            <button type="button" onClick={() => window.api.openTunnelClaimUrl(PLAYIT_WIZARD_URL)}>
-              {t('serverHost.tunnel.secretGetKey')}
-            </button>
-            <div className="field-row">
-              <input
-                value={secretKeyInput}
-                onChange={(e) => setSecretKeyInput(e.target.value)}
-                placeholder={t('serverHost.tunnel.secretPlaceholder')}
-              />
-              <button type="button" onClick={handleSaveSecretKey} disabled={!secretKeyInput.trim()}>
-                {t('common.save')}
-              </button>
-            </div>
-            {savedKey && <span className="instance-meta">{t('common.saved')}</span>}
-          </>
-        )}
-      </section>
-
-      {server.tunnelSecretKey && (
+      {!config?.secretKey ? (
+        <section className="settings-section">
+          <p className="instance-meta">{t('serverHost.tunnel.notConfigured')}</p>
+          <button type="button" className="save-button" onClick={() => setShowSettings(true)}>
+            {t('serverHost.tunnel.openSettings')}
+          </button>
+        </section>
+      ) : (
         <>
-          <section className="settings-section">
-            <h4 className="settings-section-title">{t('serverHost.tunnel.createTunnelTitle')}</h4>
-            <p className="instance-meta">{t('serverHost.tunnel.createTunnelExplainer')}</p>
-            <ol className="tunnel-tutorial-steps">
-              <li>{t('serverHost.tunnel.tutorialStep1')}</li>
-              <li>{t('serverHost.tunnel.tutorialStep2', { port: String(server.serverPort) })}</li>
-              <li>{t('serverHost.tunnel.tutorialStep3')}</li>
-              <li>{t('serverHost.tunnel.tutorialStep4')}</li>
-            </ol>
-            <button type="button" onClick={() => window.api.openTunnelClaimUrl(PLAYIT_NEW_TUNNEL_URL)}>
-              {t('serverHost.tunnel.createTunnelButton')}
-            </button>
-          </section>
+          {server.serverPort !== config.localPort && (
+            <p className="error">
+              {t('serverHost.tunnel.portMismatch', { serverPort: String(server.serverPort), tunnelPort: String(config.localPort) })}
+            </p>
+          )}
 
           <label className="checkbox-label">
             <input type="checkbox" checked={autoStart} onChange={(e) => handleToggleAutoStart(e.target.checked)} />
@@ -188,6 +129,9 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
                 {starting ? t('serverHost.tunnel.starting') : t('serverHost.tunnel.start')}
               </button>
             )}
+            <button type="button" onClick={() => setShowSettings(true)}>
+              {t('serverHost.tunnel.openSettings')}
+            </button>
           </div>
 
           {error && <p className="error">{error}</p>}
@@ -197,28 +141,16 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
               {logs.length > 0 ? logs.join('\n') : t('serverHost.tunnel.noLog')}
             </pre>
           )}
+
+          {config.publicAddress && (
+            <p className="instance-meta">
+              {t('serverHost.tunnel.currentAddress', { address: config.publicAddress })}
+            </p>
+          )}
         </>
       )}
 
-      <section className="settings-section">
-        <h4 className="settings-section-title">{t('serverHost.tunnel.manualTitle')}</h4>
-        <p className="instance-meta">{t('serverHost.tunnel.manualExplainer')}</p>
-        <div className="field-row">
-          <input
-            value={manualAddress}
-            onChange={(e) => setManualAddress(e.target.value)}
-            placeholder={t('serverHost.tunnel.manualPlaceholder')}
-          />
-          <button type="button" onClick={handleSaveManualAddress}>
-            {t('common.save')}
-          </button>
-        </div>
-        {server.tunnelPublicAddress && (
-          <p className="instance-meta">
-            {t('serverHost.tunnel.currentAddress', { address: server.tunnelPublicAddress })}
-          </p>
-        )}
-      </section>
+      {showSettings && <PlayitSettingsDialog onCancel={handleSettingsClosed} onChanged={loadConfig} />}
     </div>
   )
 }

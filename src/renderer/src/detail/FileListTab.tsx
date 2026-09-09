@@ -246,6 +246,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
           subfolder={browse.subfolder}
           projectType={browse.projectType}
           title={browse.title}
+          installed={files}
           onClose={() => setShowBrowser(false)}
           onInstalled={refresh}
         />

@@ -184,6 +184,7 @@ const fr: Record<TranslationKey, string> = {
   'mods.installedHeading': 'Installés ({count})',
   'mods.updating': 'Mise à jour…',
   'mods.updateAll': 'Tout mettre à jour ({count})',
+  'mods.updateAllFailures': '{count} mise(s) à jour ont échoué, le reste a été mis à jour :\n{details}',
   'mods.checkingUpdates': 'Recherche…',
   'mods.checkUpdates': 'Rechercher des mises à jour',
   'mods.empty': 'Aucun mod installé.',
@@ -394,6 +395,15 @@ const fr: Record<TranslationKey, string> = {
   'serverHost.tunnel.tutorialStep3':
     'Choisissez votre agent (celui avec la clé secrète configurée ci-dessus) comme cible et créez le tunnel.',
   'serverHost.tunnel.tutorialStep4': "Copiez l'adresse qui vous est attribuée et collez-la dans « Adresse publique » ci-dessous.",
+  'serverHost.tunnel.notConfigured': "playit.gg n'est pas encore configuré - c'est désormais une configuration unique et partagée pour tous les serveurs.",
+  'serverHost.tunnel.openSettings': 'Paramètres de playit.gg…',
+  'serverHost.tunnel.portMismatch': "Ce serveur fonctionne sur le port {serverPort}, mais le tunnel est configuré pour le port {tunnelPort} - vos amis ne pourront pas rejoindre le serveur via le tunnel jusqu'à ce que les ports correspondent.",
+
+  'playitSettings.title': 'Paramètres de playit.gg',
+  'playitSettings.explainer': 'Un tunnel playit.gg partagé pour tous vos serveurs - configurez-le une fois, puis un seul serveur à la fois pourra être accessible via ce tunnel.',
+  'playitSettings.openButton': 'Paramètres de playit.gg…',
+  'playitSettings.portTitle': 'Port du tunnel',
+  'playitSettings.portExplainer': 'Le port local vers lequel le tunnel pointe - doit correspondre au port du serveur que vous exécutez actuellement via ce tunnel (par défaut : 25565).',
   'serverHost.tunnel.autoStart': 'Démarrer le tunnel automatiquement avec le serveur',
   'serverHost.tunnel.start': 'Démarrer le tunnel',
   'serverHost.tunnel.starting': 'Démarrage…',

@@ -25,6 +25,19 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   const server = getServer(id)
   if (!server) throw new Error('Server nicht gefunden.')
   if (runningServers.has(id)) throw new Error('Dieser Server läuft bereits.')
+  // playit.gg is one shared account-wide tunnel now (see playitTunnel.ts),
+  // not one per server - it only ever points at a single local port, so at
+  // most one hosted server can meaningfully be "the one behind the tunnel"
+  // at a time. Enforcing that here (rather than just at the tunnel layer)
+  // keeps the constraint simple and visible instead of letting a second
+  // server start and silently not be reachable through it.
+  const [runningId] = runningServers.keys()
+  if (runningId) {
+    const runningServer = getServer(runningId)
+    throw new Error(
+      `Es kann immer nur ein Server gleichzeitig laufen (der playit.gg-Tunnel wird geteilt) - "${runningServer?.name ?? runningId}" läuft bereits. Stoppe ihn zuerst.`
+    )
+  }
   if (!server.eulaAccepted) {
     throw new Error('Die Minecraft-EULA muss zuerst akzeptiert werden.')
   }

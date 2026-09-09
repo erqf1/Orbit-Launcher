@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
-import type { Instance, ModSearchResult } from '../types'
+import type { ContentFileEntry, Instance, ModSearchResult } from '../types'
 
 interface Props {
   instance: Instance
   subfolder: 'resourcepacks' | 'shaderpacks'
   projectType: 'resourcepack' | 'shader'
   title: string
+  installed: ContentFileEntry[]
   onClose: () => void
   onInstalled: () => void
 }
@@ -20,6 +21,7 @@ function ContentBrowserDialog({
   subfolder,
   projectType,
   title,
+  installed,
   onClose,
   onInstalled
 }: Props): React.JSX.Element {
@@ -90,27 +92,34 @@ function ContentBrowserDialog({
         <ul className="mod-list mod-browser-results">
           {searching && results.length === 0 && <li className="mod-browser-hint">{t('content.searching')}</li>}
           {!searching && results.length === 0 && <li className="mod-browser-hint">{t('common.noResults')}</li>}
-          {results.map((hit) => (
-            <li key={hit.projectId}>
-              <span className="mod-row">
-                {hit.iconUrl ? (
-                  <img className="mod-icon" src={hit.iconUrl} alt="" />
-                ) : (
-                  <span className="mod-icon mod-icon-fallback">{hit.title.charAt(0).toUpperCase()}</span>
-                )}
-                <span className="mod-name-block">
-                  <span className="mod-title">{hit.title}</span>
+          {results.map((hit) => {
+            const alreadyInstalled = installed.some((f) => f.name.includes(hit.slug))
+            return (
+              <li key={hit.projectId}>
+                <span className="mod-row">
+                  {hit.iconUrl ? (
+                    <img className="mod-icon" src={hit.iconUrl} alt="" />
+                  ) : (
+                    <span className="mod-icon mod-icon-fallback">{hit.title.charAt(0).toUpperCase()}</span>
+                  )}
+                  <span className="mod-name-block">
+                    <span className="mod-title">{hit.title}</span>
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => handleInstall(hit.projectId)}
-                disabled={installingId === hit.projectId}
-              >
-                {installingId === hit.projectId ? t('content.installing') : t('content.install')}
-              </button>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => handleInstall(hit.projectId)}
+                  disabled={alreadyInstalled || installingId === hit.projectId}
+                >
+                  {alreadyInstalled
+                    ? t('mods.installedPill')
+                    : installingId === hit.projectId
+                      ? t('content.installing')
+                      : t('content.install')}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>

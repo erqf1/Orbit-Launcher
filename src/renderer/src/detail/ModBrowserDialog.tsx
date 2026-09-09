@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
-import type { Instance, ModSearchResult } from '../types'
+import type { Instance, InstalledMod, ModSearchResult } from '../types'
 
 interface Props {
   instance: Instance
+  installed: InstalledMod[]
   onClose: () => void
   onInstalled: () => void
 }
@@ -11,7 +12,7 @@ interface Props {
 // Its own modal (rather than the cramped inline section in ModsTab) so there's
 // room to browse properly, and searches live as you type instead of waiting
 // for Enter - debounced so fast typing doesn't fire a request per keystroke.
-function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.Element {
+function ModBrowserDialog({ instance, installed, onClose, onInstalled }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ModSearchResult[]>([])
@@ -98,27 +99,39 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
         <ul className="mod-list mod-browser-results">
           {searching && results.length === 0 && <li className="mod-browser-hint">{t('mods.searching')}</li>}
           {!searching && results.length === 0 && <li className="mod-browser-hint">{t('common.noResults')}</li>}
-          {results.map((hit) => (
-            <li key={hit.projectId}>
-              <span className="mod-row">
-                {hit.iconUrl ? (
-                  <img className="mod-icon" src={hit.iconUrl} alt="" />
-                ) : (
-                  <span className="mod-icon mod-icon-fallback">{hit.title.charAt(0).toUpperCase()}</span>
-                )}
-                <span className="mod-name-block">
-                  <span className="mod-title">{hit.title}</span>
+          {results.map((hit) => {
+            // Matched by filename substring rather than a stored project id
+            // (installed mod files don't carry Modrinth metadata on disk) -
+            // same heuristic ModsTab already uses for the curated-mods list,
+            // since a Modrinth-downloaded jar's filename reliably embeds the
+            // project slug.
+            const alreadyInstalled = installed.some((m) => m.filename.includes(hit.slug))
+            return (
+              <li key={hit.projectId}>
+                <span className="mod-row">
+                  {hit.iconUrl ? (
+                    <img className="mod-icon" src={hit.iconUrl} alt="" />
+                  ) : (
+                    <span className="mod-icon mod-icon-fallback">{hit.title.charAt(0).toUpperCase()}</span>
+                  )}
+                  <span className="mod-name-block">
+                    <span className="mod-title">{hit.title}</span>
+                  </span>
                 </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => handleInstall(hit.projectId)}
-                disabled={installingId === hit.projectId}
-              >
-                {installingId === hit.projectId ? t('mods.installing') : t('mods.install')}
-              </button>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => handleInstall(hit.projectId)}
+                  disabled={alreadyInstalled || installingId === hit.projectId}
+                >
+                  {alreadyInstalled
+                    ? t('mods.installedPill')
+                    : installingId === hit.projectId
+                      ? t('mods.installing')
+                      : t('mods.install')}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>

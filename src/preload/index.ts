@@ -304,8 +304,6 @@ export interface ServerInstance {
   createdAt: string
   lastStarted: string | null
   tunnelEnabled: boolean
-  tunnelPublicAddress: string | null
-  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -315,8 +313,6 @@ export interface ServerSettingsPatch {
   jvmArgs?: string | null
   serverPort?: number
   tunnelEnabled?: boolean
-  tunnelPublicAddress?: string | null
-  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -376,6 +372,12 @@ export interface TunnelAddressAssignedEvent {
 
 export interface TunnelClosedEvent {
   serverId: string
+}
+
+export interface PlayitTunnelConfig {
+  secretKey: string | null
+  localPort: number
+  publicAddress: string | null
 }
 
 export interface ServerFileEntry {
@@ -631,11 +633,15 @@ const api = {
 
   startTunnel: (serverId: string, localPort: number): Promise<void> =>
     ipcRenderer.invoke('tunnel:start', serverId, localPort),
-  stopTunnel: (serverId: string): Promise<void> => ipcRenderer.invoke('tunnel:stop', serverId),
+  stopTunnel: (): Promise<void> => ipcRenderer.invoke('tunnel:stop'),
   getTunnelStatus: (serverId: string): Promise<boolean> => ipcRenderer.invoke('tunnel:status', serverId),
-  openTunnelClaimUrl: (url: string): Promise<void> => ipcRenderer.invoke('tunnel:openClaimUrl', url),
-  setTunnelSecretKey: (serverId: string, secretKey: string | null): Promise<void> =>
-    ipcRenderer.invoke('tunnel:setSecretKey', serverId, secretKey),
+
+  getPlayitTunnelConfig: (): Promise<PlayitTunnelConfig> => ipcRenderer.invoke('appSettings:getPlayitTunnelConfig'),
+  setPlayitSecretKey: (key: string | null): Promise<void> =>
+    ipcRenderer.invoke('appSettings:setPlayitSecretKey', key),
+  setPlayitTunnelPort: (port: number): Promise<void> => ipcRenderer.invoke('appSettings:setPlayitTunnelPort', port),
+  setPlayitTunnelAddress: (address: string | null): Promise<void> =>
+    ipcRenderer.invoke('appSettings:setPlayitTunnelAddress', address),
 
   listServerFiles: (serverId: string, relativeDir: string): Promise<ServerFileEntry[]> =>
     ipcRenderer.invoke('servers:hostListFiles', serverId, relativeDir),
