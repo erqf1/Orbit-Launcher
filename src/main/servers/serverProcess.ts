@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { resolveJavaPath } from '../launch/launcher'
 import { getServer, getServerRoot, markServerStarted } from './serverManager'
+import { autoStartTunnelIfConfigured } from './playitTunnel'
 
 // Server hosting is the first place in this codebase that spawns java
 // directly instead of going through minecraft-launcher-core - MCLC only
@@ -102,6 +103,11 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   } catch (err) {
     send(`[Warnung] Startzeit konnte nicht gespeichert werden: ${err instanceof Error ? err.message : String(err)}`)
   }
+
+  // Fire-and-forget: a tunnel failing to auto-start shouldn't fail the
+  // server start itself (autoStartTunnelIfConfigured already reports its
+  // own failure to the tunnel log rather than throwing past this point).
+  void autoStartTunnelIfConfigured(mainWindow, id, server.serverPort)
 }
 
 // Sends the vanilla "stop" console command first, which triggers a graceful

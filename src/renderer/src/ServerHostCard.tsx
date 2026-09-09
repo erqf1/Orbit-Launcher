@@ -8,6 +8,8 @@ interface Props {
   onManage: (id: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
+  onStart: (id: string) => void
+  onStop: (id: string) => void
 }
 
 const LOADER_LABELS: Record<string, string> = {
@@ -20,7 +22,7 @@ const LOADER_LABELS: Record<string, string> = {
 // dropped for this MVP - a hosted server's identity is its Console tab, not
 // a cover image) so it fits visually into the same grid layout without new
 // CSS, just a loader-colored gradient like an un-iconed instance card gets.
-function ServerHostCard({ server, isRunning, onManage, onRename, onDelete }: Props): React.JSX.Element {
+function ServerHostCard({ server, isRunning, onManage, onRename, onDelete, onStart, onStop }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(server.name)
@@ -85,7 +87,16 @@ function ServerHostCard({ server, isRunning, onManage, onRename, onDelete }: Pro
         </div>
 
         <div className="instance-card-actions">
-          <button className="play-button" onClick={() => onManage(server.id)}>
+          {isRunning ? (
+            <button type="button" className="play-button" onClick={() => onStop(server.id)}>
+              {t('serverHost.console.stop')}
+            </button>
+          ) : (
+            <button type="button" className="play-button" onClick={() => onStart(server.id)}>
+              {t('serverHost.console.start')}
+            </button>
+          )}
+          <button type="button" onClick={() => onManage(server.id)}>
             {t('serverHost.manage')}
           </button>
           <button type="button" onClick={() => onDelete(server.id)} disabled={isRunning}>

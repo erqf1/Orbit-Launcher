@@ -255,6 +255,7 @@ export interface ServerInstance {
   lastStarted: string | null
   tunnelEnabled: boolean
   tunnelPublicAddress: string | null
+  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -265,6 +266,7 @@ export interface ServerSettingsPatch {
   serverPort?: number
   tunnelEnabled?: boolean
   tunnelPublicAddress?: string | null
+  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -273,6 +275,7 @@ export interface CreateServerInput {
   loader: ServerLoaderType
   fabricLoaderVersion?: string
   paperBuildId?: number
+  acceptEula?: boolean
 }
 
 export interface PaperBuildSummary {

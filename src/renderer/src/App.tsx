@@ -398,9 +398,10 @@ function App(): React.JSX.Element {
     mcVersion: string,
     loader: ServerLoaderType,
     fabricLoaderVersion: string | undefined,
-    paperBuildId: number | undefined
+    paperBuildId: number | undefined,
+    acceptEula: boolean
   ): Promise<void> {
-    await window.api.createHostedServer({ name, mcVersion, loader, fabricLoaderVersion, paperBuildId })
+    await window.api.createHostedServer({ name, mcVersion, loader, fabricLoaderVersion, paperBuildId, acceptEula })
     setShowCreateServer(false)
     refreshServers()
   }
@@ -408,6 +409,24 @@ function App(): React.JSX.Element {
   async function handleRenameServer(id: string, name: string): Promise<void> {
     try {
       await window.api.renameHostedServer(id, name)
+      refreshServers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleStartServer(id: string): Promise<void> {
+    try {
+      await window.api.startHostedServer(id)
+      refreshServers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleStopServer(id: string): Promise<void> {
+    try {
+      await window.api.stopHostedServer(id)
       refreshServers()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -764,6 +783,8 @@ function App(): React.JSX.Element {
                   onManage={setDetailServerId}
                   onRename={handleRenameServer}
                   onDelete={handleDeleteServer}
+                  onStart={handleStartServer}
+                  onStop={handleStopServer}
                 />
               ))}
 

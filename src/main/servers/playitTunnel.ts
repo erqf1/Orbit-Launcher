@@ -1,5 +1,5 @@
 import { ipcMain, app, shell, BrowserWindow } from 'electron'
-import { existsSync, chmodSync, mkdirSync, writeFileSync } from 'fs'
+import { existsSync, chmodSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { spawn, ChildProcess } from 'child_process'
 import { updateServerSettings, getServer } from './serverManager'
@@ -24,6 +24,27 @@ function toolsDir(): string {
 function binaryPath(): string {
   const name = process.platform === 'win32' ? 'playit.exe' : 'playit'
   return join(toolsDir(), name)
+}
+
+// Verified live by actually running the downloaded binary: it does NOT
+// accept a secret path via an environment variable (an earlier version of
+// this file guessed PLAYIT_SECRET_PATH, which the agent silently ignores,
+// always falling back to a single shared default config location instead -
+// the actual root cause of the tunnel "just not working"). The real,
+// confirmed flags (from `playit.exe --help`) are `--secret-path <path>` and
+// `--secret <key>`. Also confirmed live: with a fresh/nonexistent
+// --secret-path and no --secret, the agent prints nothing useful at all -
+// it just logs "Waiting for frontend secret provisioning over IPC" and
+// waits forever for playit's own GUI companion app, which this integration
+// doesn't implement. There is no headless "print a claim URL, then poll
+// until claimed" mode. The only real headless path is a secret key the
+// user generates once themselves via playit's web wizard (requires being
+// logged into their own playit.gg account, which is exactly why this can't
+// be automated further) and pastes into this app.
+export const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
+
+function secretPathFor(serverId: string): string {
+  return join(toolsDir(), `${serverId}.toml`)
 }
 
 async function ensureBinaryDownloaded(): Promise<string> {
@@ -78,9 +99,22 @@ function makeLineBuffer(onLine: (line: string) => void): (chunk: Buffer) => void
 
 export async function startTunnel(mainWindow: BrowserWindow, serverId: string, localPort: number): Promise<void> {
   if (runningTunnels.has(serverId)) return
+  const server = getServer(serverId)
+  if (!server?.tunnelSecretKey) {
+    throw new Error(
+      `Bitte zuerst einen playit.gg-Secret-Key eintragen (über ${PLAYIT_WIZARD_URL} generieren).`
+    )
+  }
   const bin = await ensureBinaryDownloaded()
 
-  const child = spawn(bin, [], { cwd: toolsDir(), env: { ...process.env, PLAYIT_SECRET_PATH: join(toolsDir(), `${serverId}.secret`) } })
+  const secretPath = secretPathFor(serverId)
+  // --secret only needs to actually take effect on the very first run (it
+  // bootstraps secretPath's file); passing it on every run is harmless -
+  // once the file exists the agent reads the already-claimed secret from
+  // it and just reconnects, per the CLI's own documented behavior.
+  const child = spawn(bin, ['--secret-path', secretPath, '--secret', server.tunnelSecretKey], {
+    cwd: toolsDir()
+  })
   runningTunnels.set(serverId, child)
   addressLockedThisRun.delete(serverId)
 
@@ -153,6 +187,42 @@ export function claimTunnelUrl(url: string): void {
   shell.openExternal(url)
 }
 
+export function setTunnelSecretKey(serverId: string, secretKey: string | null): void {
+  const trimmed = secretKey?.trim() || null
+  updateServerSettings(serverId, { tunnelSecretKey: trimmed, tunnelEnabled: trimmed !== null })
+  // A changed/cleared secret key invalidates whatever's on disk at
+  // secretPathFor(serverId) - deleting it forces a clean re-bootstrap with
+  // the new --secret on the next start instead of silently keeping a stale
+  // claimed session tied to the old key.
+  try {
+    rmSync(secretPathFor(serverId), { force: true })
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
+// Called from serverProcess.ts when a server with tunnelEnabled+
+// tunnelSecretKey starts, so the tunnel comes up automatically instead of
+// requiring a separate manual step in the Tunnel tab every time.
+export async function autoStartTunnelIfConfigured(
+  mainWindow: BrowserWindow,
+  serverId: string,
+  localPort: number
+): Promise<void> {
+  const server = getServer(serverId)
+  if (!server?.tunnelEnabled || !server.tunnelSecretKey) return
+  try {
+    await startTunnel(mainWindow, serverId, localPort)
+  } catch (err) {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tunnel:log', {
+        serverId,
+        line: `[Fehler] Tunnel konnte nicht automatisch gestartet werden: ${err instanceof Error ? err.message : String(err)}`
+      })
+    }
+  }
+}
+
 export function registerTunnelHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('tunnel:start', (_event, serverId: string, localPort: number) =>
     startTunnel(mainWindow, serverId, localPort)
@@ -160,4 +230,7 @@ export function registerTunnelHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('tunnel:stop', (_event, serverId: string) => stopTunnel(serverId))
   ipcMain.handle('tunnel:status', (_event, serverId: string) => isTunnelRunning(serverId))
   ipcMain.handle('tunnel:openClaimUrl', (_event, url: string) => claimTunnelUrl(url))
+  ipcMain.handle('tunnel:setSecretKey', (_event, serverId: string, secretKey: string | null) =>
+    setTunnelSecretKey(serverId, secretKey)
+  )
 }
