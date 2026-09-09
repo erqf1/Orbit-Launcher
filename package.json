@@ -11,9 +11,9 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "dist:win": "npm run build && node -e \"require('child_process').execSync('electron-builder --win', {stdio:'inherit', env:{...process.env, ELECTRON_BUILDER_CACHE: require('path').resolve('.eb-cache')}})\"",
-    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:linux": "npm run build && node -e \"require('child_process').execSync('electron-builder --linux', {stdio:'inherit', env:{...process.env, ELECTRON_BUILDER_CACHE: require('path').resolve('.eb-cache')}})\"",
     "dist:win-portable": "npm run build && node -e \"require('child_process').execSync('electron-builder --win zip --x64', {stdio:'inherit', env:{...process.env, ELECTRON_BUILDER_CACHE: require('path').resolve('.eb-cache')}})\"",
-    "dist:linux-portable": "npm run build && electron-builder --linux tar.gz"
+    "dist:linux-portable": "npm run build && node -e \"require('child_process').execSync('electron-builder --linux tar.gz', {stdio:'inherit', env:{...process.env, ELECTRON_BUILDER_CACHE: require('path').resolve('.eb-cache')}})\""
   },
   "dependencies": {
     "adm-zip": "^0.6.0",
