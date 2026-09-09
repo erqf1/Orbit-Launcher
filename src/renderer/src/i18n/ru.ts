@@ -351,13 +351,19 @@ const ru: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'Вставьте секретный ключ playit.gg…',
   'serverHost.tunnel.secretConfigured': 'Секретный ключ настроен.',
   'serverHost.tunnel.secretClear': 'Удалить секретный ключ',
+  'serverHost.tunnel.createTunnelTitle': 'Создать туннель (один раз, в браузере)',
+  'serverHost.tunnel.createTunnelExplainer':
+    'Агент здесь только подключается к твоей учётной записи playit.gg - он не может сам создать туннель, это делается только на панели playit.gg. Выбери там своего агента и добавь TCP-туннель, указывающий на порт этого сервера; затем вставь назначенный адрес в поле "Публичный адрес" ниже.',
+  'serverHost.tunnel.createTunnelButton': 'Создать туннель в панели…',
   'serverHost.tunnel.autoStart': 'Запускать туннель автоматически вместе с сервером',
   'serverHost.tunnel.start': 'Запустить туннель',
   'serverHost.tunnel.starting': 'Запуск…',
   'serverHost.tunnel.stop': 'Остановить туннель',
-  'serverHost.tunnel.noLog': 'Запуск агента playit.gg…',
+  'serverHost.tunnel.noLog':
+    'Агент playit.gg подключается - туннель пока не назначен. Если ты ещё не создал туннель выше, адрес здесь никогда не появится.',
   'serverHost.tunnel.manualTitle': 'Публичный адрес',
-  'serverHost.tunnel.manualExplainer': 'После подтверждения панель playit.gg покажет адрес для друзей - вставьте его сюда (или измените вручную).',
+  'serverHost.tunnel.manualExplainer':
+    'Адрес, который панель playit.gg показывает после создания туннеля - вставь его сюда, чтобы друзья могли подключиться.',
   'serverHost.tunnel.manualPlaceholder': 'например, myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Текущий адрес: {address}',
 

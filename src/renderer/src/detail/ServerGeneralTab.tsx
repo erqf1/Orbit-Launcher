@@ -18,6 +18,7 @@ function ServerGeneralTab({ server, onSaved }: Props): React.JSX.Element {
   const [serverPort, setServerPort] = useState(String(server.serverPort))
   const [browsingJava, setBrowsingJava] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -60,6 +61,7 @@ function ServerGeneralTab({ server, onSaved }: Props): React.JSX.Element {
 
   async function handleSave(): Promise<void> {
     if (!memoryValid || !portValid) return
+    setError(null)
     const patch: ServerSettingsPatch = {
       javaPath: javaPath || null,
       memoryMin,
@@ -67,10 +69,14 @@ function ServerGeneralTab({ server, onSaved }: Props): React.JSX.Element {
       jvmArgs: jvmArgs.trim() || null,
       serverPort: Number(serverPort)
     }
-    await window.api.updateHostedServerSettings(server.id, patch)
-    onSaved()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      await window.api.updateHostedServerSettings(server.id, patch)
+      onSaved()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   return (
@@ -123,6 +129,7 @@ function ServerGeneralTab({ server, onSaved }: Props): React.JSX.Element {
         </label>
       </section>
 
+      {error && <p className="error">{error}</p>}
       <div className="modal-actions">
         <button
           type="button"

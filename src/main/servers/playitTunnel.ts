@@ -46,6 +46,16 @@ function binaryPath(): string {
 // risk between concurrent per-server tunnels either, since none is written.
 export const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
 
+// Verified live (2026-09-09): a claimed agent connects fine and shows
+// account_status="verified" in its own logs, but reports tunnel_count=0
+// forever and never assigns any address - `--secret`/`--secret-path` only
+// ever authenticate the daemon, they don't create a tunnel. playit.gg's own
+// forum confirms the agent's key is read-only and can't create tunnels
+// through the CLI or its API either; the only way is this dashboard page,
+// picking the running agent and the local Minecraft port to map. There is no
+// way around sending the user here once per server.
+export const PLAYIT_NEW_TUNNEL_URL = 'https://playit.gg/account/setup/new-tunnel'
+
 async function ensureBinaryDownloaded(): Promise<string> {
   const dest = binaryPath()
   if (existsSync(dest)) return dest

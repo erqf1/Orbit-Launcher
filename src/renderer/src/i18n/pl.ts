@@ -351,13 +351,19 @@ const pl: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'Wklej swój klucz tajny playit.gg…',
   'serverHost.tunnel.secretConfigured': 'Klucz tajny skonfigurowany.',
   'serverHost.tunnel.secretClear': 'Usuń klucz tajny',
+  'serverHost.tunnel.createTunnelTitle': 'Utwórz tunel (jednorazowo, w przeglądarce)',
+  'serverHost.tunnel.createTunnelExplainer':
+    'Agent tutaj tylko łączy się z Twoim kontem playit.gg - nie może sam utworzyć tunelu, to możliwe tylko w panelu playit.gg. Wybierz tam swój agent i dodaj tunel TCP wskazujący na port tego serwera; następnie wklej przypisany adres w polu "Publiczny adres" poniżej.',
+  'serverHost.tunnel.createTunnelButton': 'Utwórz tunel w panelu…',
   'serverHost.tunnel.autoStart': 'Uruchamiaj tunel automatycznie razem z serwerem',
   'serverHost.tunnel.start': 'Uruchom tunel',
   'serverHost.tunnel.starting': 'Uruchamianie…',
   'serverHost.tunnel.stop': 'Zatrzymaj tunel',
-  'serverHost.tunnel.noLog': 'Uruchamianie agenta playit.gg…',
+  'serverHost.tunnel.noLog':
+    'Agent playit.gg łączy się - tunel nie został jeszcze przypisany. Jeśli nie utworzyłeś jeszcze tunelu powyżej, adres nigdy się tu nie pojawi.',
   'serverHost.tunnel.manualTitle': 'Adres publiczny',
-  'serverHost.tunnel.manualExplainer': 'Po potwierdzeniu panel playit.gg pokaże adres do udostępnienia znajomym - wklej go tutaj (lub nadpisz ręcznie).',
+  'serverHost.tunnel.manualExplainer':
+    'Adres, który panel playit.gg pokazuje po utworzeniu tunelu - wklej go tutaj, aby Twoi znajomi mogli się połączyć.',
   'serverHost.tunnel.manualPlaceholder': 'np. myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Bieżący adres: {address}',
 

@@ -19,6 +19,14 @@ interface Props {
 // fully hands-off.
 const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
 
+// Verified live: a claimed agent connects and authenticates fine on its own
+// (tunnel_count=0 forever in its own logs) but never creates an actual
+// tunnel/address by itself - playit.gg's agent key is read-only, tunnel
+// creation is dashboard-only. So starting the agent here is necessary but
+// not sufficient; this second one-time step is what actually produces the
+// address that goes in the "Public Address" field below.
+const PLAYIT_NEW_TUNNEL_URL = 'https://playit.gg/account/setup/new-tunnel'
+
 function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [running, setRunning] = useState(false)
@@ -151,6 +159,14 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
 
       {server.tunnelSecretKey && (
         <>
+          <section className="settings-section">
+            <h4 className="settings-section-title">{t('serverHost.tunnel.createTunnelTitle')}</h4>
+            <p className="instance-meta">{t('serverHost.tunnel.createTunnelExplainer')}</p>
+            <button type="button" onClick={() => window.api.openTunnelClaimUrl(PLAYIT_NEW_TUNNEL_URL)}>
+              {t('serverHost.tunnel.createTunnelButton')}
+            </button>
+          </section>
+
           <label className="checkbox-label">
             <input type="checkbox" checked={autoStart} onChange={(e) => handleToggleAutoStart(e.target.checked)} />
             {t('serverHost.tunnel.autoStart')}

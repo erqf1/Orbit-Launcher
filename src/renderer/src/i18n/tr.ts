@@ -351,13 +351,18 @@ const tr: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'playit.gg gizli anahtarını yapıştır…',
   'serverHost.tunnel.secretConfigured': 'Gizli anahtar yapılandırıldı.',
   'serverHost.tunnel.secretClear': 'Gizli Anahtarı Kaldır',
+  'serverHost.tunnel.createTunnelTitle': 'Tünel oluştur (bir kerelik, tarayıcında)',
+  'serverHost.tunnel.createTunnelExplainer': "Buradaki ajan sadece playit.gg hesabına bağlanır - tüneli kendi başına oluşturamaz, bu yalnızca playit.gg'nin kendi panosunda olur. Orada ajanını seç ve bu sunucunun portuna yönlendiren bir TCP tüneli ekle; ardından atanan adresi aşağıdaki \"Herkese Açık Adres\" alanına yapıştır.",
+  'serverHost.tunnel.createTunnelButton': 'Panoda Tünel Oluştur…',
   'serverHost.tunnel.autoStart': 'Tüneli sunucuyla birlikte otomatik başlat',
   'serverHost.tunnel.start': 'Tüneli Başlat',
   'serverHost.tunnel.starting': 'Başlatılıyor…',
   'serverHost.tunnel.stop': 'Tüneli Durdur',
-  'serverHost.tunnel.noLog': 'playit.gg ajanı başlatılıyor…',
+  'serverHost.tunnel.noLog':
+    'playit.gg ajanı bağlanıyor - henüz tünel atanmadı. Yukarıda henüz bir tünel oluşturmadıysan, burada hiçbir zaman bir adres görünmeyecek.',
   'serverHost.tunnel.manualTitle': 'Genel Adres',
-  'serverHost.tunnel.manualExplainer': "Talep edildikten sonra, playit.gg'nin panosu arkadaşlarınla paylaşacağın adresi gösterir - buraya yapıştır (ya da manuel olarak değiştir).",
+  'serverHost.tunnel.manualExplainer':
+    "Tüneli oluşturduktan sonra playit.gg panosunun gösterdiği adres - arkadaşların katılabilsin diye buraya yapıştır.",
   'serverHost.tunnel.manualPlaceholder': 'örn. myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Geçerli adres: {address}',
 
