@@ -369,23 +369,18 @@ export interface ModpackInstallResult {
 }
 
 export interface TunnelLogEvent {
-  serverId: string
   line: string
 }
 
 export interface TunnelClaimUrlEvent {
-  serverId: string
   url: string
 }
 
 export interface TunnelAddressAssignedEvent {
-  serverId: string
   address: string
 }
 
-export interface TunnelClosedEvent {
-  serverId: string
-}
+export type TunnelClosedEvent = Record<string, never>
 
 export interface PlayitTunnelConfig {
   secretKey: string | null
@@ -655,10 +650,9 @@ const api = {
   installServerPerformanceModpack: (serverId: string, mcVersion: string): Promise<ModpackInstallResult> =>
     ipcRenderer.invoke('serverMods:installPerformancePack', serverId, mcVersion),
 
-  startTunnel: (serverId: string, localPort: number): Promise<void> =>
-    ipcRenderer.invoke('tunnel:start', serverId, localPort),
+  startTunnel: (localPort?: number): Promise<void> => ipcRenderer.invoke('tunnel:start', localPort),
   stopTunnel: (): Promise<void> => ipcRenderer.invoke('tunnel:stop'),
-  getTunnelStatus: (serverId: string): Promise<boolean> => ipcRenderer.invoke('tunnel:status', serverId),
+  getTunnelStatus: (): Promise<boolean> => ipcRenderer.invoke('tunnel:status'),
 
   getPlayitTunnelConfig: (): Promise<PlayitTunnelConfig> => ipcRenderer.invoke('appSettings:getPlayitTunnelConfig'),
   setPlayitSecretKey: (key: string | null): Promise<void> =>

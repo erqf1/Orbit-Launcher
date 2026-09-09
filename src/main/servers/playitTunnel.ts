@@ -66,12 +66,16 @@ async function ensureBinaryDownloaded(): Promise<string> {
 }
 
 // One shared tunnel for the whole launcher (see appSettings.ts's
-// playitSecretKey/playitTunnelPort/playitTunnelAddress) rather than a
-// Map keyed by server - serverProcess.ts's startServer already refuses to
-// start a second hosted server while one is running, so at most one entry
-// here is ever meaningful; kept as a single slot (not a Map) so that
-// invariant is structural, not just enforced by convention elsewhere.
-let runningTunnel: { serverId: string; child: ChildProcess } | null = null
+// playitSecretKey/playitTunnelPort/playitTunnelAddress), not tied to any
+// particular server's identity - it can be started standalone from
+// PlayitSettingsDialog (right after saving a secret key, so the agent shows
+// up as online in playit.gg's own "assign to agent" picker without the user
+// needing to start a real server first) just as well as it can auto-start
+// alongside a hosted server. A plain ChildProcess slot rather than a Map
+// keyed by server, since there is structurally only ever one: playit.gg
+// itself only ever maps one local port, and serverProcess.ts's startServer
+// already refuses to start a second hosted server while one is running.
+let runningTunnel: ChildProcess | null = null
 // Tracks whether the running tunnel has already had an address
 // auto-assigned this run - see the ADDRESS_PATTERN comment below for why a
 // match is only trusted once per run instead of every time the pattern
@@ -108,7 +112,12 @@ function makeLineBuffer(onLine: (line: string) => void): (chunk: Buffer) => void
   }
 }
 
-export async function startTunnel(mainWindow: BrowserWindow, serverId: string, localPort: number): Promise<void> {
+// localPort is optional - omitted when started standalone from
+// PlayitSettingsDialog right after saving a secret key, purely to get the
+// agent connected/visible in playit.gg's own dashboard before any server
+// exists to run it against yet. The port-mismatch warning below only makes
+// sense once a real server's port is known.
+export async function startTunnel(mainWindow: BrowserWindow, localPort?: number): Promise<void> {
   if (runningTunnel) return
   const config = getPlayitTunnelConfig()
   if (!config.secretKey) {
@@ -117,14 +126,14 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
   const bin = await ensureBinaryDownloaded()
 
   const child = spawn(bin, ['--secret', config.secretKey], { cwd: toolsDir() })
-  runningTunnel = { serverId, child }
+  runningTunnel = child
   addressLockedThisRun = false
 
   const send = (line: string): void => {
-    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('tunnel:log', { serverId, line })
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('tunnel:log', { line })
   }
 
-  if (localPort !== config.localPort) {
+  if (localPort !== undefined && localPort !== config.localPort) {
     send(
       `[Warnung] Dieser Server läuft auf Port ${localPort}, der Tunnel ist aber auf Port ${config.localPort} eingerichtet - Freunde können den Server über den Tunnel nicht erreichen, solange die Ports nicht übereinstimmen.`
     )
@@ -135,7 +144,7 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
     send(line)
     const claim = CLAIM_URL_PATTERN.exec(line)
     if (claim && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tunnel:claimUrl', { serverId, url: claim[0] })
+      mainWindow.webContents.send('tunnel:claimUrl', { url: claim[0] })
     }
     const address = ADDRESS_PATTERN.exec(line)
     if (address && !addressLockedThisRun) {
@@ -147,7 +156,7 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
         setPlayitTunnelAddress(address[1])
       }
       if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('tunnel:addressAssigned', { serverId, address: address[1] })
+        mainWindow.webContents.send('tunnel:addressAssigned', { address: address[1] })
       }
     }
   }
@@ -158,7 +167,7 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
     runningTunnel = null
     addressLockedThisRun = false
     if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tunnel:closed', { serverId })
+      mainWindow.webContents.send('tunnel:closed', {})
     }
   })
 
@@ -167,19 +176,19 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
     runningTunnel = null
     addressLockedThisRun = false
     if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tunnel:closed', { serverId })
+      mainWindow.webContents.send('tunnel:closed', {})
     }
   })
 }
 
 export function stopTunnel(): void {
   if (!runningTunnel) return
-  runningTunnel.child.kill()
+  runningTunnel.kill()
   runningTunnel = null
 }
 
-export function isTunnelRunning(serverId: string): boolean {
-  return runningTunnel?.serverId === serverId
+export function isTunnelRunning(): boolean {
+  return runningTunnel !== null
 }
 
 // Called from serverProcess.ts when a server with tunnelEnabled starts, so
@@ -193,11 +202,10 @@ export async function autoStartTunnelIfConfigured(
   const server = getServer(serverId)
   if (!server?.tunnelEnabled || !getPlayitTunnelConfig().secretKey) return
   try {
-    await startTunnel(mainWindow, serverId, localPort)
+    await startTunnel(mainWindow, localPort)
   } catch (err) {
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('tunnel:log', {
-        serverId,
         line: `[Fehler] Tunnel konnte nicht automatisch gestartet werden: ${err instanceof Error ? err.message : String(err)}`
       })
     }
@@ -205,9 +213,7 @@ export async function autoStartTunnelIfConfigured(
 }
 
 export function registerTunnelHandlers(mainWindow: BrowserWindow): void {
-  ipcMain.handle('tunnel:start', (_event, serverId: string, localPort: number) =>
-    startTunnel(mainWindow, serverId, localPort)
-  )
+  ipcMain.handle('tunnel:start', (_event, localPort?: number) => startTunnel(mainWindow, localPort))
   ipcMain.handle('tunnel:stop', () => stopTunnel())
-  ipcMain.handle('tunnel:status', (_event, serverId: string) => isTunnelRunning(serverId))
+  ipcMain.handle('tunnel:status', () => isTunnelRunning())
 }
