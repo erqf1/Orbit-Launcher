@@ -388,6 +388,11 @@ const el: Record<TranslationKey, string> = {
   'serverHost.tunnel.createTunnelExplainer':
     'Ο agent εδώ συνδέεται μόνο με τον λογαριασμό σου στο playit.gg - δεν μπορεί να δημιουργήσει tunnel μόνος του, αυτό γίνεται μόνο στον πίνακα του playit.gg. Επίλεξε εκεί τον agent σου και πρόσθεσε ένα TCP tunnel που να δείχνει στη θύρα αυτού του server· μετά επικόλλησε τη διεύθυνση που θα σου δοθεί στο "Δημόσια Διεύθυνση" παρακάτω.',
   'serverHost.tunnel.createTunnelButton': 'Δημιουργία Tunnel στον Πίνακα…',
+  'serverHost.tunnel.tutorialStep1': 'Στο dashboard, πήγαινε πάνω στο "Tunnels" και πάτησε "new tunnel".',
+  'serverHost.tunnel.tutorialStep2':
+    'Αν υπάρχει preset "Minecraft Java", επίλεξέ το (ρυθμίζει αυτόματα TCP και θύρα) - διαφορετικά επίλεξε TCP και βάλε τη θύρα {port}.',
+  'serverHost.tunnel.tutorialStep3': 'Επίλεξε τον agent σου (αυτόν με το secret key που ρύθμισες παραπάνω) ως στόχο και δημιούργησε το tunnel.',
+  'serverHost.tunnel.tutorialStep4': 'Αντιγράψε τη διεύθυνση που θα σου δοθεί και επικόλλησέ την στο "Δημόσια Διεύθυνση" παρακάτω.',
   'serverHost.tunnel.autoStart': 'Εκκίνηση tunnel αυτόματα μαζί με τον server',
   'serverHost.tunnel.start': 'Εκκίνηση Tunnel',
   'serverHost.tunnel.starting': 'Εκκίνηση…',

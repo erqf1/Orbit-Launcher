@@ -162,6 +162,12 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
           <section className="settings-section">
             <h4 className="settings-section-title">{t('serverHost.tunnel.createTunnelTitle')}</h4>
             <p className="instance-meta">{t('serverHost.tunnel.createTunnelExplainer')}</p>
+            <ol className="tunnel-tutorial-steps">
+              <li>{t('serverHost.tunnel.tutorialStep1')}</li>
+              <li>{t('serverHost.tunnel.tutorialStep2', { port: String(server.serverPort) })}</li>
+              <li>{t('serverHost.tunnel.tutorialStep3')}</li>
+              <li>{t('serverHost.tunnel.tutorialStep4')}</li>
+            </ol>
             <button type="button" onClick={() => window.api.openTunnelClaimUrl(PLAYIT_NEW_TUNNEL_URL)}>
               {t('serverHost.tunnel.createTunnelButton')}
             </button>
