@@ -93,6 +93,20 @@ export interface AccountCustomization {
   capes: CapeInfo[]
 }
 
+export interface SkinHistoryEntry {
+  id: string
+  skinUrl: string
+  variant: 'CLASSIC' | 'SLIM'
+  appliedAt: string
+}
+
+export interface LookedUpSkin {
+  username: string
+  skinUrl: string
+  variant: 'CLASSIC' | 'SLIM'
+  capeUrl: string | null
+}
+
 export interface LaunchLogEvent {
   launchId: string
   instanceId: string

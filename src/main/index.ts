@@ -3,6 +3,7 @@ import { join } from 'path'
 import gracefulFs from 'graceful-fs'
 import { patchCreateWriteStreamForEmfile } from './emfileSafeFs'
 import { registerAuthHandlers } from './auth/msmcAuth'
+import { registerSkinHistoryHandlers } from './auth/skinHistory'
 import { registerLaunchHandlers, setPendingLaunchInstanceIdFromArgv } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
 import { registerVersionHandlers } from './versions/versionManifest'
@@ -108,6 +109,7 @@ app.whenReady().then(() => {
 
   const mainWindow = createWindow()
   registerAuthHandlers(mainWindow)
+  registerSkinHistoryHandlers()
   registerLaunchHandlers(mainWindow)
   registerInstanceHandlers()
   registerVersionHandlers()

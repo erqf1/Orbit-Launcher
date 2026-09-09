@@ -31,6 +31,20 @@ export interface AccountCustomization {
   capes: CapeInfo[]
 }
 
+export interface SkinHistoryEntry {
+  id: string
+  skinUrl: string
+  variant: 'CLASSIC' | 'SLIM'
+  appliedAt: string
+}
+
+export interface LookedUpSkin {
+  username: string
+  skinUrl: string
+  variant: 'CLASSIC' | 'SLIM'
+  capeUrl: string | null
+}
+
 interface LaunchResult {
   launchId: string
 }
@@ -398,6 +412,14 @@ const api = {
     ipcRenderer.invoke('auth:changeSkin', id, variant),
   setActiveCape: (id: string, capeId: string | null): Promise<AccountCustomization | null> =>
     ipcRenderer.invoke('auth:setActiveCape', id, capeId),
+  changeSkinByUrl: (id: string, skinUrl: string, variant: 'CLASSIC' | 'SLIM'): Promise<AccountCustomization | null> =>
+    ipcRenderer.invoke('auth:changeSkinByUrl', id, skinUrl, variant),
+  lookupSkinByUsername: (username: string): Promise<LookedUpSkin> =>
+    ipcRenderer.invoke('auth:lookupSkinByUsername', username),
+  listSkinHistory: (accountId: string): Promise<SkinHistoryEntry[]> =>
+    ipcRenderer.invoke('skinHistory:list', accountId),
+  removeSkinHistoryEntry: (accountId: string, entryId: string): Promise<SkinHistoryEntry[]> =>
+    ipcRenderer.invoke('skinHistory:remove', accountId, entryId),
   launch: (instanceId: string): Promise<LaunchResult> =>
     ipcRenderer.invoke('launch:start', instanceId),
   consumePendingLaunchInstanceId: (): Promise<string | null> =>

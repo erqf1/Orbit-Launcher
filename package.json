@@ -23,6 +23,7 @@
     "prismarine-nbt": "^2.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "skinview3d": "^3.4.2",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
