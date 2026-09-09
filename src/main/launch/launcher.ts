@@ -9,41 +9,38 @@ import { getInstance, getInstanceRoot, markLaunched, addPlaytime } from '../inst
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
 
-// Old Minecraft (pre-1.13-ish, LWJGL 2) never declares itself DPI-aware, so
-// on any Windows display above 100% scaling, Windows silently scales its
-// framebuffer itself - the well-known "tiny correctly-rendered patches,
-// rest of the window solid black" glitch. Prism/MultiMC avoid this by
-// marking the java executable DPI-aware via the exact same per-user
-// compatibility flag Windows' own exe Properties > Compatibility > "Change
-// high DPI settings" dialog writes - HKCU-scoped, no elevation needed,
-// harmless to set on modern (LWJGL 3) versions that already handle DPI
-// correctly on their own.
-async function ensureJavaDpiAware(javaPath: string): Promise<void> {
-  if (process.platform !== 'win32') return
-  try {
-    await execFileAsync('reg', [
-      'add',
-      'HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers',
-      '/v',
-      javaPath,
-      '/t',
-      'REG_SZ',
-      '/d',
-      '~ HIGHDPIAWARE',
-      '/f'
-    ])
-  } catch {
-    // Best-effort - a failure here (e.g. reg.exe unavailable) shouldn't
-    // block launching the game, just leaves the DPI glitch unfixed.
-  }
+// Minecraft switched from LWJGL 2 to LWJGL 3 at 1.13. LWJGL 2 has no DPI
+// awareness of its own and just trusts whatever pixel size Windows reports
+// for the window - it expects to be left DPI-*un*aware so Windows bitmap-
+// scales its whole framebuffer (blurry but intact). If the java(w).exe
+// actually spawned is DPI-aware, LWJGL 2 gets handed real high-DPI pixel
+// coordinates it never accounts for and only renders into the small area
+// it still assumes is the whole window - the "tiny correctly-rendered
+// patch, rest solid black" glitch.
+//
+// The obvious fix - the same per-exe Windows compatibility-shim registry
+// flag Prism/MultiMC users are told to set on javaw.exe - turned out not to
+// work here: modern JDK builds (JDK 9+, including the Liberica build this
+// install uses) embed their own DPI-awareness manifest in java(w).exe, and
+// an app's own manifest declaration takes precedence over that compat shim,
+// silently making the registry flag a no-op. This JVM property instead
+// tells the JVM itself, at startup before any window exists, to report
+// itself DPI-unaware to Windows - taking effect regardless of the exe's own
+// manifest, which the registry shim can't do.
+function needsLegacyDpiWorkaround(mcVersion: string): boolean {
+  const modern = mcVersion.match(/^1\.(\d+)/)
+  if (modern) return Number(modern[1]) < 13
+  // Classic/indev/infdev/alpha/beta version strings predate LWJGL 3 entirely;
+  // anything else (e.g. a non-"1.x" version scheme) is assumed modern/LWJGL 3.
+  return /^(rd-|inf-|c0\.|a1\.|b1\.)/i.test(mcVersion)
 }
 
 // instance.javaPath is null for "use the system default", in which case
-// MCLC itself just spawns the bare `java` command - resolved here too since
-// the DPI-aware flag has to target java's actual absolute exe path, not the
-// word "java". Exported for reuse by server hosting (serverProcess.ts),
-// which spawns java directly via child_process rather than through MCLC and
-// needs the same resolution logic.
+// MCLC itself just spawns the bare `java` command. No longer used inside
+// this file's own launch flow (the DPI workaround above works via a JVM
+// property, not java's resolved absolute path) - kept exported for reuse by
+// server hosting (serverProcess.ts), which spawns java directly via
+// child_process rather than through MCLC and needs the same resolution.
 export async function resolveJavaPath(explicitPath: string | null): Promise<string> {
   if (explicitPath) return explicitPath
   if (process.platform !== 'win32') return 'java'
@@ -127,9 +124,6 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       await runHookCommand(instance.preLaunchCommand, root, hookEnv)
     }
 
-    const resolvedJavaPath = await resolveJavaPath(instance.javaPath)
-    await ensureJavaDpiAware(resolvedJavaPath)
-
     const launchId = randomUUID()
     activeInstanceIds.add(instanceId)
     const launcher = new Client()
@@ -195,6 +189,11 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
       process.env[name] = value
     }
 
+    const jvmArgs = instance.jvmArgs ? instance.jvmArgs.split(/\s+/).filter(Boolean) : []
+    if (needsLegacyDpiWorkaround(instance.mcVersion)) {
+      jvmArgs.unshift('-Dsun.java2d.dpiaware=false')
+    }
+
     try {
       await launcher.launch({
         // MCLC's own .d.ts types `user_properties` as `Partial<any>`, which this
@@ -214,7 +213,7 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
           min: instance.memoryMin
         },
         ...(instance.javaPath ? { javaPath: instance.javaPath } : {}),
-        ...(instance.jvmArgs ? { customArgs: instance.jvmArgs.split(/\s+/).filter(Boolean) } : {}),
+        ...(jvmArgs.length > 0 ? { customArgs: jvmArgs } : {}),
         ...(instance.mcArgs ? { customLaunchArgs: instance.mcArgs.split(/\s+/).filter(Boolean) } : {}),
         ...(Object.keys(windowOptions).length > 0 ? { window: windowOptions } : {}),
         ...(instance.autoJoinServer
