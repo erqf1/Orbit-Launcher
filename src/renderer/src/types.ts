@@ -333,23 +333,18 @@ export interface ModpackInstallResult {
 }
 
 export interface TunnelLogEvent {
-  serverId: string
   line: string
 }
 
 export interface TunnelClaimUrlEvent {
-  serverId: string
   url: string
 }
 
 export interface TunnelAddressAssignedEvent {
-  serverId: string
   address: string
 }
 
-export interface TunnelClosedEvent {
-  serverId: string
-}
+export type TunnelClosedEvent = Record<string, never>
 
 export interface PlayitTunnelConfig {
   secretKey: string | null

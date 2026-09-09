@@ -33,25 +33,23 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    window.api.getTunnelStatus(server.id).then((value) => {
+    window.api.getTunnelStatus().then((value) => {
       if (!cancelled) setRunning(value)
     })
     return () => {
       cancelled = true
     }
-  }, [server.id])
+  }, [])
 
   useEffect(() => {
     const offLog = window.api.onTunnelLog((event) => {
-      if (event.serverId !== server.id) return
       setLogs((prev) => [...prev, event.line])
     })
     const offAddress = window.api.onTunnelAddressAssigned(() => {
       loadConfig()
       onChanged()
     })
-    const offClosed = window.api.onTunnelClosed((event) => {
-      if (event.serverId !== server.id) return
+    const offClosed = window.api.onTunnelClosed(() => {
       setRunning(false)
     })
     return () => {
@@ -59,7 +57,7 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
       offAddress()
       offClosed()
     }
-  }, [server.id, onChanged])
+  }, [onChanged])
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
@@ -76,7 +74,7 @@ function ServerTunnelTab({ server, onChanged }: Props): React.JSX.Element {
     setError(null)
     try {
       setLogs([])
-      await window.api.startTunnel(server.id, server.serverPort)
+      await window.api.startTunnel(server.serverPort)
       setRunning(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

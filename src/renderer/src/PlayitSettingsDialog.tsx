@@ -27,6 +27,9 @@ function PlayitSettingsDialog({ onCancel, onChanged }: Props): React.JSX.Element
   const [savedKey, setSavedKey] = useState(false)
   const [savedPort, setSavedPort] = useState(false)
   const [savedAddress, setSavedAddress] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [connectError, setConnectError] = useState<string | null>(null)
 
   function load(): void {
     window.api.getPlayitTunnelConfig().then((result) => {
@@ -38,6 +41,45 @@ function PlayitSettingsDialog({ onCancel, onChanged }: Props): React.JSX.Element
 
   useEffect(load, [])
 
+  useEffect(() => {
+    window.api.getTunnelStatus().then(setRunning)
+  }, [])
+
+  useEffect(() => {
+    const offAddress = window.api.onTunnelAddressAssigned(() => {
+      load()
+      onChanged()
+    })
+    const offClosed = window.api.onTunnelClosed(() => setRunning(false))
+    return () => {
+      offAddress()
+      offClosed()
+    }
+  }, [onChanged])
+
+  // The agent only shows up as "online" in playit.gg's own "assign to
+  // agent" tunnel-creation picker while it's actually connected - without
+  // this, the user would have to separately start a hosted server (or find
+  // the manual Start button buried in a server's Tunnel tab) just to make
+  // the agent visible there at all before they can even create the tunnel.
+  async function connectAgent(): Promise<void> {
+    setConnecting(true)
+    setConnectError(null)
+    try {
+      await window.api.startTunnel()
+      setRunning(true)
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  async function handleDisconnectAgent(): Promise<void> {
+    await window.api.stopTunnel()
+    setRunning(false)
+  }
+
   async function handleSaveSecretKey(): Promise<void> {
     const trimmed = secretKeyInput.trim()
     if (!trimmed) return
@@ -47,9 +89,11 @@ function PlayitSettingsDialog({ onCancel, onChanged }: Props): React.JSX.Element
     setTimeout(() => setSavedKey(false), 2000)
     load()
     onChanged()
+    void connectAgent()
   }
 
   async function handleClearSecretKey(): Promise<void> {
+    if (running) await handleDisconnectAgent()
     await window.api.setPlayitSecretKey(null)
     load()
     onChanged()
@@ -127,6 +171,23 @@ function PlayitSettingsDialog({ onCancel, onChanged }: Props): React.JSX.Element
           <section className="settings-section">
             <h4 className="settings-section-title">{t('serverHost.tunnel.createTunnelTitle')}</h4>
             <p className="instance-meta">{t('serverHost.tunnel.createTunnelExplainer')}</p>
+
+            <div className="detail-tab-header">
+              {running ? (
+                <>
+                  <span className="instance-meta">{t('playitSettings.agentOnline')}</span>
+                  <button type="button" onClick={handleDisconnectAgent}>
+                    {t('playitSettings.disconnectAgent')}
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="save-button" onClick={connectAgent} disabled={connecting}>
+                  {connecting ? t('playitSettings.connecting') : t('playitSettings.connectAgent')}
+                </button>
+              )}
+            </div>
+            {connectError && <p className="error">{connectError}</p>}
+
             <ol className="tunnel-tutorial-steps">
               <li>{t('serverHost.tunnel.tutorialStep1')}</li>
               <li>{t('serverHost.tunnel.tutorialStep2', { port: portInput })}</li>
