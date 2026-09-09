@@ -347,12 +347,25 @@ export interface InstalledPlugin {
   iconUrl: string | null
 }
 
+export type ModServerCompat = 'clientAndServer' | 'clientOnly' | 'serverOnly'
+
 export interface FriendsModEntry {
   filename: string
   title: string
   environment: string
+  compat: ModServerCompat
   resolved: boolean
   suggestedInclude: boolean
+}
+
+export interface ImportModsFromInstanceResult {
+  imported: string[]
+  skippedClientOnly: string[]
+}
+
+export interface ModpackInstallResult {
+  installed: string[]
+  failed: string[]
 }
 
 export interface TunnelLogEvent {
@@ -630,6 +643,17 @@ const api = {
     ipcRenderer.invoke('friendsMods:scan', serverId),
   exportFriendsMods: (serverId: string, selectedFilenames: string[]): Promise<string | null> =>
     ipcRenderer.invoke('friendsMods:export', serverId, selectedFilenames),
+  importModsFromInstance: (serverId: string, instanceId: string): Promise<ImportModsFromInstanceResult> =>
+    ipcRenderer.invoke('friendsMods:importFromInstance', serverId, instanceId),
+
+  searchServerMods: (query: string, mcVersion: string): Promise<ModSearchResult[]> =>
+    ipcRenderer.invoke('serverMods:search', query, mcVersion),
+  listServerModVersions: (projectId: string, mcVersion: string): Promise<ModVersionSummary[]> =>
+    ipcRenderer.invoke('serverMods:versions', projectId, mcVersion),
+  installServerMod: (serverId: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('serverMods:install', serverId, file),
+  installServerPerformanceModpack: (serverId: string, mcVersion: string): Promise<ModpackInstallResult> =>
+    ipcRenderer.invoke('serverMods:installPerformancePack', serverId, mcVersion),
 
   startTunnel: (serverId: string, localPort: number): Promise<void> =>
     ipcRenderer.invoke('tunnel:start', serverId, localPort),

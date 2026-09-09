@@ -161,6 +161,110 @@ export async function installPluginFile(serverId: string, file: ModFileRef): Pro
   writeFileSync(join(pluginsDir, file.filename), Buffer.from(await res.arrayBuffer()))
 }
 
+// Modrinth's version-level `environment` field has 10 possible values
+// (confirmed live against real projects: client_only, singleplayer_only,
+// client_only_server_optional, client_and_server, client_or_server,
+// client_or_server_prefers_both, server_only, server_only_client_optional,
+// dedicated_server_only, unknown) - bucketed here into the three groups
+// that actually matter for hosting: does a friend need this in their own
+// client (clientOnly/clientAndServer), and can it even run on a dedicated
+// server at all (only client_only/singleplayer_only truly can't - every
+// other value runs there in some capacity, even if not required).
+export type ModServerCompat = 'clientAndServer' | 'clientOnly' | 'serverOnly'
+
+const CLIENT_ONLY_ENVIRONMENTS = new Set(['client_only', 'singleplayer_only'])
+const SERVER_ONLY_ENVIRONMENTS = new Set(['server_only', 'dedicated_server_only', 'server_only_client_optional'])
+
+export function classifyModEnvironment(environment: string): ModServerCompat {
+  if (CLIENT_ONLY_ENVIRONMENTS.has(environment)) return 'clientOnly'
+  if (SERVER_ONLY_ENVIRONMENTS.has(environment)) return 'serverOnly'
+  return 'clientAndServer'
+}
+
+export function canRunOnServer(environment: string): boolean {
+  return !CLIENT_ONLY_ENVIRONMENTS.has(environment)
+}
+
+// Same search shape as searchMods, but Fabric-only and with an extra facet
+// excluding anything Modrinth itself marks server_side:unsupported
+// (confirmed live: sodium and other client-only mods drop out of these
+// results entirely, total_hits shrinks accordingly) - a server mod browser
+// should never even offer a mod that does nothing (or crashes the server)
+// when installed there.
+export async function searchServerMods(query: string, mcVersion: string): Promise<ModSearchResult[]> {
+  const facets = [
+    ['project_type:mod'],
+    [`versions:${mcVersion}`],
+    ['categories:fabric'],
+    ['server_side:required', 'server_side:optional']
+  ]
+  const index = query.trim() ? '' : '&index=downloads'
+  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20${index}&facets=${encodeURIComponent(JSON.stringify(facets))}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
+  const data = (await res.json()) as { hits: ModrinthSearchHit[] }
+  return data.hits.map(mapSearchHit)
+}
+
+export async function listServerModVersions(projectId: string, mcVersion: string): Promise<ModVersionSummary[]> {
+  return listModVersions(projectId, mcVersion, 'fabric')
+}
+
+export async function installServerMod(serverId: string, file: ModFileRef): Promise<void> {
+  assertSafeFilename(file.filename)
+  const modsDir = join(getServerRoot(serverId), 'mods')
+  mkdirSync(modsDir, { recursive: true })
+
+  const res = await fetch(file.url)
+  if (!res.ok) throw new Error(`Mod-Download fehlgeschlagen (HTTP ${res.status}).`)
+  writeFileSync(join(modsDir, file.filename), Buffer.from(await res.arrayBuffer()))
+}
+
+// Verified live against the real Modrinth API (2026-09-09): every slug here
+// reports server_side "required" or "optional" (never "unsupported"), so
+// deliberately excludes client-rendering performance mods like Sodium that
+// don't belong on a dedicated server at all - this is a *server* pack, not
+// a copy of the client curated list. playtimecommand isn't a performance
+// mod itself, it's the "/playtime" utility asked for alongside the pack.
+const SERVER_PERFORMANCE_MODPACK_SLUGS: string[] = [
+  'lithium',
+  'ferrite-core',
+  'krypton',
+  'c2me-fabric',
+  'starlight',
+  'clumps',
+  'lazydfu',
+  'playtimecommand'
+]
+
+export interface ModpackInstallResult {
+  installed: string[]
+  failed: string[]
+}
+
+export async function installServerPerformanceModpack(
+  serverId: string,
+  mcVersion: string
+): Promise<ModpackInstallResult> {
+  const installed: string[] = []
+  const failed: string[] = []
+  await mapWithConcurrency(SERVER_PERFORMANCE_MODPACK_SLUGS, 4, async (slug) => {
+    try {
+      const versions = await listModVersions(slug, mcVersion, 'fabric')
+      const best = versions[0]
+      if (!best) {
+        failed.push(slug)
+        return
+      }
+      await installServerMod(serverId, { url: best.url, filename: best.filename })
+      installed.push(slug)
+    } catch {
+      failed.push(slug)
+    }
+  })
+  return { installed, failed }
+}
+
 export interface InstalledPlugin {
   filename: string
   title: string | null
@@ -798,5 +902,17 @@ export function registerModHandlers(): void {
   ipcMain.handle('plugins:list', (_event, serverId: string) => listInstalledPlugins(serverId))
   ipcMain.handle('plugins:remove', (_event, serverId: string, filename: string) =>
     removePlugin(serverId, filename)
+  )
+  ipcMain.handle('serverMods:search', (_event, query: string, mcVersion: string) =>
+    searchServerMods(query, mcVersion)
+  )
+  ipcMain.handle('serverMods:versions', (_event, projectId: string, mcVersion: string) =>
+    listServerModVersions(projectId, mcVersion)
+  )
+  ipcMain.handle('serverMods:install', (_event, serverId: string, file: ModFileRef) =>
+    installServerMod(serverId, file)
+  )
+  ipcMain.handle('serverMods:installPerformancePack', (_event, serverId: string, mcVersion: string) =>
+    installServerPerformanceModpack(serverId, mcVersion)
   )
 }
