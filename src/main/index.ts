@@ -82,6 +82,23 @@ function createWindow(): BrowserWindow {
     mainWindow.show()
   })
 
+  // A hosted server is a direct child process of this same Electron main
+  // process (serverProcess.ts) - closing the last window (or app.quit()
+  // being called for any reason, e.g. an instance's "quit launcher when the
+  // game closes" option, which Electron implements by closing every window
+  // first) would take the server down with it too, not just close the
+  // window. Blocking the close here - rather than only guarding the
+  // quit-on-game-close call site - covers every path that leads to a quit
+  // (the X button, Alt+F4, the taskbar, all of them), not just that one.
+  mainWindow.on('close', (event) => {
+    if (isAnyServerRunning()) {
+      event.preventDefault()
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send('launch:quitSuppressed', {})
+    }
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
