@@ -351,13 +351,19 @@ const es: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'Pega tu clave secreta de playit.gg…',
   'serverHost.tunnel.secretConfigured': 'Clave secreta configurada.',
   'serverHost.tunnel.secretClear': 'Eliminar clave secreta',
+  'serverHost.tunnel.createTunnelTitle': 'Crear un túnel (una vez, en tu navegador)',
+  'serverHost.tunnel.createTunnelExplainer':
+    'El agente aquí solo se conecta a tu cuenta de playit.gg - no puede crear un túnel por sí mismo, eso solo se hace en el panel de playit.gg. Elige allí tu agente y añade un túnel TCP que apunte al puerto de este servidor; luego pega la dirección asignada en "Dirección pública" abajo.',
+  'serverHost.tunnel.createTunnelButton': 'Crear túnel en el panel…',
   'serverHost.tunnel.autoStart': 'Iniciar el túnel automáticamente con el servidor',
   'serverHost.tunnel.start': 'Iniciar túnel',
   'serverHost.tunnel.starting': 'Iniciando…',
   'serverHost.tunnel.stop': 'Detener túnel',
-  'serverHost.tunnel.noLog': 'Iniciando el agente de playit.gg…',
+  'serverHost.tunnel.noLog':
+    'El agente de playit.gg se está conectando - aún no se ha asignado ningún túnel. Si todavía no has creado un túnel arriba, aquí nunca aparecerá una dirección.',
   'serverHost.tunnel.manualTitle': 'Dirección pública',
-  'serverHost.tunnel.manualExplainer': 'Una vez reclamado, el panel de playit.gg muestra la dirección para compartir con tus amigos - pégala aquí (o sobrescríbela manualmente).',
+  'serverHost.tunnel.manualExplainer':
+    'La dirección que muestra el panel de playit.gg después de crear el túnel - pégala aquí para que tus amigos puedan usarla para unirse.',
   'serverHost.tunnel.manualPlaceholder': 'p. ej. myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Dirección actual: {address}',
 

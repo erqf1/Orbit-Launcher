@@ -351,13 +351,19 @@ const it: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'Incolla la tua chiave segreta playit.gg…',
   'serverHost.tunnel.secretConfigured': 'Chiave segreta configurata.',
   'serverHost.tunnel.secretClear': 'Rimuovi chiave segreta',
+  'serverHost.tunnel.createTunnelTitle': 'Crea un tunnel (una tantum, nel browser)',
+  'serverHost.tunnel.createTunnelExplainer':
+    "L'agente qui si connette solo al tuo account playit.gg - non può creare un tunnel da solo, questo avviene solo nella dashboard di playit.gg. Seleziona lì il tuo agente e aggiungi un tunnel TCP che punti alla porta di questo server; poi incolla l'indirizzo assegnato in \"Indirizzo pubblico\" qui sotto.",
+  'serverHost.tunnel.createTunnelButton': 'Crea tunnel nella dashboard…',
   'serverHost.tunnel.autoStart': 'Avvia il tunnel automaticamente con il server',
   'serverHost.tunnel.start': 'Avvia tunnel',
   'serverHost.tunnel.starting': 'Avvio…',
   'serverHost.tunnel.stop': 'Ferma tunnel',
-  'serverHost.tunnel.noLog': "Avvio dell'agente playit.gg…",
+  'serverHost.tunnel.noLog':
+    "L'agente playit.gg si sta connettendo - nessun tunnel ancora assegnato. Se non hai ancora creato un tunnel sopra, qui non apparirà mai un indirizzo.",
   'serverHost.tunnel.manualTitle': 'Indirizzo pubblico',
-  'serverHost.tunnel.manualExplainer': "Una volta rivendicato, la dashboard di playit.gg mostra l'indirizzo da condividere con gli amici - incollalo qui (oppure sovrascrivilo manualmente).",
+  'serverHost.tunnel.manualExplainer':
+    "L'indirizzo mostrato dalla dashboard di playit.gg dopo aver creato il tunnel - incollalo qui perché i tuoi amici possano usarlo per entrare.",
   'serverHost.tunnel.manualPlaceholder': 'es. myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Indirizzo attuale: {address}',
 

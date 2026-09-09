@@ -22,6 +22,7 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
   const [tab, setTab] = useState<TabKey>('console')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(server.name)
+  const [renameError, setRenameError] = useState<string | null>(null)
 
   useEffect(() => {
     setNameDraft(server.name)
@@ -30,8 +31,14 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
   async function confirmRename(): Promise<void> {
     const trimmed = nameDraft.trim()
     if (trimmed && trimmed !== server.name) {
-      await window.api.renameHostedServer(server.id, trimmed)
-      onServerChanged()
+      try {
+        await window.api.renameHostedServer(server.id, trimmed)
+        onServerChanged()
+        setRenameError(null)
+      } catch (err) {
+        setRenameError(err instanceof Error ? err.message : String(err))
+        setNameDraft(server.name)
+      }
     } else {
       setNameDraft(server.name)
     }
@@ -113,6 +120,7 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
               {server.name}
             </h2>
           )}
+          {renameError && <p className="error">{renameError}</p>}
           <nav>
             {tabs.map((tabKey) => (
               <button

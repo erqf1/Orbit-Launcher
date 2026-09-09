@@ -80,6 +80,7 @@ function ServerPropertiesTab({ server, onChanged }: Props): React.JSX.Element {
   const [saved, setSaved] = useState(false)
   const [eulaAccepted, setEulaAccepted] = useState(server.eulaAccepted)
   const [acceptingEula, setAcceptingEula] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -109,9 +110,14 @@ function ServerPropertiesTab({ server, onChanged }: Props): React.JSX.Element {
   }
 
   async function handleSave(): Promise<void> {
-    await window.api.writeServerProperties(server.id, values)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setError(null)
+    try {
+      await window.api.writeServerProperties(server.id, values)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   function set(key: string, value: string): void {
@@ -320,6 +326,7 @@ function ServerPropertiesTab({ server, onChanged }: Props): React.JSX.Element {
               </>
             )}
 
+            {error && <p className="error">{error}</p>}
             <div className="modal-actions">
               <button type="button" className="save-button" onClick={handleSave}>
                 {t('common.save')}

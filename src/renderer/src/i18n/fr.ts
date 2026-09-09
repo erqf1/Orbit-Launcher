@@ -351,13 +351,19 @@ const fr: Record<TranslationKey, string> = {
   'serverHost.tunnel.secretPlaceholder': 'Collez votre clé secrète playit.gg…',
   'serverHost.tunnel.secretConfigured': 'Clé secrète configurée.',
   'serverHost.tunnel.secretClear': 'Supprimer la clé secrète',
+  'serverHost.tunnel.createTunnelTitle': 'Créer un tunnel (une fois, dans le navigateur)',
+  'serverHost.tunnel.createTunnelExplainer':
+    "L'agent ici se connecte seulement à votre compte playit.gg - il ne peut pas créer de tunnel lui-même, cela ne se fait que sur le tableau de bord de playit.gg. Choisissez-y votre agent et ajoutez un tunnel TCP pointant vers le port de ce serveur ; collez ensuite l'adresse attribuée dans « Adresse publique » ci-dessous.",
+  'serverHost.tunnel.createTunnelButton': 'Créer le tunnel dans le tableau de bord…',
   'serverHost.tunnel.autoStart': 'Démarrer le tunnel automatiquement avec le serveur',
   'serverHost.tunnel.start': 'Démarrer le tunnel',
   'serverHost.tunnel.starting': 'Démarrage…',
   'serverHost.tunnel.stop': 'Arrêter le tunnel',
-  'serverHost.tunnel.noLog': "Démarrage de l'agent playit.gg…",
+  'serverHost.tunnel.noLog':
+    "L'agent playit.gg se connecte - aucun tunnel attribué pour l'instant. Si vous n'avez pas encore créé de tunnel ci-dessus, aucune adresse n'apparaîtra jamais ici.",
   'serverHost.tunnel.manualTitle': 'Adresse publique',
-  'serverHost.tunnel.manualExplainer': "Une fois validé, le tableau de bord de playit.gg affiche l'adresse à partager avec vos amis - collez-la ici (ou remplacez-la manuellement).",
+  'serverHost.tunnel.manualExplainer':
+    "L'adresse que le tableau de bord de playit.gg affiche après la création du tunnel - collez-la ici pour que vos amis puissent l'utiliser pour rejoindre.",
   'serverHost.tunnel.manualPlaceholder': 'ex. myserver.joinmc.link',
   'serverHost.tunnel.currentAddress': 'Adresse actuelle : {address}',
 
