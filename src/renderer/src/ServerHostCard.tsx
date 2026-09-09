@@ -5,6 +5,11 @@ import type { ServerInstance } from './types'
 interface Props {
   server: ServerInstance
   isRunning: boolean
+  // Whether the shared playit.gg tunnel (see PlayitSettingsDialog) has a
+  // public address assigned at all - the tunnel itself is launcher-wide now,
+  // not per-server, so "reachable via the tunnel" additionally requires
+  // this specific server to be both running and configured to use it.
+  tunnelHasAddress: boolean
   onManage: (id: string) => void
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
@@ -22,7 +27,16 @@ const LOADER_LABELS: Record<string, string> = {
 // dropped for this MVP - a hosted server's identity is its Console tab, not
 // a cover image) so it fits visually into the same grid layout without new
 // CSS, just a loader-colored gradient like an un-iconed instance card gets.
-function ServerHostCard({ server, isRunning, onManage, onRename, onDelete, onStart, onStop }: Props): React.JSX.Element {
+function ServerHostCard({
+  server,
+  isRunning,
+  tunnelHasAddress,
+  onManage,
+  onRename,
+  onDelete,
+  onStart,
+  onStop
+}: Props): React.JSX.Element {
   const { t } = useLocale()
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(server.name)
@@ -71,7 +85,7 @@ function ServerHostCard({ server, isRunning, onManage, onRename, onDelete, onSta
           {server.loader !== 'vanilla' && (
             <span className={`pill pill-${server.loader}`}>{LOADER_LABELS[server.loader]}</span>
           )}
-          {server.tunnelPublicAddress && (
+          {server.tunnelEnabled && isRunning && tunnelHasAddress && (
             <span className="pill pill-version" title={t('serverHost.tunnelActiveTooltip')}>
               {t('serverHost.tunnelActive')}
             </span>

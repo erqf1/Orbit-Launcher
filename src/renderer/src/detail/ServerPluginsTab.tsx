@@ -81,6 +81,7 @@ function ServerPluginsTab({ server }: Props): React.JSX.Element {
       {showBrowser && (
         <PluginBrowserDialog
           server={server}
+          installed={plugins}
           onClose={() => setShowBrowser(false)}
           onInstalled={refresh}
         />

@@ -2068,6 +2068,17 @@ button:not(:disabled):active {
   flex-shrink: 0;
 }
 
+/* A long version string (e.g. "V21.11.9.1+fabric-1.21.11") used to render
+   at its full natural width with nowhere to shrink, pushing the Disable/
+   Remove buttons in the same row past the panel's edge and clipping them.
+   Capping and truncating the pill instead keeps the actions always fully
+   visible, pinned to the row's right edge. */
+.mod-row-end .pill {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .mod-list li.mod-disabled {
   opacity: 0.55;
 }

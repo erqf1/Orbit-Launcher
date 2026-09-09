@@ -5,6 +5,7 @@ import CloneAsVersionDialog from './CloneAsVersionDialog'
 import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import ZipImportDialog from './ZipImportDialog'
+import PlayitSettingsDialog from './PlayitSettingsDialog'
 import AccountSwitcher from './AccountSwitcher'
 import LanguageSwitcher from './LanguageSwitcher'
 import ServerHostCard from './ServerHostCard'
@@ -106,6 +107,8 @@ function App(): React.JSX.Element {
   const [servers, setServers] = useState<ServerInstance[]>([])
   const [runningServerIds, setRunningServerIds] = useState<Record<string, boolean>>({})
   const [showCreateServer, setShowCreateServer] = useState(false)
+  const [showPlayitSettings, setShowPlayitSettings] = useState(false)
+  const [playitTunnelAddress, setPlayitTunnelAddress] = useState<string | null>(null)
   const [detailServerId, setDetailServerId] = useState<string | null>(null)
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -168,6 +171,14 @@ function App(): React.JSX.Element {
   useEffect(() => {
     refreshServers()
   }, [refreshServers])
+
+  const refreshPlayitConfig = useCallback(() => {
+    window.api.getPlayitTunnelConfig().then((config) => setPlayitTunnelAddress(config.publicAddress))
+  }, [])
+
+  useEffect(() => {
+    refreshPlayitConfig()
+  }, [refreshPlayitConfig])
 
   useEffect(() => {
     const off = window.api.onServerClosed(({ serverId }) => {
@@ -767,6 +778,9 @@ function App(): React.JSX.Element {
           <>
             <div className="app-main-header">
               <h2>{t('nav.serverHostingView')}</h2>
+              <button type="button" onClick={() => setShowPlayitSettings(true)}>
+                {t('playitSettings.openButton')}
+              </button>
             </div>
 
             {error && <p className="error">{error}</p>}
@@ -777,6 +791,7 @@ function App(): React.JSX.Element {
                   key={server.id}
                   server={server}
                   isRunning={!!runningServerIds[server.id]}
+                  tunnelHasAddress={!!playitTunnelAddress}
                   onManage={setDetailServerId}
                   onRename={handleRenameServer}
                   onDelete={handleDeleteServer}
@@ -815,6 +830,13 @@ function App(): React.JSX.Element {
 
       {showZipImport && (
         <ZipImportDialog onCancel={() => setShowZipImport(false)} onImported={refreshInstances} />
+      )}
+
+      {showPlayitSettings && (
+        <PlayitSettingsDialog
+          onCancel={() => setShowPlayitSettings(false)}
+          onChanged={refreshPlayitConfig}
+        />
       )}
 
       {showCreateServer && (

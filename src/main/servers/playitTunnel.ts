@@ -1,8 +1,9 @@
-import { ipcMain, app, shell, BrowserWindow } from 'electron'
+import { ipcMain, app, BrowserWindow } from 'electron'
 import { existsSync, chmodSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { spawn, ChildProcess } from 'child_process'
-import { updateServerSettings, getServer } from './serverManager'
+import { getServer } from './serverManager'
+import { getPlayitTunnelConfig, setPlayitTunnelAddress } from '../appSettings'
 
 // playit.gg was chosen over Tailscale specifically because it needs zero
 // setup on the *friend's* side (they just get an IP:port) - only the host
@@ -26,34 +27,29 @@ function binaryPath(): string {
   return join(toolsDir(), name)
 }
 
-// Verified live by actually running the downloaded binary (twice now - see
-// git history for the first, incomplete fix): it does NOT accept a secret
-// path via an environment variable at all (an even earlier version of this
-// file guessed PLAYIT_SECRET_PATH, silently ignored). The real flags (from
-// `playit.exe --help`) are `--secret-path <path>` and `--secret <key>` -
-// but they are MUTUALLY EXCLUSIVE, confirmed live: passing both together
-// fails immediately with "the argument '--secret-path <SECRET_PATH>'
-// cannot be used with '--secret <SECRET>'" (the previous fix's actual bug -
-// it passed both on every launch, so the tunnel could never start at all).
-// Also confirmed live: `--secret-path` alone with a fresh/nonexistent file
-// waits forever for playit's own GUI companion app over IPC (no headless
-// claim-URL mode exists), and `--secret` alone never writes any file to
-// disk at all (secret_path reports None even in an isolated test) - it's a
-// pure per-run in-memory flag, not a bootstrap mechanism. So there is no
-// CLI-only way to get a *persistent* per-server secret file; the correct,
-// verified design is simpler than the previous attempt: always launch with
-// bare `--secret <key>`, no `--secret-path`, every time. No file collision
-// risk between concurrent per-server tunnels either, since none is written.
+// Verified live by actually running the downloaded binary: it does NOT
+// accept a secret path via an environment variable at all. The real flags
+// (from `playit.exe --help`) are `--secret-path <path>` and `--secret
+// <key>` - but they are MUTUALLY EXCLUSIVE, confirmed live. Also confirmed
+// live: `--secret-path` alone with a fresh/nonexistent file waits forever
+// for playit's own GUI companion app over IPC (no headless claim-URL mode
+// exists), and `--secret` alone never writes any file to disk at all - it's
+// a pure per-run in-memory flag. So there is no CLI-only way to get a
+// *persistent* secret file; the correct design is simpler: always launch
+// with bare `--secret <key>`, no `--secret-path`, every time.
 export const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
 
-// Verified live (2026-09-09): a claimed agent connects fine and shows
+// Verified live: a claimed agent connects fine and shows
 // account_status="verified" in its own logs, but reports tunnel_count=0
 // forever and never assigns any address - `--secret`/`--secret-path` only
-// ever authenticate the daemon, they don't create a tunnel. playit.gg's own
-// forum confirms the agent's key is read-only and can't create tunnels
-// through the CLI or its API either; the only way is this dashboard page,
-// picking the running agent and the local Minecraft port to map. There is no
-// way around sending the user here once per server.
+// ever authenticate the daemon, they don't create a tunnel. Confirmed
+// directly with playit.gg's own support team (account-level API keys are
+// explicitly "not available for that purpose", even on paid plans) that
+// there is no way to create a tunnel except this dashboard page. This is
+// also why the app now uses one shared agent+tunnel for every hosted
+// server instead of one per server - the manual step only has to happen
+// once, ever, in exchange for only one server being able to run (and be
+// reachable through the tunnel) at a time.
 export const PLAYIT_NEW_TUNNEL_URL = 'https://playit.gg/account/setup/new-tunnel'
 
 async function ensureBinaryDownloaded(): Promise<string> {
@@ -69,27 +65,33 @@ async function ensureBinaryDownloaded(): Promise<string> {
   return dest
 }
 
-const runningTunnels = new Map<string, ChildProcess>()
-// Tracks which running tunnels have already had an address auto-assigned
-// this run - see the ADDRESS_PATTERN comment below for why a match is only
-// trusted once per run instead of every time the pattern re-fires.
-const addressLockedThisRun = new Set<string>()
+// One shared tunnel for the whole launcher (see appSettings.ts's
+// playitSecretKey/playitTunnelPort/playitTunnelAddress) rather than a
+// Map keyed by server - serverProcess.ts's startServer already refuses to
+// start a second hosted server while one is running, so at most one entry
+// here is ever meaningful; kept as a single slot (not a Map) so that
+// invariant is structural, not just enforced by convention elsewhere.
+let runningTunnel: { serverId: string; child: ChildProcess } | null = null
+// Tracks whether the running tunnel has already had an address
+// auto-assigned this run - see the ADDRESS_PATTERN comment below for why a
+// match is only trusted once per run instead of every time the pattern
+// re-fires.
+let addressLockedThisRun = false
 
 const CLAIM_URL_PATTERN = /https:\/\/playit\.gg\/claim\/[a-zA-Z0-9-]+/
 // The exact stdout shape for "here is your assigned public address" hasn't
-// been confirmed against a real run yet (see the plan's explicit note on
-// this) - matches a bare host:port anywhere in a log line as a best-effort
-// heuristic, alongside always showing the raw log so a missed match is
-// never silently hidden from the user. Because this is a free-text-log
-// heuristic (not a structured/machine-readable signal), a false positive is
-// worse than a false negative - playit's own reconnect/relay-handshake log
-// lines could plausibly reference the same *.playit.gg host:port shape.
-// Mitigated two ways: (1) only the FIRST match per tunnel run is trusted
-// (addressLockedThisRun) - a later match (e.g. from a reconnect message)
-// can't clobber an already-detected address; (2) an address the user
-// already saved (server.tunnelPublicAddress) is never silently overwritten
-// - the event still fires so the UI can show it as a suggestion, but the
-// disk write is skipped.
+// been confirmed against a real run yet - matches a bare host:port anywhere
+// in a log line as a best-effort heuristic, alongside always showing the
+// raw log so a missed match is never silently hidden from the user. Because
+// this is a free-text-log heuristic (not a structured/machine-readable
+// signal), a false positive is worse than a false negative - playit's own
+// reconnect/relay-handshake log lines could plausibly reference the same
+// *.playit.gg host:port shape. Mitigated two ways: (1) only the FIRST match
+// per tunnel run is trusted (addressLockedThisRun) - a later match (e.g.
+// from a reconnect message) can't clobber an already-detected address; (2)
+// an address the user already saved is never silently overwritten - the
+// event still fires so the UI can show it as a suggestion, but the disk
+// write is skipped.
 const ADDRESS_PATTERN = /\b([a-zA-Z0-9.-]+\.(?:joinmc\.link|playit\.gg):\d+)\b/
 
 // Buffers partial lines across 'data' events - spawn's data events don't
@@ -107,21 +109,25 @@ function makeLineBuffer(onLine: (line: string) => void): (chunk: Buffer) => void
 }
 
 export async function startTunnel(mainWindow: BrowserWindow, serverId: string, localPort: number): Promise<void> {
-  if (runningTunnels.has(serverId)) return
-  const server = getServer(serverId)
-  if (!server?.tunnelSecretKey) {
-    throw new Error(
-      `Bitte zuerst einen playit.gg-Secret-Key eintragen (über ${PLAYIT_WIZARD_URL} generieren).`
-    )
+  if (runningTunnel) return
+  const config = getPlayitTunnelConfig()
+  if (!config.secretKey) {
+    throw new Error(`Bitte zuerst einen playit.gg-Secret-Key eintragen (über ${PLAYIT_WIZARD_URL} generieren).`)
   }
   const bin = await ensureBinaryDownloaded()
 
-  const child = spawn(bin, ['--secret', server.tunnelSecretKey], { cwd: toolsDir() })
-  runningTunnels.set(serverId, child)
-  addressLockedThisRun.delete(serverId)
+  const child = spawn(bin, ['--secret', config.secretKey], { cwd: toolsDir() })
+  runningTunnel = { serverId, child }
+  addressLockedThisRun = false
 
   const send = (line: string): void => {
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send('tunnel:log', { serverId, line })
+  }
+
+  if (localPort !== config.localPort) {
+    send(
+      `[Warnung] Dieser Server läuft auf Port ${localPort}, der Tunnel ist aber auf Port ${config.localPort} eingerichtet - Freunde können den Server über den Tunnel nicht erreichen, solange die Ports nicht übereinstimmen.`
+    )
   }
 
   function handleLine(line: string): void {
@@ -132,14 +138,13 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
       mainWindow.webContents.send('tunnel:claimUrl', { serverId, url: claim[0] })
     }
     const address = ADDRESS_PATTERN.exec(line)
-    if (address && !addressLockedThisRun.has(serverId)) {
-      addressLockedThisRun.add(serverId)
-      const current = getServer(serverId)
+    if (address && !addressLockedThisRun) {
+      addressLockedThisRun = true
       // Never silently overwrite an address the user already has saved -
       // still notify the renderer so it can offer the newly-seen address,
       // but only auto-persist when there wasn't already one.
-      if (!current?.tunnelPublicAddress) {
-        updateServerSettings(serverId, { tunnelEnabled: true, tunnelPublicAddress: address[1] })
+      if (!getPlayitTunnelConfig().publicAddress) {
+        setPlayitTunnelAddress(address[1])
       }
       if (!mainWindow.isDestroyed()) {
         mainWindow.webContents.send('tunnel:addressAssigned', { serverId, address: address[1] })
@@ -150,8 +155,8 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
   child.stderr?.on('data', makeLineBuffer(handleLine))
 
   child.on('close', () => {
-    runningTunnels.delete(serverId)
-    addressLockedThisRun.delete(serverId)
+    runningTunnel = null
+    addressLockedThisRun = false
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('tunnel:closed', { serverId })
     }
@@ -159,51 +164,34 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
 
   child.on('error', (err) => {
     send(`[Fehler] playit.gg-Agent konnte nicht gestartet werden: ${err.message}`)
-    runningTunnels.delete(serverId)
-    addressLockedThisRun.delete(serverId)
+    runningTunnel = null
+    addressLockedThisRun = false
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('tunnel:closed', { serverId })
     }
   })
-
-  // localPort isn't passed as a CLI arg today - playit's own tunnel-to-port
-  // mapping is configured via its claimed dashboard, per the plan's open
-  // question about how much of this is CLI-automatable. Kept as a parameter
-  // (rather than dropped) since a confirmed CLI flag for it would only need
-  // adding to the spawn args above, not a signature change everywhere else.
-  void localPort
 }
 
-export function stopTunnel(serverId: string): void {
-  const child = runningTunnels.get(serverId)
-  if (!child) return
-  child.kill()
-  runningTunnels.delete(serverId)
+export function stopTunnel(): void {
+  if (!runningTunnel) return
+  runningTunnel.child.kill()
+  runningTunnel = null
 }
 
 export function isTunnelRunning(serverId: string): boolean {
-  return runningTunnels.has(serverId)
+  return runningTunnel?.serverId === serverId
 }
 
-export function claimTunnelUrl(url: string): void {
-  shell.openExternal(url)
-}
-
-export function setTunnelSecretKey(serverId: string, secretKey: string | null): void {
-  const trimmed = secretKey?.trim() || null
-  updateServerSettings(serverId, { tunnelSecretKey: trimmed, tunnelEnabled: trimmed !== null })
-}
-
-// Called from serverProcess.ts when a server with tunnelEnabled+
-// tunnelSecretKey starts, so the tunnel comes up automatically instead of
-// requiring a separate manual step in the Tunnel tab every time.
+// Called from serverProcess.ts when a server with tunnelEnabled starts, so
+// the shared tunnel comes up automatically instead of requiring a separate
+// manual step in the Tunnel tab every time.
 export async function autoStartTunnelIfConfigured(
   mainWindow: BrowserWindow,
   serverId: string,
   localPort: number
 ): Promise<void> {
   const server = getServer(serverId)
-  if (!server?.tunnelEnabled || !server.tunnelSecretKey) return
+  if (!server?.tunnelEnabled || !getPlayitTunnelConfig().secretKey) return
   try {
     await startTunnel(mainWindow, serverId, localPort)
   } catch (err) {
@@ -220,10 +208,6 @@ export function registerTunnelHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('tunnel:start', (_event, serverId: string, localPort: number) =>
     startTunnel(mainWindow, serverId, localPort)
   )
-  ipcMain.handle('tunnel:stop', (_event, serverId: string) => stopTunnel(serverId))
+  ipcMain.handle('tunnel:stop', () => stopTunnel())
   ipcMain.handle('tunnel:status', (_event, serverId: string) => isTunnelRunning(serverId))
-  ipcMain.handle('tunnel:openClaimUrl', (_event, url: string) => claimTunnelUrl(url))
-  ipcMain.handle('tunnel:setSecretKey', (_event, serverId: string, secretKey: string | null) =>
-    setTunnelSecretKey(serverId, secretKey)
-  )
 }

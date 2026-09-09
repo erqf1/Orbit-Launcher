@@ -34,15 +34,14 @@ export interface ServerInstance {
   eulaAccepted: boolean
   createdAt: string
   lastStarted: string | null
+  // playit.gg is one shared account-wide agent/tunnel (see appSettings.ts's
+  // playitSecretKey/playitTunnelPort/playitTunnelAddress), not a per-server
+  // setup - only one hosted server can be running at a time (enforced in
+  // serverProcess.ts's startServer) precisely so "whichever server is
+  // running" can unambiguously be the one thing behind that single tunnel.
+  // This flag just controls whether *this* server should trigger that
+  // shared tunnel to auto-start when it boots.
   tunnelEnabled: boolean
-  tunnelPublicAddress: string | null
-  // The playit.gg agent has no headless "print a claim URL" mode when run
-  // without a pre-existing secret (confirmed live - it just waits
-  // indefinitely for its own GUI companion app to provision one over IPC).
-  // The only real headless path is a secret key the user generates once
-  // themselves via playit.gg's web wizard and pastes in here - stored so
-  // the tunnel can be (re)started automatically without asking again.
-  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -52,8 +51,6 @@ export interface ServerSettingsPatch {
   jvmArgs?: string | null
   serverPort?: number
   tunnelEnabled?: boolean
-  tunnelPublicAddress?: string | null
-  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -161,9 +158,7 @@ export async function createServer(input: CreateServerInput): Promise<ServerInst
     eulaAccepted: !!input.acceptEula,
     createdAt: new Date().toISOString(),
     lastStarted: null,
-    tunnelEnabled: false,
-    tunnelPublicAddress: null,
-    tunnelSecretKey: null
+    tunnelEnabled: false
   }
 
   // Written inline rather than via serverProperties.ts's acceptEula() -

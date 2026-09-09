@@ -91,19 +91,31 @@ function ModsTab({ instance }: Props): React.JSX.Element {
     }
   }
 
+  // One failing update shouldn't abort the rest of the batch (a stale
+  // download URL for a single mod used to stop the whole "update all" run
+  // silently, leaving every mod after it in the iteration order untouched) -
+  // each is attempted independently and only successes are cleared from the
+  // pending list, mirroring PrismImportDialog's per-item failure handling.
   async function handleUpdateAll(): Promise<void> {
     setError(null)
     setUpdatingAll(true)
-    try {
-      for (const [filename, candidate] of updates) {
+    const failures: string[] = []
+    for (const [filename, candidate] of updates) {
+      try {
         await window.api.updateMod(instance.id, filename, candidate.file)
+        setUpdates((prev) => {
+          const next = new Map(prev)
+          next.delete(filename)
+          return next
+        })
+      } catch (err) {
+        failures.push(`${candidate.title}: ${err instanceof Error ? err.message : String(err)}`)
       }
-      setUpdates(new Map())
-      refreshInstalled()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setUpdatingAll(false)
+    }
+    refreshInstalled()
+    setUpdatingAll(false)
+    if (failures.length > 0) {
+      setError(t('mods.updateAllFailures', { count: failures.length, details: failures.join('\n') }))
     }
   }
 
@@ -428,6 +440,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
       {showModBrowser && (
         <ModBrowserDialog
           instance={instance}
+          installed={installed}
           onClose={() => setShowModBrowser(false)}
           onInstalled={refreshInstalled}
         />
