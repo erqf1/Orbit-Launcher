@@ -132,24 +132,32 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   void autoStartTunnelIfConfigured(mainWindow, id, server.serverPort)
 }
 
-// Sends the vanilla "stop" console command first, which triggers a graceful
-// world save - a real Minecraft server can take several seconds to actually
-// exit after that (flushing chunks to disk), so this waits before falling
-// back to a hard kill rather than risking corrupting an in-progress save by
-// being impatient. The 'close' handler above still fires either way and
-// cleans up runningServers.
+// "stop" already saves the world as part of its own shutdown sequence
+// (kick players -> save -> exit), but sending an explicit "save-all" first
+// gives that save a head start before stop's own sequence even begins -
+// belt-and-suspenders insurance for a large world: if the force-kill
+// timeout below ever has to fire because stop's graceful shutdown is
+// taking too long, chunks have already been flushing to disk for longer
+// than if save-all were never sent at all. A real Minecraft server can
+// take several seconds to actually exit after "stop" (flushing chunks to
+// disk), so this waits before falling back to a hard kill rather than
+// risking corrupting an in-progress save by being impatient. The 'close'
+// handler above still fires either way and cleans up runningServers.
 export function stopServer(id: string): void {
   const child = runningServers.get(id)
   if (!child) return
   if (child.stdin && !child.stdin.destroyed) {
-    child.stdin.write('stop\n')
+    child.stdin.write('save-all\n')
+    setTimeout(() => {
+      if (child.stdin && !child.stdin.destroyed) child.stdin.write('stop\n')
+    }, 1000)
   } else {
     child.kill()
     return
   }
   setTimeout(() => {
     if (runningServers.has(id)) child.kill()
-  }, 15000)
+  }, 16000)
 }
 
 export function sendServerCommand(id: string, command: string): void {
