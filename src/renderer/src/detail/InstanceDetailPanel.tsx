@@ -34,25 +34,21 @@ type TabKey =
   | 'advanced'
   | 'logs'
 
-const PRIMARY_TABS: Array<{ key: TabKey; label: string }> = [
-  { key: 'version', label: 'Version' },
-  { key: 'mods', label: 'Mods' },
-  { key: 'resourcepacks', label: 'Resource Packs' },
-  { key: 'shaderpacks', label: 'Shader Packs' },
-  { key: 'notes', label: 'Notizen' },
-  { key: 'worlds', label: 'Welten' },
-  { key: 'servers', label: 'Server' },
-  { key: 'screenshots', label: 'Screenshots' }
+const PRIMARY_TABS: TabKey[] = [
+  'version',
+  'mods',
+  'resourcepacks',
+  'shaderpacks',
+  'notes',
+  'worlds',
+  'servers',
+  'screenshots'
 ]
 
 // Grouped under one collapsible "Settings" entry instead of three flat
 // top-level tabs - these are the ones a user opens far less often than the
 // content tabs above, so folding them away by default keeps the nav short.
-const SETTINGS_TABS: Array<{ key: TabKey; label: string }> = [
-  { key: 'general', label: 'Allgemein' },
-  { key: 'advanced', label: 'Erweitert' },
-  { key: 'logs', label: 'Logs' }
-]
+const SETTINGS_TABS: TabKey[] = ['general', 'advanced', 'logs']
 
 function formatPlaytime(ms: number): string {
   const totalMinutes = Math.floor(ms / 60000)
@@ -63,6 +59,7 @@ function formatPlaytime(ms: number): string {
 }
 
 function NotesTab({ instance, onSaved }: { instance: Instance; onSaved: () => void }): React.JSX.Element {
+  const { t } = useLocale()
   const [notes, setNotes] = useState(instance.notes)
   const [saving, setSaving] = useState(false)
 
@@ -88,9 +85,9 @@ function NotesTab({ instance, onSaved }: { instance: Instance; onSaved: () => vo
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         onBlur={save}
-        placeholder="Notizen zu dieser Instanz…"
+        placeholder={t('notes.placeholder')}
       />
-      {saving && <p className="instance-meta">Speichere…</p>}
+      {saving && <p className="instance-meta">{t('notes.saving')}</p>}
     </div>
   )
 }
@@ -480,14 +477,31 @@ function AdvancedTab({
   )
 }
 
-// Only general/advanced have translation keys so far - TABS itself stays a
-// plain module-level constant (the rest of its labels are still German
-// literals), and this covers the two that are translated without needing
-// to move the whole array inside the component just for that.
-function tabLabel(t: ReturnType<typeof useLocale>['t'], tab: { key: TabKey; label: string }): string {
-  if (tab.key === 'general') return t('settings.general')
-  if (tab.key === 'advanced') return t('settings.advanced')
-  return tab.label
+function tabLabel(t: ReturnType<typeof useLocale>['t'], key: TabKey): string {
+  switch (key) {
+    case 'version':
+      return t('tabs.version')
+    case 'mods':
+      return t('tabs.mods')
+    case 'resourcepacks':
+      return t('tabs.resourcePacks')
+    case 'shaderpacks':
+      return t('tabs.shaderPacks')
+    case 'notes':
+      return t('tabs.notes')
+    case 'worlds':
+      return t('tabs.worlds')
+    case 'servers':
+      return t('tabs.servers')
+    case 'screenshots':
+      return t('tabs.screenshots')
+    case 'general':
+      return t('settings.general')
+    case 'advanced':
+      return t('settings.advanced')
+    case 'logs':
+      return t('tabs.logs')
+  }
 }
 
 function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }: Props): React.JSX.Element {
@@ -502,7 +516,7 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
   // yet), but cheap insurance against the active tab being hidden behind
   // a collapsed group if that ever changes.
   useEffect(() => {
-    if (SETTINGS_TABS.some((t) => t.key === tab)) setSettingsExpanded(true)
+    if (SETTINGS_TABS.some((key) => key === tab)) setSettingsExpanded(true)
   }, [tab])
 
   useEffect(() => {
@@ -531,9 +545,14 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
           <FileListTab
             instanceId={instance.id}
             subfolder="resourcepacks"
-            addLabel="Datei hinzufügen…"
-            emptyLabel="Keine Resource Packs installiert."
-            browse={{ instance, subfolder: 'resourcepacks', projectType: 'resourcepack', title: 'Resource Packs durchsuchen' }}
+            addLabel={t('content.addFileLabel')}
+            emptyLabel={t('resourcePacks.emptyLabel')}
+            browse={{
+              instance,
+              subfolder: 'resourcepacks',
+              projectType: 'resourcepack',
+              title: t('resourcePacks.browseTitle')
+            }}
           />
         )
       case 'shaderpacks':
@@ -541,9 +560,14 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
           <FileListTab
             instanceId={instance.id}
             subfolder="shaderpacks"
-            addLabel="Datei hinzufügen…"
-            emptyLabel="Keine Shader Packs installiert."
-            browse={{ instance, subfolder: 'shaderpacks', projectType: 'shader', title: 'Shader Packs durchsuchen' }}
+            addLabel={t('content.addFileLabel')}
+            emptyLabel={t('shaderPacks.emptyLabel')}
+            browse={{
+              instance,
+              subfolder: 'shaderpacks',
+              projectType: 'shader',
+              title: t('shaderPacks.browseTitle')
+            }}
           />
         )
       case 'notes':
@@ -583,20 +607,20 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
               }}
             />
           ) : (
-            <h2 onDoubleClick={() => setEditingName(true)} title="Doppelklick zum Umbenennen">
+            <h2 onDoubleClick={() => setEditingName(true)} title={t('detail.renameTooltip')}>
               {instance.name}
             </h2>
           )}
           <nav>
-            {PRIMARY_TABS.map((tabDef) => (
+            {PRIMARY_TABS.map((tabKey) => (
               <button
-                key={tabDef.key}
+                key={tabKey}
                 type="button"
-                className={`instance-detail-nav-item${tab === tabDef.key ? ' active' : ''}`}
-                onClick={() => setTab(tabDef.key)}
-                disabled={tabDef.key === 'mods' && instance.loader === 'vanilla'}
+                className={`instance-detail-nav-item${tab === tabKey ? ' active' : ''}`}
+                onClick={() => setTab(tabKey)}
+                disabled={tabKey === 'mods' && instance.loader === 'vanilla'}
               >
-                {tabLabel(t, tabDef)}
+                {tabLabel(t, tabKey)}
               </button>
             ))}
 
@@ -609,14 +633,14 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
               {t('common.settings')}
             </button>
             {settingsExpanded &&
-              SETTINGS_TABS.map((tabDef) => (
+              SETTINGS_TABS.map((tabKey) => (
                 <button
-                  key={tabDef.key}
+                  key={tabKey}
                   type="button"
-                  className={`instance-detail-nav-item instance-detail-nav-subitem${tab === tabDef.key ? ' active' : ''}`}
-                  onClick={() => setTab(tabDef.key)}
+                  className={`instance-detail-nav-item instance-detail-nav-subitem${tab === tabKey ? ' active' : ''}`}
+                  onClick={() => setTab(tabKey)}
                 >
-                  {tabLabel(t, tabDef)}
+                  {tabLabel(t, tabKey)}
                 </button>
               ))}
           </nav>
@@ -625,10 +649,10 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
             className="instance-detail-open-folder"
             onClick={() => window.api.openInstanceFolder(instance.id)}
           >
-            Instanzordner öffnen
+            {t('detail.openInstanceFolder')}
           </button>
           <button type="button" onClick={onClose}>
-            Schließen
+            {t('common.close')}
           </button>
         </div>
         <div className="instance-detail-content">{renderTab()}</div>

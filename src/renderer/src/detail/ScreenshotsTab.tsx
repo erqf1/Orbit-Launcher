@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { ContentFileEntry } from '../types'
 
 interface Props {
@@ -36,6 +37,7 @@ function ScreenshotThumb({
 // Screenshots come from the game itself (F2), so unlike resource/shader
 // packs there's no "add" affordance here - just browse, enlarge, copy, delete.
 function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [files, setFiles] = useState<ContentFileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +69,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
   }
 
   async function handleRemove(name: string): Promise<void> {
-    if (!window.confirm(`"${name}" wirklich löschen?`)) return
+    if (!window.confirm(t('content.confirmDelete', { name }))) return
     await window.api.removeContentFile(instanceId, 'screenshots', name)
     if (lightboxName === name) setLightboxName(null)
     refresh()
@@ -88,16 +90,16 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
     <div className="detail-tab">
       <div className="detail-tab-header">
         <button type="button" onClick={handleOpenFolder}>
-          Ordner öffnen
+          {t('common.openFolder')}
         </button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="instance-meta">Lade…</p>
+        <p className="instance-meta">{t('common.loading')}</p>
       ) : files.length === 0 ? (
-        <p className="instance-meta">Keine Screenshots vorhanden.</p>
+        <p className="instance-meta">{t('screenshots.empty')}</p>
       ) : (
         <div className="screenshot-grid">
           {files.map((f) => (
@@ -118,23 +120,23 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
                 alt={lightboxName}
                 className={zoomed ? 'zoomed' : ''}
                 onClick={() => setZoomed((z) => !z)}
-                title={zoomed ? 'Klicken zum Verkleinern' : 'Klicken zum Vergrößern'}
+                title={zoomed ? t('screenshots.clickToShrink') : t('screenshots.clickToEnlarge')}
               />
             ) : (
-              <p className="instance-meta">Lade…</p>
+              <p className="instance-meta">{t('common.loading')}</p>
             )}
             <div className="screenshot-lightbox-actions">
               <span className="screenshot-lightbox-name" title={lightboxName}>
                 {lightboxName}
               </span>
               <button type="button" onClick={handleCopy}>
-                {copied ? 'Kopiert!' : 'Kopieren'}
+                {copied ? t('screenshots.copied') : t('screenshots.copy')}
               </button>
               <button type="button" onClick={() => handleRemove(lightboxName)}>
-                Löschen
+                {t('common.delete')}
               </button>
               <button type="button" onClick={() => setLightboxName(null)}>
-                Schließen
+                {t('common.close')}
               </button>
             </div>
           </div>

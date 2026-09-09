@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import PrismImportDialog from './PrismImportDialog'
 import OfficialImportDialog from './OfficialImportDialog'
+import { useLocale } from './i18n'
 import type { LauncherOption } from './types'
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 // about "yes, that's installed here" - clicking one says so instead of
 // pretending to import.
 function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [launchers, setLaunchers] = useState<LauncherOption[] | null>(null)
   const [selected, setSelected] = useState<'prism' | 'official' | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -30,9 +32,7 @@ function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element 
 
   function handlePick(option: LauncherOption): void {
     if (!option.supported) {
-      setNotice(
-        `${option.label} wurde gefunden, aber der Import dafür ist noch nicht eingebaut - nur Prism Launcher und der offizielle Minecraft Launcher werden bisher unterstützt.`
-      )
+      setNotice(t('importPicker.notSupportedNotice', { label: option.label }))
       return
     }
     setNotice(null)
@@ -44,13 +44,13 @@ function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Instanz importieren</h2>
-        <p className="instance-meta">Woher sollen Instanzen importiert werden?</p>
+        <h2>{t('importPicker.title')}</h2>
+        <p className="instance-meta">{t('importPicker.subtitle')}</p>
 
         {launchers === null ? (
-          <p className="instance-meta">Suche installierte Launcher…</p>
+          <p className="instance-meta">{t('importPicker.searching')}</p>
         ) : detected.length === 0 ? (
-          <p className="instance-meta">Kein unterstützter Launcher automatisch gefunden.</p>
+          <p className="instance-meta">{t('importPicker.noneFound')}</p>
         ) : (
           <div className="launcher-picker-grid">
             {detected.map((option) => (
@@ -61,7 +61,7 @@ function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element 
                 onClick={() => handlePick(option)}
               >
                 {option.label}
-                {!option.supported && <span className="pill pill-disabled">Bald</span>}
+                {!option.supported && <span className="pill pill-disabled">{t('importPicker.comingSoon')}</span>}
               </button>
             ))}
           </div>
@@ -69,14 +69,14 @@ function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element 
 
         {notice && <p className="error">{notice}</p>}
 
-        <p className="settings-section-title">Andere</p>
+        <p className="settings-section-title">{t('importPicker.otherSectionTitle')}</p>
         <button type="button" onClick={() => setSelected('prism')}>
-          Ordner manuell auswählen…
+          {t('importPicker.chooseFolderManually')}
         </button>
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
         </div>
       </div>

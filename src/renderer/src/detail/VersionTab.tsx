@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import VersionLoaderFields from '../VersionLoaderFields'
+import { useLocale } from '../i18n'
 import type { Instance, LoaderType, ModMigrationResult } from '../types'
 
 interface Props {
@@ -17,6 +18,7 @@ const LOADER_LABELS: Record<LoaderType, string> = {
 }
 
 function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [changing, setChanging] = useState(false)
   const [mcVersion, setMcVersion] = useState(instance.mcVersion)
   const [loader, setLoader] = useState<LoaderType>(instance.loader)
@@ -52,7 +54,7 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
       onChanged()
 
       if (loader !== 'vanilla') {
-        setMigrationStatus('Suche passende Mod-Versionen für die neue Version…')
+        setMigrationStatus(t('version.migratingStatus'))
         const result = await window.api.migrateMods(instance.id, mcVersion, loader)
         setMigrationResult(result)
       }
@@ -69,7 +71,7 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
   return (
     <div className="detail-tab">
       <section className="settings-section">
-        <h4 className="settings-section-title">Aktuelle Version</h4>
+        <h4 className="settings-section-title">{t('version.currentVersionTitle')}</h4>
         <div className="instance-tags">
           <span className="pill pill-version">{instance.mcVersion}</span>
           {instance.loader !== 'vanilla' && (
@@ -79,19 +81,15 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
         </div>
         {!changing && (
           <button type="button" className="save-button" onClick={startChanging}>
-            Version ändern…
+            {t('version.changeVersion')}
           </button>
         )}
       </section>
 
       {changing && (
         <section className="settings-section">
-          <h4 className="settings-section-title">Neue Version wählen</h4>
-          <p className="instance-meta">
-            Ändert diese Instanz direkt (keine Kopie). Danach wird versucht, jeden installierten Mod für
-            die neue Version/den neuen Loader neu aufzulösen - Mods ohne passende Version werden dir
-            danach aufgelistet.
-          </p>
+          <h4 className="settings-section-title">{t('version.chooseNewVersionTitle')}</h4>
+          <p className="instance-meta">{t('version.changeDescription')}</p>
           <VersionLoaderFields
             mcVersion={mcVersion}
             onMcVersionChange={setMcVersion}
@@ -104,10 +102,10 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
           {error && <p className="error">{error}</p>}
           <div className="modal-actions">
             <button type="button" onClick={() => setChanging(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button type="button" className="save-button" onClick={handleApply} disabled={!canApply}>
-              {applying ? 'Wende an…' : 'Übernehmen'}
+              {applying ? t('version.applying') : t('version.apply')}
             </button>
           </div>
         </section>
@@ -121,11 +119,11 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
 
       {migrationResult && (
         <section className="settings-section">
-          <h4 className="settings-section-title">Mod-Migration</h4>
+          <h4 className="settings-section-title">{t('version.migrationTitle')}</h4>
           {migrationResult.migrated.length > 0 && (
             <>
               <p className="instance-meta">
-                {migrationResult.migrated.length} Mod(s) erfolgreich auf die neue Version aktualisiert:
+                {t('version.migratedCount', { count: migrationResult.migrated.length })}
               </p>
               <ul className="mod-list">
                 {migrationResult.migrated.map((m) => (
@@ -138,9 +136,7 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
           )}
           {migrationResult.failed.length > 0 && (
             <>
-              <p className="error">
-                {migrationResult.failed.length} Mod(s) konnten nicht übernommen werden - manuell prüfen:
-              </p>
+              <p className="error">{t('version.failedCount', { count: migrationResult.failed.length })}</p>
               <ul className="mod-list">
                 {migrationResult.failed.map((m) => (
                   <li key={m.oldFilename}>
@@ -152,7 +148,7 @@ function VersionTab({ instance, onChanged }: Props): React.JSX.Element {
             </>
           )}
           {migrationResult.migrated.length === 0 && migrationResult.failed.length === 0 && (
-            <p className="instance-meta">Keine aktivierten Mods zum Migrieren gefunden.</p>
+            <p className="instance-meta">{t('version.noModsToMigrate')}</p>
           )}
         </section>
       )}

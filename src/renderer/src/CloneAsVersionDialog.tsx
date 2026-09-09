@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import VersionLoaderFields from './VersionLoaderFields'
+import { useLocale } from './i18n'
+import type { TranslationKey } from './i18n/en'
 import type { CloneContentOptions, Instance, LoaderType } from './types'
 
 interface Props {
@@ -14,14 +16,14 @@ interface Props {
   ) => Promise<void>
 }
 
-const CONTENT_OPTION_LABELS: Array<{ key: keyof CloneContentOptions; label: string }> = [
-  { key: 'mods', label: 'Mods' },
-  { key: 'worlds', label: 'Welten' },
-  { key: 'resourcepacks', label: 'Resource Packs' },
-  { key: 'shaderpacks', label: 'Shader Packs' },
-  { key: 'screenshots', label: 'Screenshots' },
-  { key: 'servers', label: 'Server-Liste' },
-  { key: 'settings', label: 'Einstellungen (Speicher, Java, Fenster, Notizen)' }
+const CONTENT_OPTION_LABELS: Array<{ key: keyof CloneContentOptions; labelKey: TranslationKey }> = [
+  { key: 'mods', labelKey: 'cloneDialog.content.mods' },
+  { key: 'worlds', labelKey: 'cloneDialog.content.worlds' },
+  { key: 'resourcepacks', labelKey: 'cloneDialog.content.resourcepacks' },
+  { key: 'shaderpacks', labelKey: 'cloneDialog.content.shaderpacks' },
+  { key: 'screenshots', labelKey: 'cloneDialog.content.screenshots' },
+  { key: 'servers', labelKey: 'cloneDialog.content.servers' },
+  { key: 'settings', labelKey: 'cloneDialog.content.settings' }
 ]
 
 // The dialog always shows for every duplicate (not just version changes) -
@@ -30,6 +32,7 @@ const CONTENT_OPTION_LABELS: Array<{ key: keyof CloneContentOptions; label: stri
 // the version-migration flow instead. Either way the caller decides which
 // backend call to make based on whether those fields actually changed.
 function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [mcVersion, setMcVersion] = useState(instance.mcVersion)
   const [loader, setLoader] = useState<LoaderType>(instance.loader)
   const [loaderVersion, setLoaderVersion] = useState('')
@@ -69,11 +72,8 @@ function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-        <h2>"{instance.name}" duplizieren</h2>
-        <p className="instance-meta">
-          Standardmäßig wird die gleiche Version/Loader verwendet. Bei einer anderen Version wird der
-          Loader für die neue Instanz neu installiert.
-        </p>
+        <h2>{t('cloneDialog.title', { name: instance.name })}</h2>
+        <p className="instance-meta">{t('cloneDialog.description')}</p>
 
         <VersionLoaderFields
           mcVersion={mcVersion}
@@ -85,11 +85,11 @@ function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX
           onError={setError}
         />
 
-        <div className="settings-section-title">Was übernommen werden soll</div>
-        {CONTENT_OPTION_LABELS.map(({ key, label }) => (
+        <div className="settings-section-title">{t('cloneDialog.contentSectionTitle')}</div>
+        {CONTENT_OPTION_LABELS.map(({ key, labelKey }) => (
           <label className="checkbox-label" key={key}>
             <input type="checkbox" checked={content[key]} onChange={() => toggleContent(key)} />
-            {label}
+            {t(labelKey)}
           </label>
         ))}
 
@@ -97,10 +97,10 @@ function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Dupliziere…' : 'Duplizieren'}
+            {submitting ? t('cloneDialog.duplicating') : t('cloneDialog.submit')}
           </button>
         </div>
       </form>

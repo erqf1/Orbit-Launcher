@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ModBrowserDialog from './ModBrowserDialog'
+import { useLocale } from '../i18n'
 import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult, UpdateCandidate } from '../types'
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 function ModsTab({ instance }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [installed, setInstalled] = useState<InstalledMod[]>([])
   const [installedSearch, setInstalledSearch] = useState('')
   const [showModBrowser, setShowModBrowser] = useState(false)
@@ -39,7 +41,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
     const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
     const best = versions[0]
     if (!best) {
-      throw new Error('Keine passende Version für diese Minecraft-Version/diesen Loader gefunden.')
+      throw new Error(t('mods.noMatchingVersion'))
     }
     await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
     if (best.requiredDependencyProjectIds.length === 0) return []
@@ -182,7 +184,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
       refreshInstalled()
       if (extraDeps.size > 0) {
         const names = [...extraDeps.values()].map((d) => d.title).join(', ')
-        if (window.confirm(`Zusätzlich benötigt: ${names}. Jetzt mitinstallieren?`)) {
+        if (window.confirm(t('mods.extraDepsConfirm', { names }))) {
           for (const dep of extraDeps.values()) await installOne(dep.projectId)
           refreshInstalled()
         }
@@ -211,20 +213,20 @@ function ModsTab({ instance }: Props): React.JSX.Element {
       <div className="mods-tab-columns">
       <section className="mods-installed-section">
         <div className="mod-section-header">
-          <h3>Installiert ({installed.length})</h3>
+          <h3>{t('mods.installedHeading', { count: installed.length })}</h3>
           <div className="detail-row-actions">
             {updates.size > 0 && (
               <button type="button" className="save-button" onClick={handleUpdateAll} disabled={updatingAll}>
-                {updatingAll ? 'Aktualisiere…' : `Alle aktualisieren (${updates.size})`}
+                {updatingAll ? t('mods.updating') : t('mods.updateAll', { count: updates.size })}
               </button>
             )}
             <button type="button" onClick={handleCheckUpdates} disabled={checkingUpdates || installed.length === 0}>
-              {checkingUpdates ? 'Suche…' : 'Nach Updates suchen'}
+              {checkingUpdates ? t('mods.checkingUpdates') : t('mods.checkUpdates')}
             </button>
           </div>
         </div>
         {installed.length === 0 ? (
-          <p className="instance-meta">Keine Mods installiert.</p>
+          <p className="instance-meta">{t('mods.empty')}</p>
         ) : (
           <>
             {installed.length > 6 && (
@@ -232,11 +234,11 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                 className="mod-browser-search-input"
                 value={installedSearch}
                 onChange={(e) => setInstalledSearch(e.target.value)}
-                placeholder="Mods durchsuchen…"
+                placeholder={t('mods.searchInstalledPlaceholder')}
               />
             )}
             {visibleInstalled.length === 0 ? (
-              <p className="instance-meta">Keine Treffer.</p>
+              <p className="instance-meta">{t('common.noResults')}</p>
             ) : (
               <ul className="mod-list mods-installed-list">
                 {visibleInstalled.map((mod) => (
@@ -253,10 +255,10 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                     </span>
                     <span className="mod-row-end">
                       {mod.versionNumber && <span className="pill pill-version">V{mod.versionNumber}</span>}
-                      {!mod.enabled && <span className="pill pill-disabled">Deaktiviert</span>}
+                      {!mod.enabled && <span className="pill pill-disabled">{t('mods.disabledPill')}</span>}
                       {updates.has(mod.filename) && (
                         <span className="pill pill-update">
-                          Update: V{updates.get(mod.filename)!.newVersionNumber}
+                          {t('mods.updatePill', { version: updates.get(mod.filename)!.newVersionNumber })}
                         </span>
                       )}
                       <span className="detail-row-actions">
@@ -267,14 +269,14 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                             onClick={() => handleUpdateOne(mod.filename)}
                             disabled={updatingFilename === mod.filename || updatingAll}
                           >
-                            {updatingFilename === mod.filename ? 'Aktualisiere…' : 'Aktualisieren'}
+                            {updatingFilename === mod.filename ? t('mods.updating') : t('mods.updateOne')}
                           </button>
                         )}
                         <button type="button" onClick={() => handleToggle(mod.filename)}>
-                          {mod.enabled ? 'Deaktivieren' : 'Aktivieren'}
+                          {mod.enabled ? t('mods.disable') : t('mods.enable')}
                         </button>
                         <button type="button" onClick={() => handleRemove(mod.filename)}>
-                          Entfernen
+                          {t('mods.remove')}
                         </button>
                       </span>
                     </span>
@@ -287,35 +289,35 @@ function ModsTab({ instance }: Props): React.JSX.Element {
       </section>
 
       <section className="mods-add-section">
-        <h3>Mods hinzufügen</h3>
+        <h3>{t('mods.addSectionTitle')}</h3>
 
         <div className="mods-add-source">
           <button type="button" className="save-button" onClick={() => setShowModBrowser(true)}>
-            Modrinth durchsuchen…
+            {t('mods.browseModrinth')}
           </button>
         </div>
 
         <div className="mods-add-subsection">
           <div className="mod-section-header">
-            <h4>Empfohlene Mods</h4>
+            <h4>{t('mods.recommendedTitle')}</h4>
             <button type="button" onClick={toggleCuratedSection}>
-              {showCurated ? '▲ Verbergen' : '▼ Anzeigen'}
+              {showCurated ? t('mods.hide') : t('mods.show')}
             </button>
           </div>
 
           {showCurated &&
             (loadingCurated ? (
-              <p className="instance-meta">Lade Empfehlungen…</p>
+              <p className="instance-meta">{t('mods.loadingRecommended')}</p>
             ) : (
               <>
                 <div className="mod-section-header">
-                  <p className="instance-meta">{selectableCurated.length} verfügbar</p>
+                  <p className="instance-meta">{t('mods.availableCount', { count: selectableCurated.length })}</p>
                   <button
                     type="button"
                     onClick={toggleSelectAllCurated}
                     disabled={selectableCurated.length === 0}
                   >
-                    {allCuratedSelected ? 'Alle abwählen' : 'Alle auswählen'}
+                    {allCuratedSelected ? t('mods.deselectAll') : t('mods.selectAll')}
                   </button>
                 </div>
                 {Object.entries(curatedByCategory).map(([category, mods]) => (
@@ -343,9 +345,9 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                               )}
                               <span className="mod-name-block">
                                 <span className="mod-title">{mod.title}</span>
-                                {!mod.compatible && <span className="pill pill-disabled">Nicht kompatibel</span>}
+                                {!mod.compatible && <span className="pill pill-disabled">{t('mods.incompatiblePill')}</span>}
                                 {mod.compatible && installed.some((m) => m.filename.includes(mod.slug)) && (
-                                  <span className="pill pill-version">Installiert</span>
+                                  <span className="pill pill-version">{t('mods.installedPill')}</span>
                                 )}
                               </span>
                             </span>
@@ -361,64 +363,58 @@ function ModsTab({ instance }: Props): React.JSX.Element {
                   onClick={handleInstallSelected}
                   disabled={selectedCurated.size === 0 || installingBatch}
                 >
-                  {installingBatch ? 'Installiere…' : `Ausgewählte installieren (${selectedCurated.size})`}
+                  {installingBatch ? t('mods.installing') : t('mods.installSelected', { count: selectedCurated.size })}
                 </button>
               </>
             ))}
         </div>
 
         <div className="mods-add-subsection">
-          <h4>Manuell Mods hinzufügen</h4>
-          <p className="instance-meta">
-            Prüft eine heruntergeladene .jar-Datei (z.B. von Discord) gegen Modrinths bekannte Dateien -
-            nützlich, um zu sehen, ob eine dir zugeschickte Mod wirklich das ist, was sie zu sein
-            vorgibt.
-          </p>
+          <h4>{t('mods.manualAddTitle')}</h4>
+          <p className="instance-meta">{t('mods.manualCheckDescription')}</p>
           <button type="button" onClick={handlePickFileToCheck} disabled={checking}>
-            {checking ? 'Prüfe…' : 'Datei auswählen…'}
+            {checking ? t('mods.checking') : t('mods.chooseFile')}
           </button>
 
           {checkResult && (
             <div className="mod-check-result">
               {checkResult.status === 'verified' && (
                 <p className="mod-check-ok">
-                  Bestätigt: Das ist <strong>{checkResult.matchedProject?.title ?? checkResult.filename}</strong>
-                  {checkResult.matchedVersionNumber ? `, Version ${checkResult.matchedVersionNumber}` : ''} -
-                  identisch mit der offiziellen Modrinth-Datei.
+                  {t('mods.verifiedPrefix')} <strong>{checkResult.matchedProject?.title ?? checkResult.filename}</strong>
+                  {checkResult.matchedVersionNumber
+                    ? t('mods.verifiedVersionSuffix', { version: checkResult.matchedVersionNumber })
+                    : ''}{' '}
+                  {t('mods.verifiedSuffix')}
                 </p>
               )}
               {checkResult.status === 'nameMismatch' && checkResult.matchedProject && (
                 <p className="error">
-                  Warnung: Diese Datei ist tatsächlich <strong>{checkResult.matchedProject.title}</strong>
-                  {checkResult.matchedVersionNumber ? ` (${checkResult.matchedVersionNumber})` : ''}
+                  {t('mods.mismatchPrefix')} <strong>{checkResult.matchedProject.title}</strong>
+                  {checkResult.matchedVersionNumber
+                    ? t('mods.mismatchVersionSuffix', { version: checkResult.matchedVersionNumber })
+                    : ''}
                   {checkResult.claimedProject
-                    ? `, nicht ${checkResult.claimedProject.title} wie der Dateiname suggeriert.`
-                    : ', nicht was der Dateiname suggeriert.'}
+                    ? t('mods.mismatchClaimedSuffix', { claimedTitle: checkResult.claimedProject.title })
+                    : t('mods.mismatchGenericSuffix')}
                 </p>
               )}
               {checkResult.status === 'nameMismatch' && !checkResult.matchedProject && (
                 <p className="error">
-                  Warnung: Der Dateiname deutet auf <strong>{checkResult.claimedProject?.title}</strong> hin,
-                  aber diese Datei stimmt mit keiner offiziellen Version davon überein - möglicherweise
-                  verändert oder gefälscht.
+                  {t('mods.claimedMismatchPrefix')} <strong>{checkResult.claimedProject?.title}</strong>{' '}
+                  {t('mods.claimedMismatchSuffix')}
                 </p>
               )}
-              {checkResult.status === 'unrecognized' && (
-                <p className="error">
-                  Warnung: Diese Datei wurde nicht auf Modrinth gefunden. Das kann eine legitime Mod
-                  sein, die nicht über Modrinth vertrieben wird - trotzdem Vorsicht walten lassen.
-                </p>
-              )}
+              {checkResult.status === 'unrecognized' && <p className="error">{t('mods.unrecognizedWarning')}</p>}
               <div className="modal-actions">
                 <button type="button" onClick={() => setCheckResult(null)}>
-                  Verwerfen
+                  {t('mods.discard')}
                 </button>
                 <button type="button" onClick={handleInstallChecked} disabled={installingChecked}>
                   {installingChecked
-                    ? 'Installiere…'
+                    ? t('mods.installing')
                     : checkResult.status === 'verified'
-                      ? 'Installieren'
-                      : 'Trotzdem installieren'}
+                      ? t('mods.install')
+                      : t('mods.installAnyway')}
                 </button>
               </div>
             </div>

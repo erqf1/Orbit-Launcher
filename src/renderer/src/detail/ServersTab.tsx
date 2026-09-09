@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { Instance, ServerEntry } from '../types'
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [servers, setServers] = useState<ServerEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,14 +61,14 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
     <div className="detail-tab mods-tab">
       <div className="mods-tab-columns">
         <section className="mods-installed-section">
-          <h3>{servers.length} Server</h3>
+          <h3>{t('servers.heading', { count: servers.length })}</h3>
 
           {error && <p className="error">{error}</p>}
 
           {loading ? (
-            <p className="instance-meta">Lade…</p>
+            <p className="instance-meta">{t('common.loading')}</p>
           ) : servers.length === 0 ? (
-            <p className="instance-meta">Keine Server in der Liste.</p>
+            <p className="instance-meta">{t('servers.empty')}</p>
           ) : (
             <ul className="mod-list mods-installed-list">
               {servers.map((s, i) => {
@@ -83,13 +85,13 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
                     </span>
                     <span className="mod-row-end">
                       <span className="pill pill-version">{s.ip}</span>
-                      {isAutoJoin && <span className="pill pill-version">Automatisch beitreten</span>}
+                      {isAutoJoin && <span className="pill pill-version">{t('servers.autoJoin')}</span>}
                       <span className="detail-row-actions">
                         <button type="button" onClick={() => handleToggleAutoJoin(s.ip)}>
-                          {isAutoJoin ? 'Automatisch entfernen' : 'Automatisch beitreten'}
+                          {isAutoJoin ? t('servers.removeAutoJoin') : t('servers.autoJoin')}
                         </button>
                         <button type="button" onClick={() => handleRemove(i, s.ip)}>
-                          Entfernen
+                          {t('servers.remove')}
                         </button>
                       </span>
                     </span>
@@ -101,12 +103,12 @@ function ServersTab({ instance, onChanged }: Props): React.JSX.Element {
         </section>
 
         <section className="mods-add-section">
-          <h3>Hinzufügen</h3>
+          <h3>{t('common.add')}</h3>
           <form className="mods-add-subsection" onSubmit={handleAdd}>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-            <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="Serveradresse" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('servers.namePlaceholder')} />
+            <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder={t('servers.addressPlaceholder')} />
             <button type="submit" className="save-button" disabled={!name.trim() || !ip.trim()}>
-              Hinzufügen
+              {t('common.add')}
             </button>
           </form>
         </section>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { LogFileEntry } from '../types'
 
 interface Props {
@@ -6,6 +7,7 @@ interface Props {
 }
 
 function LogsTab({ instanceId }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [files, setFiles] = useState<LogFileEntry[]>([])
   const [selected, setSelected] = useState<LogFileEntry | null>(null)
   const [content, setContent] = useState('')
@@ -41,9 +43,9 @@ function LogsTab({ instanceId }: Props): React.JSX.Element {
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="instance-meta">Lade…</p>
+        <p className="instance-meta">{t('common.loading')}</p>
       ) : files.length === 0 ? (
-        <p className="instance-meta">Keine Logs oder Absturzberichte vorhanden.</p>
+        <p className="instance-meta">{t('logs.empty')}</p>
       ) : (
         <>
           <select
@@ -53,7 +55,7 @@ function LogsTab({ instanceId }: Props): React.JSX.Element {
               if (found) open(found)
             }}
           >
-            <option value="">Datei wählen…</option>
+            <option value="">{t('logs.chooseFile')}</option>
             {files.map((f) => (
               <option key={`${f.folder}/${f.name}`} value={`${f.folder}/${f.name}`}>
                 {f.folder}/{f.name}

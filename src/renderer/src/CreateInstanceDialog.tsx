@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import VersionLoaderFields from './VersionLoaderFields'
+import { useLocale } from './i18n'
 import type { LoaderType } from './types'
 
 interface Props {
@@ -18,7 +19,8 @@ interface Props {
 }
 
 function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): React.JSX.Element {
-  const [name, setName] = useState('Neue Instanz')
+  const { t } = useLocale()
+  const [name, setName] = useState(t('createInstance.defaultName'))
   const [mcVersion, setMcVersion] = useState(presetVersion ?? '')
   const [loader, setLoader] = useState<LoaderType>('vanilla')
   const [loaderVersion, setLoaderVersion] = useState('')
@@ -53,10 +55,10 @@ function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): Rea
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-        <h2>Neue Instanz</h2>
+        <h2>{t('createInstance.title')}</h2>
 
         <label>
-          Name
+          {t('createInstance.name')}
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
 
@@ -78,7 +80,7 @@ function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): Rea
               checked={installRecommendedMods}
               onChange={(e) => setInstallRecommendedMods(e.target.checked)}
             />
-            Empfohlene Mods installieren (Performance + Komfort)
+            {t('createInstance.installRecommendedMods')}
           </label>
         )}
 
@@ -86,10 +88,10 @@ function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): Rea
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="submit" disabled={!canSubmit}>
-            {submitting ? 'Erstelle…' : 'Erstellen'}
+            {submitting ? t('createInstance.creating') : t('common.create')}
           </button>
         </div>
       </form>

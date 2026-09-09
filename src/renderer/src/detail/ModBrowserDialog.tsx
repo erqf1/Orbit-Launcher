@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { Instance, ModSearchResult } from '../types'
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 // room to browse properly, and searches live as you type instead of waiting
 // for Enter - debounced so fast typing doesn't fire a request per keystroke.
 function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ModSearchResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -44,7 +46,7 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
     const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
     const best = versions[0]
     if (!best) {
-      throw new Error('Keine passende Version für diese Minecraft-Version/diesen Loader gefunden.')
+      throw new Error(t('mods.noMatchingVersion'))
     }
     await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
     if (best.requiredDependencyProjectIds.length === 0) return []
@@ -59,7 +61,7 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
       onInstalled()
       if (deps.length > 0) {
         const names = deps.map((d) => d.title).join(', ')
-        if (window.confirm(`Benötigt außerdem: ${names}. Jetzt mitinstallieren?`)) {
+        if (window.confirm(t('mods.dependenciesConfirm', { names }))) {
           for (const dep of deps) await installOne(dep.projectId)
           onInstalled()
         }
@@ -75,9 +77,9 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal mod-browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="mod-browser-header">
-          <h2>Modrinth durchsuchen</h2>
+          <h2>{t('mods.browseDialogTitle')}</h2>
           <button type="button" onClick={onClose}>
-            Schließen
+            {t('common.close')}
           </button>
         </div>
 
@@ -85,17 +87,17 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
           className="mod-browser-search-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Mod-Name eingeben…"
+          placeholder={t('mods.searchPlaceholder')}
           autoFocus
         />
 
         {error && <p className="error">{error}</p>}
 
-        <p className="mod-browser-results-label">{query.trim() ? 'Suchergebnisse' : 'Top Mods'}</p>
+        <p className="mod-browser-results-label">{query.trim() ? t('mods.searchResultsLabel') : t('mods.topModsLabel')}</p>
 
         <ul className="mod-list mod-browser-results">
-          {searching && results.length === 0 && <li className="mod-browser-hint">Suche…</li>}
-          {!searching && results.length === 0 && <li className="mod-browser-hint">Keine Treffer.</li>}
+          {searching && results.length === 0 && <li className="mod-browser-hint">{t('mods.searching')}</li>}
+          {!searching && results.length === 0 && <li className="mod-browser-hint">{t('common.noResults')}</li>}
           {results.map((hit) => (
             <li key={hit.projectId}>
               <span className="mod-row">
@@ -113,7 +115,7 @@ function ModBrowserDialog({ instance, onClose, onInstalled }: Props): React.JSX.
                 onClick={() => handleInstall(hit.projectId)}
                 disabled={installingId === hit.projectId}
               >
-                {installingId === hit.projectId ? 'Installiere…' : 'Installieren'}
+                {installingId === hit.projectId ? t('mods.installing') : t('mods.install')}
               </button>
             </li>
           ))}

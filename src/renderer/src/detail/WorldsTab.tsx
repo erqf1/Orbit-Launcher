@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { INTL_LOCALE, useLocale } from '../i18n'
 import type { WorldEntry } from '../types'
 
 interface Props {
@@ -11,6 +12,7 @@ function formatSize(bytes: number): string {
 }
 
 function WorldsTab({ instanceId }: Props): React.JSX.Element {
+  const { t, locale } = useLocale()
   const [worlds, setWorlds] = useState<WorldEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +33,7 @@ function WorldsTab({ instanceId }: Props): React.JSX.Element {
   }, [refresh])
 
   async function handleDelete(name: string): Promise<void> {
-    if (!window.confirm(`Welt "${name}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return
+    if (!window.confirm(t('worlds.confirmDelete', { name }))) return
     await window.api.deleteWorld(instanceId, name)
     refresh()
   }
@@ -48,16 +50,16 @@ function WorldsTab({ instanceId }: Props): React.JSX.Element {
     <div className="detail-tab">
       <div className="detail-tab-header">
         <button type="button" onClick={() => window.api.openWorldsFolder(instanceId)}>
-          Ordner öffnen
+          {t('common.openFolder')}
         </button>
       </div>
 
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="instance-meta">Lade…</p>
+        <p className="instance-meta">{t('common.loading')}</p>
       ) : worlds.length === 0 ? (
-        <p className="instance-meta">Keine gespeicherten Welten.</p>
+        <p className="instance-meta">{t('worlds.empty')}</p>
       ) : (
         <ul className="mod-list">
           {worlds.map((w) => (
@@ -76,8 +78,11 @@ function WorldsTab({ instanceId }: Props): React.JSX.Element {
                 />
               ) : (
                 <span>
-                  {w.folderName} · {formatSize(w.sizeBytes)} · zuletzt gespielt{' '}
-                  {new Date(w.lastPlayed).toLocaleString('de-DE')}
+                  {t('worlds.rowInfo', {
+                    folderName: w.folderName,
+                    size: formatSize(w.sizeBytes),
+                    date: new Date(w.lastPlayed).toLocaleString(INTL_LOCALE[locale])
+                  })}
                 </span>
               )}
               <span className="detail-row-actions">
@@ -88,10 +93,10 @@ function WorldsTab({ instanceId }: Props): React.JSX.Element {
                     setRenameDraft(w.folderName)
                   }}
                 >
-                  Umbenennen
+                  {t('worlds.rename')}
                 </button>
                 <button type="button" onClick={() => handleDelete(w.folderName)}>
-                  Löschen
+                  {t('common.delete')}
                 </button>
               </span>
             </li>

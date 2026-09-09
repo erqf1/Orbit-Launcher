@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocale } from './i18n'
 import type { PrismInstanceSummary } from './types'
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 }
 
 function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [root, setRoot] = useState<string | undefined>(undefined)
   const [instances, setInstances] = useState<PrismInstanceSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,7 +69,13 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
     setImporting(false)
     if (successCount > 0) onImported()
     if (failures.length > 0) {
-      setError(`${failures.length} von ${selected.size} fehlgeschlagen:\n${failures.join('\n')}`)
+      setError(
+        t('prismImport.failuresSummary', {
+          count: failures.length,
+          total: selected.size,
+          details: failures.join('\n')
+        })
+      )
     } else {
       onCancel()
     }
@@ -80,24 +88,18 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h2>Instanzen von Prism Launcher importieren</h2>
-        <p className="instance-meta">
-          Mods, Welten und Konfiguration werden übernommen. Forge/NeoForge-Instanzen können noch nicht
-          importiert werden.
-        </p>
+        <h2>{t('prismImport.title')}</h2>
+        <p className="instance-meta">{t('prismImport.description')}</p>
 
         <button type="button" onClick={handleBrowse}>
-          Anderen Ordner wählen…
+          {t('importDialog.chooseOtherFolder')}
         </button>
-        {root && <p className="instance-meta">Ordner: {root}</p>}
+        {root && <p className="instance-meta">{t('importDialog.folderLabel', { path: root })}</p>}
 
         {loading ? (
-          <p className="instance-meta">Suche Prism-Instanzen…</p>
+          <p className="instance-meta">{t('prismImport.searching')}</p>
         ) : instances.length === 0 ? (
-          <p className="instance-meta">
-            Keine Prism-Instanzen gefunden. Falls Prism an einem anderen Ort installiert ist, wähle den
-            Ordner manuell.
-          </p>
+          <p className="instance-meta">{t('prismImport.noneFound')}</p>
         ) : (
           <ul className="mod-list">
             {instances.map((instance) => {
@@ -114,7 +116,7 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
                     {instance.name}
                     {instance.mcVersion && ` (${instance.mcVersion}${instance.loader !== 'vanilla' && instance.loader !== 'unsupported' ? ` · ${instance.loader}` : ''})`}
                     {instance.unsupportedReason && ` — ${instance.unsupportedReason}`}
-                    {!instance.mcVersion && !instance.unsupportedReason && ' — Version unbekannt'}
+                    {!instance.mcVersion && !instance.unsupportedReason && t('prismImport.versionUnknown')}
                   </label>
                 </li>
               )
@@ -126,10 +128,10 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button type="button" onClick={handleImport} disabled={importableCount === 0 || importing}>
-            {importing ? 'Importiere…' : `Importieren (${importableCount})`}
+            {importing ? t('importDialog.importing') : t('prismImport.importButton', { count: importableCount })}
           </button>
         </div>
       </div>

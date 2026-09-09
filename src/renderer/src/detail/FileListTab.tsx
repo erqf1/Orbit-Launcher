@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import ContentBrowserDialog from './ContentBrowserDialog'
+import { useLocale } from '../i18n'
 import type { EnrichedContentFile, Instance, UpdateCandidate } from '../types'
 
 interface BrowseConfig {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [files, setFiles] = useState<EnrichedContentFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
   }
 
   async function handleRemove(name: string): Promise<void> {
-    if (!window.confirm(`"${name}" wirklich löschen?`)) return
+    if (!window.confirm(t('content.confirmDelete', { name }))) return
     await window.api.removeContentFile(instanceId, subfolder, name)
     refresh()
   }
@@ -134,13 +136,13 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
         <section className="mods-installed-section">
           <div className="mod-section-header">
             <h3>
-              {files.length} {files.length === 1 ? 'Datei' : 'Dateien'}
+              {files.length} {files.length === 1 ? t('content.fileSingular') : t('content.filePlural')}
             </h3>
             {browse && (
               <div className="detail-row-actions">
                 {updates.size > 0 && (
                   <button type="button" className="save-button" onClick={handleUpdateAll} disabled={updatingAll}>
-                    {updatingAll ? 'Aktualisiere…' : `Alle aktualisieren (${updates.size})`}
+                    {updatingAll ? t('content.updating') : t('content.updateAll', { count: updates.size })}
                   </button>
                 )}
                 <button
@@ -148,7 +150,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                   onClick={handleCheckUpdates}
                   disabled={checkingUpdates || files.length === 0}
                 >
-                  {checkingUpdates ? 'Suche…' : 'Nach Updates suchen'}
+                  {checkingUpdates ? t('content.searching') : t('content.checkUpdates')}
                 </button>
               </div>
             )}
@@ -157,7 +159,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
           {error && <p className="error">{error}</p>}
 
           {loading ? (
-            <p className="instance-meta">Lade…</p>
+            <p className="instance-meta">{t('common.loading')}</p>
           ) : files.length === 0 ? (
             <p className="instance-meta">{emptyLabel}</p>
           ) : (
@@ -191,7 +193,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                   <span className="mod-row-end">
                     {f.versionNumber && <span className="pill pill-version">V{f.versionNumber}</span>}
                     {updates.has(f.name) && (
-                      <span className="pill pill-update">Update: V{updates.get(f.name)!.newVersionNumber}</span>
+                      <span className="pill pill-update">{t('mods.updatePill', { version: updates.get(f.name)!.newVersionNumber })}</span>
                     )}
                     <span className="detail-row-actions">
                       {updates.has(f.name) && (
@@ -201,14 +203,14 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
                           onClick={() => handleUpdateOne(f.name)}
                           disabled={updatingName === f.name || updatingAll}
                         >
-                          {updatingName === f.name ? 'Aktualisiere…' : 'Aktualisieren'}
+                          {updatingName === f.name ? t('content.updating') : t('content.updateOne')}
                         </button>
                       )}
                       <button type="button" onClick={() => startRename(f.name)}>
-                        Umbenennen
+                        {t('content.rename')}
                       </button>
                       <button type="button" onClick={() => handleRemove(f.name)}>
-                        Löschen
+                        {t('common.delete')}
                       </button>
                     </span>
                   </span>
@@ -219,11 +221,11 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
         </section>
 
         <section className="mods-add-section">
-          <h3>Hinzufügen</h3>
+          <h3>{t('common.add')}</h3>
           {browse && (
             <div className="mods-add-source">
               <button type="button" className="save-button" onClick={() => setShowBrowser(true)}>
-                Modrinth durchsuchen…
+                {t('mods.browseModrinth')}
               </button>
             </div>
           )}
@@ -232,7 +234,7 @@ function FileListTab({ instanceId, subfolder, addLabel, emptyLabel, browse }: Pr
               {addLabel}
             </button>
             <button type="button" onClick={handleOpenFolder}>
-              Ordner öffnen
+              {t('common.openFolder')}
             </button>
           </div>
         </section>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocale } from '../i18n'
 import type { Instance, ModSearchResult } from '../types'
 
 interface Props {
@@ -22,6 +23,7 @@ function ContentBrowserDialog({
   onClose,
   onInstalled
 }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ModSearchResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -53,7 +55,7 @@ function ContentBrowserDialog({
     setInstallingId(projectId)
     try {
       const file = await window.api.getBestContentVersion(projectId, instance.mcVersion)
-      if (!file) throw new Error('Keine passende Version für diese Minecraft-Version gefunden.')
+      if (!file) throw new Error(t('content.noMatchingVersion'))
       await window.api.installContentFileFromUrl(instance.id, subfolder, file)
       onInstalled()
     } catch (err) {
@@ -69,7 +71,7 @@ function ContentBrowserDialog({
         <div className="mod-browser-header">
           <h2>{title}</h2>
           <button type="button" onClick={onClose}>
-            Schließen
+            {t('common.close')}
           </button>
         </div>
 
@@ -77,17 +79,17 @@ function ContentBrowserDialog({
           className="mod-browser-search-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Name eingeben…"
+          placeholder={t('content.searchPlaceholder')}
           autoFocus
         />
 
         {error && <p className="error">{error}</p>}
 
-        <p className="mod-browser-results-label">{query.trim() ? 'Suchergebnisse' : 'Top Auswahl'}</p>
+        <p className="mod-browser-results-label">{query.trim() ? t('content.searchResultsLabel') : t('content.topPicksLabel')}</p>
 
         <ul className="mod-list mod-browser-results">
-          {searching && results.length === 0 && <li className="mod-browser-hint">Suche…</li>}
-          {!searching && results.length === 0 && <li className="mod-browser-hint">Keine Treffer.</li>}
+          {searching && results.length === 0 && <li className="mod-browser-hint">{t('content.searching')}</li>}
+          {!searching && results.length === 0 && <li className="mod-browser-hint">{t('common.noResults')}</li>}
           {results.map((hit) => (
             <li key={hit.projectId}>
               <span className="mod-row">
@@ -105,7 +107,7 @@ function ContentBrowserDialog({
                 onClick={() => handleInstall(hit.projectId)}
                 disabled={installingId === hit.projectId}
               >
-                {installingId === hit.projectId ? 'Installiere…' : 'Installieren'}
+                {installingId === hit.projectId ? t('content.installing') : t('content.install')}
               </button>
             </li>
           ))}
