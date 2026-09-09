@@ -16,6 +16,7 @@
     "dist:linux-portable": "npm run build && electron-builder --linux tar.gz"
   },
   "dependencies": {
+    "adm-zip": "^0.6.0",
     "graceful-fs": "^4.2.11",
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5",
@@ -24,6 +25,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/graceful-fs": "^4.1.9",
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",

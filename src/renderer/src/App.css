@@ -248,6 +248,14 @@ button {
   font-weight: 700;
 }
 
+.main-view-switch {
+  margin-bottom: 12px;
+}
+
+.main-view-switch button {
+  flex: 1;
+}
+
 .instance-grid.view-list .new-instance-card {
   min-height: unset;
   padding: 10px 12px;
@@ -886,6 +894,10 @@ button:not(:disabled):active {
   --cover-a: #f0803f;
   --cover-b: #7a2f0e;
 }
+.instance-cover.loader-paper {
+  --cover-a: #4f8fe0;
+  --cover-b: #1e3a68;
+}
 
 .instance-card-body {
   display: flex;
@@ -960,6 +972,10 @@ button:not(:disabled):active {
 .pill-neoforge {
   background: rgba(240, 128, 63, 0.2);
   color: #ffb886;
+}
+.pill-paper {
+  background: rgba(79, 143, 224, 0.2);
+  color: #a9cdf7;
 }
 
 .instance-meta {
@@ -1697,6 +1713,16 @@ button:not(:disabled):active {
   font-family: var(--font-mono);
   font-size: 12px;
   color: #c9d1d9;
+}
+
+.server-console-command-row {
+  display: flex;
+  gap: 8px;
+}
+
+.server-console-command-row input {
+  flex: 1;
+  font-family: var(--font-mono);
 }
 
 .launch-panel {

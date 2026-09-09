@@ -73,6 +73,51 @@ export async function listLoaderVersions(
   return entries.map((entry) => ({ version: entry.loader.version, stable: entry.loader.stable }))
 }
 
+interface FabricLikeInstallerEntry {
+  url: string
+  maven: string
+  version: string
+  stable: boolean
+}
+
+// The installer version is only needed to build the server-jar download URL
+// (/versions/loader/<mc>/<loader>/<installer>/server/jar) - the client path
+// never needed one, since installFabricLikeProfile only writes a version
+// profile for MCLC to merge itself. Always takes the newest stable release;
+// there's no reason a server install would want an unstable installer.
+export async function getStableInstallerVersion(metaBaseUrl: string): Promise<string> {
+  const res = await fetch(`${metaBaseUrl}/versions/installer`)
+  if (!res.ok) {
+    throw new Error(`Installer-Versionsliste konnte nicht geladen werden (HTTP ${res.status}).`)
+  }
+  const entries = (await res.json()) as FabricLikeInstallerEntry[]
+  const stable = entries.find((e) => e.stable) ?? entries[0]
+  if (!stable) throw new Error('Keine Installer-Version gefunden.')
+  return stable.version
+}
+
+// Unlike the client path, Fabric's server endpoint hands back one complete,
+// directly-launchable fat jar - no version-profile-json merging with MCLC's
+// own vanilla library download needed, since the server never goes through
+// MCLC at all (it's launched via plain child_process.spawn).
+export async function downloadFabricLikeServerJar(
+  metaBaseUrl: string,
+  destDir: string,
+  mcVersion: string,
+  loaderVersion: string,
+  installerVersion: string
+): Promise<string> {
+  const url = `${metaBaseUrl}/versions/loader/${encodeURIComponent(mcVersion)}/${encodeURIComponent(loaderVersion)}/${encodeURIComponent(installerVersion)}/server/jar`
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Server-Jar konnte nicht geladen werden (HTTP ${res.status}).`)
+  }
+  mkdirSync(destDir, { recursive: true })
+  const dest = join(destDir, 'server.jar')
+  writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
+  return dest
+}
+
 // Writes the loader's ready-to-launch version profile (a Mojang-version-json
 // shaped file with its own mainClass + libraries) to <instanceRoot>/versions/<id>/<id>.json,
 // matching exactly where MCLC's `version.custom` option expects to find it.

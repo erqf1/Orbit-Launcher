@@ -232,3 +232,95 @@ export interface LogFileEntry {
   sizeBytes: number
   modifiedAt: string
 }
+
+// --- Server hosting (Vanilla/Fabric/Paper) - see preload/index.ts's own
+// comment: a fundamentally different concept from a client Instance.
+export type ServerLoaderType = 'vanilla' | 'fabric' | 'paper'
+
+export interface ServerInstance {
+  id: string
+  name: string
+  mcVersion: string
+  loader: ServerLoaderType
+  fabricLoaderVersion: string | null
+  fabricInstallerVersion: string | null
+  paperBuildId: number | null
+  memoryMin: string
+  memoryMax: string
+  javaPath: string | null
+  jvmArgs: string | null
+  serverPort: number
+  eulaAccepted: boolean
+  createdAt: string
+  lastStarted: string | null
+  tunnelEnabled: boolean
+  tunnelPublicAddress: string | null
+}
+
+export interface ServerSettingsPatch {
+  memoryMin?: string
+  memoryMax?: string
+  javaPath?: string | null
+  jvmArgs?: string | null
+  serverPort?: number
+  tunnelEnabled?: boolean
+  tunnelPublicAddress?: string | null
+}
+
+export interface CreateServerInput {
+  name: string
+  mcVersion: string
+  loader: ServerLoaderType
+  fabricLoaderVersion?: string
+  paperBuildId?: number
+}
+
+export interface PaperBuildSummary {
+  id: number
+  time: string
+  channel: string
+}
+
+export interface ServerLogEvent {
+  serverId: string
+  line: string
+}
+
+export interface ServerClosedEvent {
+  serverId: string
+  code: number
+}
+
+export interface InstalledPlugin {
+  filename: string
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
+export interface FriendsModEntry {
+  filename: string
+  title: string
+  environment: string
+  resolved: boolean
+  suggestedInclude: boolean
+}
+
+export interface TunnelLogEvent {
+  serverId: string
+  line: string
+}
+
+export interface TunnelClaimUrlEvent {
+  serverId: string
+  url: string
+}
+
+export interface TunnelAddressAssignedEvent {
+  serverId: string
+  address: string
+}
+
+export interface TunnelClosedEvent {
+  serverId: string
+}

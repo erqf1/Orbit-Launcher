@@ -266,6 +266,101 @@ export interface LogFileEntry {
   modifiedAt: string
 }
 
+// --- Server hosting (Vanilla/Fabric/Paper) - a fundamentally different
+// concept from an Instance (a client game install): a ServerInstance is a
+// headless java process this app spawns, streams console output for, and
+// can send commands to. Kept fully separate rather than folded into
+// Instance/LoaderType, which are both client-only concepts.
+export type ServerLoaderType = 'vanilla' | 'fabric' | 'paper'
+
+export interface ServerInstance {
+  id: string
+  name: string
+  mcVersion: string
+  loader: ServerLoaderType
+  fabricLoaderVersion: string | null
+  fabricInstallerVersion: string | null
+  paperBuildId: number | null
+  memoryMin: string
+  memoryMax: string
+  javaPath: string | null
+  jvmArgs: string | null
+  serverPort: number
+  eulaAccepted: boolean
+  createdAt: string
+  lastStarted: string | null
+  tunnelEnabled: boolean
+  tunnelPublicAddress: string | null
+}
+
+export interface ServerSettingsPatch {
+  memoryMin?: string
+  memoryMax?: string
+  javaPath?: string | null
+  jvmArgs?: string | null
+  serverPort?: number
+  tunnelEnabled?: boolean
+  tunnelPublicAddress?: string | null
+}
+
+export interface CreateServerInput {
+  name: string
+  mcVersion: string
+  loader: ServerLoaderType
+  fabricLoaderVersion?: string
+  paperBuildId?: number
+}
+
+export interface PaperBuildSummary {
+  id: number
+  time: string
+  channel: string
+}
+
+export interface ServerLogEvent {
+  serverId: string
+  line: string
+}
+
+export interface ServerClosedEvent {
+  serverId: string
+  code: number
+}
+
+export interface InstalledPlugin {
+  filename: string
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
+export interface FriendsModEntry {
+  filename: string
+  title: string
+  environment: string
+  resolved: boolean
+  suggestedInclude: boolean
+}
+
+export interface TunnelLogEvent {
+  serverId: string
+  line: string
+}
+
+export interface TunnelClaimUrlEvent {
+  serverId: string
+  url: string
+}
+
+export interface TunnelAddressAssignedEvent {
+  serverId: string
+  address: string
+}
+
+export interface TunnelClosedEvent {
+  serverId: string
+}
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -426,7 +521,66 @@ const api = {
   onProgress: (callback: (event: LaunchProgressEvent) => void): (() => void) =>
     onEvent('launch:progress', callback),
   onClosed: (callback: (event: LaunchClosedEvent) => void): (() => void) =>
-    onEvent('launch:closed', callback)
+    onEvent('launch:closed', callback),
+
+  listHostedServers: (): Promise<ServerInstance[]> => ipcRenderer.invoke('servers:hostList'),
+  createHostedServer: (input: CreateServerInput): Promise<ServerInstance> =>
+    ipcRenderer.invoke('servers:hostCreate', input),
+  renameHostedServer: (id: string, name: string): Promise<ServerInstance> =>
+    ipcRenderer.invoke('servers:hostRename', id, name),
+  deleteHostedServer: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostDelete', id),
+  updateHostedServerSettings: (id: string, patch: ServerSettingsPatch): Promise<ServerInstance> =>
+    ipcRenderer.invoke('servers:hostUpdateSettings', id, patch),
+  openHostedServerFolder: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostOpenFolder', id),
+  listPaperVersions: (): Promise<string[]> => ipcRenderer.invoke('servers:hostListPaperVersions'),
+  listPaperBuilds: (mcVersion: string): Promise<PaperBuildSummary[]> =>
+    ipcRenderer.invoke('servers:hostListPaperBuilds', mcVersion),
+
+  startHostedServer: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostStart', id),
+  stopHostedServer: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostStop', id),
+  sendHostedServerCommand: (id: string, command: string): Promise<void> =>
+    ipcRenderer.invoke('servers:hostSendCommand', id, command),
+  isHostedServerRunning: (id: string): Promise<boolean> => ipcRenderer.invoke('servers:hostIsRunning', id),
+
+  readServerProperties: (id: string): Promise<Record<string, string>> =>
+    ipcRenderer.invoke('servers:hostPropertiesRead', id),
+  writeServerProperties: (id: string, patch: Record<string, string>): Promise<void> =>
+    ipcRenderer.invoke('servers:hostPropertiesWrite', id, patch),
+  acceptServerEula: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostEulaAccept', id),
+  getServerEulaStatus: (id: string): Promise<boolean> => ipcRenderer.invoke('servers:hostEulaStatus', id),
+
+  searchPlugins: (query: string, mcVersion: string): Promise<ModSearchResult[]> =>
+    ipcRenderer.invoke('plugins:search', query, mcVersion),
+  listPluginVersions: (projectId: string, mcVersion: string): Promise<ModVersionSummary[]> =>
+    ipcRenderer.invoke('plugins:versions', projectId, mcVersion),
+  installPlugin: (serverId: string, file: ModFileRef): Promise<void> =>
+    ipcRenderer.invoke('plugins:install', serverId, file),
+  listInstalledPlugins: (serverId: string): Promise<InstalledPlugin[]> =>
+    ipcRenderer.invoke('plugins:list', serverId),
+  removePlugin: (serverId: string, filename: string): Promise<void> =>
+    ipcRenderer.invoke('plugins:remove', serverId, filename),
+
+  scanFriendsMods: (serverId: string): Promise<FriendsModEntry[]> =>
+    ipcRenderer.invoke('friendsMods:scan', serverId),
+  exportFriendsMods: (serverId: string, selectedFilenames: string[]): Promise<string | null> =>
+    ipcRenderer.invoke('friendsMods:export', serverId, selectedFilenames),
+
+  startTunnel: (serverId: string, localPort: number): Promise<void> =>
+    ipcRenderer.invoke('tunnel:start', serverId, localPort),
+  stopTunnel: (serverId: string): Promise<void> => ipcRenderer.invoke('tunnel:stop', serverId),
+  getTunnelStatus: (serverId: string): Promise<boolean> => ipcRenderer.invoke('tunnel:status', serverId),
+  openTunnelClaimUrl: (url: string): Promise<void> => ipcRenderer.invoke('tunnel:openClaimUrl', url),
+
+  onServerLog: (callback: (event: ServerLogEvent) => void): (() => void) => onEvent('server:log', callback),
+  onServerClosed: (callback: (event: ServerClosedEvent) => void): (() => void) =>
+    onEvent('server:closed', callback),
+  onTunnelLog: (callback: (event: TunnelLogEvent) => void): (() => void) => onEvent('tunnel:log', callback),
+  onTunnelClaimUrl: (callback: (event: TunnelClaimUrlEvent) => void): (() => void) =>
+    onEvent('tunnel:claimUrl', callback),
+  onTunnelAddressAssigned: (callback: (event: TunnelAddressAssignedEvent) => void): (() => void) =>
+    onEvent('tunnel:addressAssigned', callback),
+  onTunnelClosed: (callback: (event: TunnelClosedEvent) => void): (() => void) =>
+    onEvent('tunnel:closed', callback)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -6,8 +6,11 @@ import InstanceDetailPanel from './detail/InstanceDetailPanel'
 import ImportPickerDialog from './ImportPickerDialog'
 import AccountSwitcher from './AccountSwitcher'
 import LanguageSwitcher from './LanguageSwitcher'
+import ServerHostCard from './ServerHostCard'
+import CreateServerDialog from './CreateServerDialog'
+import ServerHostDetailPanel from './detail/ServerHostDetailPanel'
 import { useLocale } from './i18n'
-import type { CloneContentOptions, Instance, LoaderType } from './types'
+import type { CloneContentOptions, Instance, LoaderType, ServerInstance, ServerLoaderType } from './types'
 import logo from './assets/logo.png'
 import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
@@ -22,6 +25,7 @@ interface Account {
 
 type SortMode = 'name' | 'lastPlayed' | 'created'
 type Filter = { type: 'all' } | { type: 'version'; value: string } | { type: 'group'; value: string }
+type MainView = 'instances' | 'serverHosting'
 
 const VIEW_MODE_KEY = 'erqf.viewMode'
 const SORT_MODE_KEY = 'erqf.sortMode'
@@ -97,6 +101,11 @@ function App(): React.JSX.Element {
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [instances, setInstances] = useState<Instance[]>([])
   const [launches, setLaunches] = useState<Record<string, LaunchSession>>({})
+  const [mainView, setMainView] = useState<MainView>('instances')
+  const [servers, setServers] = useState<ServerInstance[]>([])
+  const [runningServerIds, setRunningServerIds] = useState<Record<string, boolean>>({})
+  const [showCreateServer, setShowCreateServer] = useState(false)
+  const [detailServerId, setDetailServerId] = useState<string | null>(null)
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null)
@@ -133,6 +142,37 @@ function App(): React.JSX.Element {
 
   const refreshInstances = useCallback(() => {
     window.api.listInstances().then(setInstances)
+  }, [])
+
+  // Guards against a stale isHostedServerRunning poll response clobbering a
+  // more recent, event-driven update: bumped on every new poll AND every
+  // push event, so a poll whose in-flight requests were superseded by
+  // either simply discards its own (now-outdated) result instead of
+  // overwriting runningServerIds with it.
+  const runningPollEpochRef = useRef(0)
+
+  const refreshServers = useCallback(() => {
+    window.api.listHostedServers().then(async (list) => {
+      setServers(list)
+      const epoch = ++runningPollEpochRef.current
+      const entries = await Promise.all(
+        list.map(async (s) => [s.id, await window.api.isHostedServerRunning(s.id)] as const)
+      )
+      if (epoch !== runningPollEpochRef.current) return
+      setRunningServerIds(Object.fromEntries(entries))
+    })
+  }, [])
+
+  useEffect(() => {
+    refreshServers()
+  }, [refreshServers])
+
+  useEffect(() => {
+    const off = window.api.onServerClosed(({ serverId }) => {
+      runningPollEpochRef.current++
+      setRunningServerIds((prev) => ({ ...prev, [serverId]: false }))
+    })
+    return off
   }, [])
 
   useEffect(() => {
@@ -353,6 +393,44 @@ function App(): React.JSX.Element {
     refreshInstances()
   }
 
+  async function handleCreateServer(
+    name: string,
+    mcVersion: string,
+    loader: ServerLoaderType,
+    fabricLoaderVersion: string | undefined,
+    paperBuildId: number | undefined
+  ): Promise<void> {
+    await window.api.createHostedServer({ name, mcVersion, loader, fabricLoaderVersion, paperBuildId })
+    setShowCreateServer(false)
+    refreshServers()
+  }
+
+  async function handleRenameServer(id: string, name: string): Promise<void> {
+    try {
+      await window.api.renameHostedServer(id, name)
+      refreshServers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleDeleteServer(id: string): Promise<void> {
+    const server = servers.find((s) => s.id === id)
+    const label = server ? server.name : t('serverHost.thisServer')
+    if (runningServerIds[id]) {
+      setError(t('serverHost.deleteWhileRunning', { name: label }))
+      return
+    }
+    const sure = window.confirm(t('serverHost.confirmDelete', { name: label }))
+    if (!sure) return
+    try {
+      await window.api.deleteHostedServer(id)
+      refreshServers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   async function handleToggleFavorite(id: string): Promise<void> {
     const instance = instances.find((i) => i.id === id)
     if (!instance) return
@@ -432,6 +510,7 @@ function App(): React.JSX.Element {
   }, [bgIndex, customBackgrounds])
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
+  const detailServer = servers.find((s) => s.id === detailServerId) ?? null
   const cloneAsVersionInstance = instances.find((i) => i.id === cloneAsVersionInstanceId) ?? null
   const runningEntries = Object.entries(launches)
   const selectedLaunch = selectedInstanceId ? launches[selectedInstanceId] : undefined
@@ -477,6 +556,31 @@ function App(): React.JSX.Element {
           <h1>Orbit Launcher</h1>
         </div>
 
+        <div className="view-mode-switch main-view-switch">
+          <button
+            type="button"
+            className={mainView === 'instances' ? 'active' : ''}
+            onClick={() => {
+              setMainView('instances')
+              setError(null)
+            }}
+          >
+            {t('nav.instancesView')}
+          </button>
+          <button
+            type="button"
+            className={mainView === 'serverHosting' ? 'active' : ''}
+            onClick={() => {
+              setMainView('serverHosting')
+              setError(null)
+            }}
+          >
+            {t('nav.serverHostingView')}
+          </button>
+        </div>
+
+        {mainView === 'instances' && (
+        <>
         <nav>
           <button
             type="button"
@@ -528,12 +632,16 @@ function App(): React.JSX.Element {
           <option value="lastPlayed">{t('sort.lastPlayed')}</option>
           <option value="created">{t('sort.created')}</option>
         </select>
+        </>
+        )}
 
         <div className="main-sidebar-footer">
           <LanguageSwitcher />
+          {mainView === 'instances' && (
           <button type="button" onClick={() => setShowImportPicker(true)}>
             Instanz importieren…
           </button>
+          )}
           {accounts.length === 0 ? (
             <button className="primary-button" onClick={handleLogin} disabled={loggingIn}>
               {loggingIn ? 'Anmeldung läuft…' : 'Mit Microsoft anmelden'}
@@ -554,6 +662,8 @@ function App(): React.JSX.Element {
       </aside>
 
       <div className="app-main">
+        {mainView === 'instances' && (
+        <>
         <div className="app-main-header">
           <h2>{filterLabel}</h2>
           <div className="view-mode-switch">
@@ -634,6 +744,35 @@ function App(): React.JSX.Element {
             <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
           </div>
         )}
+        </>
+        )}
+
+        {mainView === 'serverHosting' && (
+          <>
+            <div className="app-main-header">
+              <h2>{t('nav.serverHostingView')}</h2>
+            </div>
+
+            {error && <p className="error">{error}</p>}
+
+            <div className="instance-grid view-grid">
+              {servers.map((server) => (
+                <ServerHostCard
+                  key={server.id}
+                  server={server}
+                  isRunning={!!runningServerIds[server.id]}
+                  onManage={setDetailServerId}
+                  onRename={handleRenameServer}
+                  onDelete={handleDeleteServer}
+                />
+              ))}
+
+              <button className="instance-card new-instance-card" onClick={() => setShowCreateServer(true)}>
+                {t('serverHost.new')}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {showCreate && (
@@ -646,6 +785,18 @@ function App(): React.JSX.Element {
 
       {showImportPicker && (
         <ImportPickerDialog onCancel={() => setShowImportPicker(false)} onImported={refreshInstances} />
+      )}
+
+      {showCreateServer && (
+        <CreateServerDialog onCancel={() => setShowCreateServer(false)} onCreate={handleCreateServer} />
+      )}
+
+      {detailServer && (
+        <ServerHostDetailPanel
+          server={detailServer}
+          onClose={() => setDetailServerId(null)}
+          onServerChanged={refreshServers}
+        />
       )}
 
       {detailInstance && (

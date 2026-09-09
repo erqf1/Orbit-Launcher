@@ -41,8 +41,10 @@ async function ensureJavaDpiAware(javaPath: string): Promise<void> {
 // instance.javaPath is null for "use the system default", in which case
 // MCLC itself just spawns the bare `java` command - resolved here too since
 // the DPI-aware flag has to target java's actual absolute exe path, not the
-// word "java".
-async function resolveJavaPath(explicitPath: string | null): Promise<string> {
+// word "java". Exported for reuse by server hosting (serverProcess.ts),
+// which spawns java directly via child_process rather than through MCLC and
+// needs the same resolution logic.
+export async function resolveJavaPath(explicitPath: string | null): Promise<string> {
   if (explicitPath) return explicitPath
   if (process.platform !== 'win32') return 'java'
   try {

@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameS
 import { createHash } from 'crypto'
 import { basename, join } from 'path'
 import { getInstanceRoot } from '../instances/instanceManager'
+import { getServerRoot } from '../servers/serverManager'
 import { refocusMainWindow } from '../windowFocus'
 
 const MODRINTH_API = 'https://api.modrinth.com/v2'
@@ -63,7 +64,7 @@ export interface ModMigrationResult {
   failed: Array<{ oldFilename: string; title: string | null; reason: string }>
 }
 
-function assertSafeFilename(filename: string): void {
+export function assertSafeFilename(filename: string): void {
   if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
     throw new Error('Ungültiger Dateiname.')
   }
@@ -125,6 +126,62 @@ export async function searchContent(
   if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
   const data = (await res.json()) as { hits: ModrinthSearchHit[] }
   return data.hits.map(mapSearchHit)
+}
+
+// Paper implements the Bukkit API and legitimately runs plain Bukkit/Spigot
+// -tagged plugins too, so this deliberately does NOT add a
+// `categories:paper` facet on top of `project_type:plugin` - doing so would
+// wrongly hide plugins that never bothered tagging "paper" specifically
+// alongside "bukkit"/"spigot". Modrinth's search hit's own `project_type`
+// field is a known-misleading value here (confirmed live: a real plugin hit
+// reports `"project_type":"mod"`, with `all_project_types` containing
+// "plugin" being the actual signal) - callers that need to double-check a
+// specific hit should look at `allProjectTypes`, not `projectType`.
+export async function searchPlugins(query: string, mcVersion: string): Promise<ModSearchResult[]> {
+  const facets = [['project_type:plugin'], [`versions:${mcVersion}`]]
+  const index = query.trim() ? '' : '&index=downloads'
+  const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=20${index}&facets=${encodeURIComponent(JSON.stringify(facets))}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Modrinth-Suche fehlgeschlagen (HTTP ${res.status}).`)
+  const data = (await res.json()) as { hits: ModrinthSearchHit[] }
+  return data.hits.map(mapSearchHit)
+}
+
+export async function listPluginVersions(projectId: string, mcVersion: string): Promise<ModVersionSummary[]> {
+  return listModVersions(projectId, mcVersion, 'vanilla')
+}
+
+export async function installPluginFile(serverId: string, file: ModFileRef): Promise<void> {
+  assertSafeFilename(file.filename)
+  const pluginsDir = join(getServerRoot(serverId), 'plugins')
+  mkdirSync(pluginsDir, { recursive: true })
+
+  const res = await fetch(file.url)
+  if (!res.ok) throw new Error(`Plugin-Download fehlgeschlagen (HTTP ${res.status}).`)
+  writeFileSync(join(pluginsDir, file.filename), Buffer.from(await res.arrayBuffer()))
+}
+
+export interface InstalledPlugin {
+  filename: string
+  title: string | null
+  versionNumber: string | null
+  iconUrl: string | null
+}
+
+export async function listInstalledPlugins(serverId: string): Promise<InstalledPlugin[]> {
+  const pluginsDir = join(getServerRoot(serverId), 'plugins')
+  if (!existsSync(pluginsDir)) return []
+  const files = readdirSync(pluginsDir).filter((f) => f.toLowerCase().endsWith('.jar'))
+  return mapWithConcurrency(files, 8, async (filename) => {
+    const info = await resolveModInfo(join(pluginsDir, filename), filename)
+    return { filename, ...info }
+  })
+}
+
+export function removePlugin(serverId: string, filename: string): void {
+  assertSafeFilename(filename)
+  const target = join(getServerRoot(serverId), 'plugins', filename)
+  if (existsSync(target)) rmSync(target)
 }
 
 export async function listContentVersions(projectId: string, mcVersion: string): Promise<ModFileRef | null> {
@@ -277,6 +334,70 @@ export async function checkFileForUpdate(
     currentVersionNumber: current.version_number,
     newVersionNumber: latest.versionNumber,
     file: { url: latest.url, filename: latest.filename }
+  }
+}
+
+export interface ResolvedModEnvironment {
+  projectId: string
+  versionId: string
+  title: string
+  // Modrinth's per-version environment string (e.g. "client_only",
+  // "server_only", "client_or_server_prefers_both") - read directly off the
+  // version_file sha1 lookup response, confirmed live to already carry this
+  // field (no separate getProjectInfo round-trip needed, unlike
+  // checkFileForUpdate/resolveModInfo above, which never read it).
+  environment: string
+  sha1: string
+  sha512: string
+  fileSize: number
+  downloadUrl: string
+  filename: string
+}
+
+// Used by friendsMods.ts to classify each of a Fabric server's installed
+// mods as client-required or server-only, and to gather everything a
+// .mrpack's files[] entry needs (hashes/size/url) in one lookup rather than
+// the checkFileForUpdate/resolveModInfo pair's separate concerns.
+export async function resolveModEnvironment(filePath: string): Promise<ResolvedModEnvironment | null> {
+  let sha1: string
+  try {
+    sha1 = createHash('sha1').update(readFileSync(filePath)).digest('hex')
+  } catch {
+    return null
+  }
+  const res = await fetch(`${MODRINTH_API}/version_file/${sha1}?algorithm=sha1`)
+  if (!res.ok) return null
+  const version = (await res.json()) as {
+    id: string
+    project_id: string
+    version_number: string
+    environment?: string
+    files: Array<{
+      url: string
+      filename: string
+      primary: boolean
+      size: number
+      hashes: { sha1: string; sha512: string }
+    }>
+  }
+  const file = version.files.find((f) => f.primary) ?? version.files[0]
+  if (!file) return null
+
+  const project = await getProjectInfo(version.project_id).catch(() => null)
+  return {
+    projectId: version.project_id,
+    versionId: version.id,
+    title: project?.title ?? version.version_number,
+    // Modrinth's docs list "unknown" as a possible value too, alongside
+    // client_only/server_only/client_or_server_prefers_both etc - treated
+    // the same as any other non-server-only value by friendsMods.ts's
+    // classification (default to *include*, see that file's comment).
+    environment: version.environment ?? 'unknown',
+    sha1: file.hashes.sha1,
+    sha512: file.hashes.sha512,
+    fileSize: file.size,
+    downloadUrl: file.url,
+    filename: file.filename
   }
 }
 
@@ -659,5 +780,16 @@ export function registerModHandlers(): void {
   )
   ipcMain.handle('content:bestVersion', (_event, projectId: string, mcVersion: string) =>
     listContentVersions(projectId, mcVersion)
+  )
+  ipcMain.handle('plugins:search', (_event, query: string, mcVersion: string) => searchPlugins(query, mcVersion))
+  ipcMain.handle('plugins:versions', (_event, projectId: string, mcVersion: string) =>
+    listPluginVersions(projectId, mcVersion)
+  )
+  ipcMain.handle('plugins:install', (_event, serverId: string, file: ModFileRef) =>
+    installPluginFile(serverId, file)
+  )
+  ipcMain.handle('plugins:list', (_event, serverId: string) => listInstalledPlugins(serverId))
+  ipcMain.handle('plugins:remove', (_event, serverId: string, filename: string) =>
+    removePlugin(serverId, filename)
   )
 }
