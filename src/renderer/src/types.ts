@@ -311,12 +311,25 @@ export interface InstalledPlugin {
   iconUrl: string | null
 }
 
+export type ModServerCompat = 'clientAndServer' | 'clientOnly' | 'serverOnly'
+
 export interface FriendsModEntry {
   filename: string
   title: string
   environment: string
+  compat: ModServerCompat
   resolved: boolean
   suggestedInclude: boolean
+}
+
+export interface ImportModsFromInstanceResult {
+  imported: string[]
+  skippedClientOnly: string[]
+}
+
+export interface ModpackInstallResult {
+  installed: string[]
+  failed: string[]
 }
 
 export interface TunnelLogEvent {

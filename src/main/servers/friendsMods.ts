@@ -1,12 +1,16 @@
 import { ipcMain, dialog } from 'electron'
-import { existsSync, mkdirSync, readdirSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import { dirname, join } from 'path'
 import AdmZip from 'adm-zip'
 import { getServerRoot, getServer } from './serverManager'
+import { getInstanceRoot } from '../instances/instanceManager'
 import {
   resolveModEnvironment,
   mapWithConcurrency,
   assertSafeFilename,
+  classifyModEnvironment,
+  canRunOnServer,
+  type ModServerCompat,
   type ResolvedModEnvironment
 } from '../mods/modrinth'
 import { refocusMainWindow } from '../windowFocus'
@@ -15,16 +19,15 @@ export interface FriendsModEntry {
   filename: string
   title: string
   environment: string
+  compat: ModServerCompat
   // false for a jar Modrinth couldn't identify at all by hash - still
   // included in the export (bundled directly, see buildMrpack), just
   // without Modrinth-hosted download metadata.
   resolved: boolean
   // The default checkbox state buildMrpack's caller should show pre-ticked
-  // - true unless the environment string unambiguously says server-only.
+  // - true unless compat unambiguously says server-only.
   suggestedInclude: boolean
 }
-
-const SERVER_ONLY_ENVIRONMENTS = new Set(['server_only'])
 
 // Deliberately defaults to *including* anything ambiguous (an unrecognized
 // environment string, or a jar Modrinth doesn't know at all) rather than
@@ -40,14 +43,23 @@ export async function scanServerMods(serverId: string): Promise<FriendsModEntry[
   return mapWithConcurrency(files, 6, async (filename) => {
     const resolved = await resolveModEnvironment(join(modsDir, filename))
     if (!resolved) {
-      return { filename, title: filename, environment: 'unknown', resolved: false, suggestedInclude: true }
+      return {
+        filename,
+        title: filename,
+        environment: 'unknown',
+        compat: 'clientAndServer' as const,
+        resolved: false,
+        suggestedInclude: true
+      }
     }
+    const compat = classifyModEnvironment(resolved.environment)
     return {
       filename,
       title: resolved.title,
       environment: resolved.environment,
+      compat,
       resolved: true,
-      suggestedInclude: !SERVER_ONLY_ENVIRONMENTS.has(resolved.environment)
+      suggestedInclude: compat !== 'serverOnly'
     }
   })
 }
@@ -146,9 +158,55 @@ export async function exportFriendsMods(serverId: string, selectedFilenames: str
   return result.filePath
 }
 
+export interface ImportModsFromInstanceResult {
+  imported: string[]
+  skippedClientOnly: string[]
+}
+
+// Copies a client instance's mods straight into a Fabric server's mods/ -
+// skipping anything Modrinth marks client_only/singleplayer_only (Sodium
+// being the canonical example: it does nothing on a dedicated server, and
+// some client-only mods actively crash one). A jar Modrinth can't identify
+// at all defaults to *importing* it, same "when ambiguous, include"
+// philosophy as scanServerMods - a private/dev mod is far more likely to be
+// something the server genuinely needs than a client-only mod that happens
+// to be unrecognized.
+export async function importModsFromInstance(
+  serverId: string,
+  instanceId: string
+): Promise<ImportModsFromInstanceResult> {
+  const server = getServer(serverId)
+  if (!server) throw new Error('Server nicht gefunden.')
+
+  const sourceModsDir = join(getInstanceRoot(instanceId), 'mods')
+  if (!existsSync(sourceModsDir)) return { imported: [], skippedClientOnly: [] }
+  const files = readdirSync(sourceModsDir).filter((f) => f.toLowerCase().endsWith('.jar'))
+
+  const destModsDir = join(getServerRoot(serverId), 'mods')
+  mkdirSync(destModsDir, { recursive: true })
+
+  const imported: string[] = []
+  const skippedClientOnly: string[] = []
+
+  await mapWithConcurrency(files, 6, async (filename) => {
+    const resolved = await resolveModEnvironment(join(sourceModsDir, filename))
+    if (resolved && !canRunOnServer(resolved.environment)) {
+      skippedClientOnly.push(resolved.title)
+      return
+    }
+    copyFileSync(join(sourceModsDir, filename), join(destModsDir, filename))
+    imported.push(filename)
+  })
+
+  return { imported, skippedClientOnly }
+}
+
 export function registerFriendsModsHandlers(): void {
   ipcMain.handle('friendsMods:scan', (_event, serverId: string) => scanServerMods(serverId))
   ipcMain.handle('friendsMods:export', (_event, serverId: string, selectedFilenames: string[]) =>
     exportFriendsMods(serverId, selectedFilenames)
+  )
+  ipcMain.handle('friendsMods:importFromInstance', (_event, serverId: string, instanceId: string) =>
+    importModsFromInstance(serverId, instanceId)
   )
 }
