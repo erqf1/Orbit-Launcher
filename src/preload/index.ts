@@ -371,6 +371,8 @@ export interface ServerFileEntry {
   editable: boolean
 }
 
+export type PaperConfigValue = string | number | boolean
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -558,6 +560,11 @@ const api = {
     ipcRenderer.invoke('servers:hostPropertiesWrite', id, patch),
   acceptServerEula: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostEulaAccept', id),
   getServerEulaStatus: (id: string): Promise<boolean> => ipcRenderer.invoke('servers:hostEulaStatus', id),
+
+  readPaperConfig: (id: string): Promise<Record<string, PaperConfigValue>> =>
+    ipcRenderer.invoke('servers:hostPaperConfigRead', id),
+  writePaperConfig: (id: string, patch: Record<string, PaperConfigValue>): Promise<void> =>
+    ipcRenderer.invoke('servers:hostPaperConfigWrite', id, patch),
 
   searchPlugins: (query: string, mcVersion: string): Promise<ModSearchResult[]> =>
     ipcRenderer.invoke('plugins:search', query, mcVersion),

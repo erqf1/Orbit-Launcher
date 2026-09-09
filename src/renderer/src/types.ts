@@ -334,3 +334,5 @@ export interface ServerFileEntry {
   isDirectory: boolean
   editable: boolean
 }
+
+export type PaperConfigValue = string | number | boolean
