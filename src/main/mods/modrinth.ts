@@ -236,8 +236,15 @@ export async function listModVersions(
   mcVersion: string,
   loader: string
 ): Promise<ModVersionSummary[]> {
-  const loaders = loader === 'vanilla' ? [] : [loader]
-  const url = `${MODRINTH_API}/project/${encodeURIComponent(projectId)}/version?loaders=${encodeURIComponent(JSON.stringify(loaders))}&game_versions=${encodeURIComponent(JSON.stringify([mcVersion]))}`
+  // Modrinth treats a present-but-empty `loaders=[]` as "match zero loaders"
+  // (confirmed live - it returns [] for every project), not "no loader
+  // filter" - the query param must be omitted entirely to mean that.
+  // 'vanilla' is used here as the "don't filter by loader" sentinel (by
+  // plugins, which aren't Fabric/Forge-scoped, and previously silently
+  // broken for that exact reason - every plugin looked like it had zero
+  // matching versions).
+  const loaderParam = loader === 'vanilla' ? '' : `loaders=${encodeURIComponent(JSON.stringify([loader]))}&`
+  const url = `${MODRINTH_API}/project/${encodeURIComponent(projectId)}/version?${loaderParam}game_versions=${encodeURIComponent(JSON.stringify([mcVersion]))}`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Mod-Versionen konnten nicht geladen werden (HTTP ${res.status}).`)
   const versions = (await res.json()) as Array<{
