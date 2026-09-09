@@ -36,6 +36,13 @@ export interface ServerInstance {
   lastStarted: string | null
   tunnelEnabled: boolean
   tunnelPublicAddress: string | null
+  // The playit.gg agent has no headless "print a claim URL" mode when run
+  // without a pre-existing secret (confirmed live - it just waits
+  // indefinitely for its own GUI companion app to provision one over IPC).
+  // The only real headless path is a secret key the user generates once
+  // themselves via playit.gg's web wizard and pastes in here - stored so
+  // the tunnel can be (re)started automatically without asking again.
+  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -46,6 +53,7 @@ export interface ServerSettingsPatch {
   serverPort?: number
   tunnelEnabled?: boolean
   tunnelPublicAddress?: string | null
+  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -54,6 +62,11 @@ export interface CreateServerInput {
   loader: ServerLoaderType
   fabricLoaderVersion?: string
   paperBuildId?: number
+  // Shown as a checkbox directly in the create dialog (rather than making
+  // the user hunt for it on the Properties tab afterward, which is what
+  // this app's own client-instance side never had to deal with since
+  // there's no equivalent legal requirement for a client).
+  acceptEula?: boolean
 }
 
 function getServersFile(): string {
@@ -145,11 +158,28 @@ export async function createServer(input: CreateServerInput): Promise<ServerInst
     javaPath: null,
     jvmArgs: null,
     serverPort: 25565,
-    eulaAccepted: false,
+    eulaAccepted: !!input.acceptEula,
     createdAt: new Date().toISOString(),
     lastStarted: null,
     tunnelEnabled: false,
-    tunnelPublicAddress: null
+    tunnelPublicAddress: null,
+    tunnelSecretKey: null
+  }
+
+  // Written inline rather than via serverProperties.ts's acceptEula() -
+  // that module already imports getServerRoot/setServerEulaAccepted from
+  // this one, so importing back from here would be a circular import; the
+  // record above already carries eulaAccepted, this just needs to produce
+  // the same on-disk eula.txt a real server would otherwise generate on its
+  // own first (EULA-rejecting) boot.
+  if (input.acceptEula) {
+    const eulaContents = [
+      '#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).',
+      `#${new Date().toString()}`,
+      'eula=true',
+      ''
+    ].join('\n')
+    writeFileSync(join(root, 'eula.txt'), eulaContents, 'utf-8')
   }
 
   const servers = readAll()

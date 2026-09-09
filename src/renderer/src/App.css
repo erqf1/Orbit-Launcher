@@ -256,6 +256,11 @@ button {
   flex: 1;
 }
 
+.properties-category-switch {
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
 .instance-grid.view-list .new-instance-card {
   min-height: unset;
   padding: 10px 12px;

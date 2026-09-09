@@ -291,6 +291,7 @@ export interface ServerInstance {
   lastStarted: string | null
   tunnelEnabled: boolean
   tunnelPublicAddress: string | null
+  tunnelSecretKey: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -301,6 +302,7 @@ export interface ServerSettingsPatch {
   serverPort?: number
   tunnelEnabled?: boolean
   tunnelPublicAddress?: string | null
+  tunnelSecretKey?: string | null
 }
 
 export interface CreateServerInput {
@@ -309,6 +311,7 @@ export interface CreateServerInput {
   loader: ServerLoaderType
   fabricLoaderVersion?: string
   paperBuildId?: number
+  acceptEula?: boolean
 }
 
 export interface PaperBuildSummary {
@@ -570,6 +573,8 @@ const api = {
   stopTunnel: (serverId: string): Promise<void> => ipcRenderer.invoke('tunnel:stop', serverId),
   getTunnelStatus: (serverId: string): Promise<boolean> => ipcRenderer.invoke('tunnel:status', serverId),
   openTunnelClaimUrl: (url: string): Promise<void> => ipcRenderer.invoke('tunnel:openClaimUrl', url),
+  setTunnelSecretKey: (serverId: string, secretKey: string | null): Promise<void> =>
+    ipcRenderer.invoke('tunnel:setSecretKey', serverId, secretKey),
 
   onServerLog: (callback: (event: ServerLogEvent) => void): (() => void) => onEvent('server:log', callback),
   onServerClosed: (callback: (event: ServerClosedEvent) => void): (() => void) =>

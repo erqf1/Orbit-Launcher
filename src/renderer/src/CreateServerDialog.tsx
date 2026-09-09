@@ -11,7 +11,8 @@ interface Props {
     mcVersion: string,
     loader: ServerLoaderType,
     fabricLoaderVersion: string | undefined,
-    paperBuildId: number | undefined
+    paperBuildId: number | undefined,
+    acceptEula: boolean
   ) => Promise<void>
 }
 
@@ -30,6 +31,7 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
   const [fabricLoaderVersion, setFabricLoaderVersion] = useState('')
   const [paperBuildId, setPaperBuildId] = useState<number | ''>('')
   const [showBuildPicker, setShowBuildPicker] = useState(false)
+  const [acceptEula, setAcceptEula] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -78,7 +80,7 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault()
-    if (!name.trim() || !mcVersion) return
+    if (!name.trim() || !mcVersion || !acceptEula) return
     if (loader === 'fabric' && !fabricLoaderVersion) return
     setError(null)
     setSubmitting(true)
@@ -88,7 +90,8 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
         mcVersion,
         loader,
         loader === 'fabric' ? fabricLoaderVersion : undefined,
-        loader === 'paper' && paperBuildId !== '' ? paperBuildId : undefined
+        loader === 'paper' && paperBuildId !== '' ? paperBuildId : undefined,
+        acceptEula
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -98,7 +101,7 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
   }
 
   const canSubmit =
-    !submitting && !!mcVersion && (loader !== 'fabric' || !!fabricLoaderVersion)
+    !submitting && !!mcVersion && acceptEula && (loader !== 'fabric' || !!fabricLoaderVersion)
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -203,6 +206,14 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
             )}
           </>
         )}
+
+        <label className="checkbox-label">
+          <input type="checkbox" checked={acceptEula} onChange={(e) => setAcceptEula(e.target.checked)} />
+          {t('createServer.acceptEulaPrefix')}{' '}
+          <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noreferrer">
+            {t('createServer.acceptEulaLink')}
+          </a>
+        </label>
 
         {error && <p className="error">{error}</p>}
 
