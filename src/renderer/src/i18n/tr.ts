@@ -287,6 +287,7 @@ const tr: Record<TranslationKey, string> = {
   'serverHost.tabs.console': 'Konsol',
   'serverHost.tabs.properties': 'Özellikler',
   'serverHost.tabs.plugins': 'Plugins',
+  'serverHost.tabs.paperConfig': 'Paper Yapılandırması',
   'serverHost.tabs.friendsMods': "Arkadaşlar için Mods",
   'serverHost.tabs.tunnel': 'Tünel',
   'serverHost.tabs.general': 'Genel',
@@ -370,7 +371,19 @@ const tr: Record<TranslationKey, string> = {
   'serverHost.friendsMods.unresolvedTooltip': "Bu jar, Modrinth'ten bağlanmak yerine doğrudan dışa aktarmaya paketlenecek.",
   'serverHost.friendsMods.export': '.mrpack Dışa Aktar ({count})',
   'serverHost.friendsMods.exporting': 'Dışa aktarılıyor…',
-  'serverHost.friendsMods.exported': '{path} konumuna dışa aktarıldı'
+  'serverHost.friendsMods.exported': '{path} konumuna dışa aktarıldı',
+
+  'serverHost.files.back': '← Geri',
+  'serverHost.files.up': '↑ Yukarı',
+  'serverHost.files.open': 'Aç',
+  'serverHost.files.edit': 'Düzenle',
+  'serverHost.files.notEditable': 'Metin dosyası değil',
+
+  'serverHost.paperConfig.explainer': "Paper'ın kendi yapılandırma dosyalarını doğrudan düzenler (paper-global.yml, paper-world-defaults.yml, …) - bunlar yalnızca sunucu en az bir kez başlatıldıktan sonra var olur.",
+  'serverHost.paperConfig.empty': 'Henüz yapılandırma dosyası yok - bunları oluşturmak için sunucuyu bir kez başlat.',
+
+  'serverHost.plugins.config': 'Yapılandırma Dosyaları',
+  'serverHost.plugins.configEmpty': 'Bu pluginin henüz yapılandırma dosyası yok.'
 }
 
 export default tr

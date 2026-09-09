@@ -287,6 +287,7 @@ const el: Record<TranslationKey, string> = {
   'serverHost.tabs.console': 'Κονσόλα',
   'serverHost.tabs.properties': 'Ιδιότητες',
   'serverHost.tabs.plugins': 'Plugins',
+  'serverHost.tabs.paperConfig': 'Ρυθμίσεις Paper',
   'serverHost.tabs.friendsMods': 'Mods για φίλους',
   'serverHost.tabs.tunnel': 'Tunnel',
   'serverHost.tabs.general': 'Γενικά',
@@ -370,7 +371,19 @@ const el: Record<TranslationKey, string> = {
   'serverHost.friendsMods.unresolvedTooltip': 'Αυτό το jar θα ενσωματωθεί απευθείας στην εξαγωγή αντί να συνδεθεί από το Modrinth.',
   'serverHost.friendsMods.export': 'Εξαγωγή .mrpack ({count})',
   'serverHost.friendsMods.exporting': 'Εξαγωγή…',
-  'serverHost.friendsMods.exported': 'Εξήχθη στο {path}'
+  'serverHost.friendsMods.exported': 'Εξήχθη στο {path}',
+
+  'serverHost.files.back': '← Πίσω',
+  'serverHost.files.up': '↑ Πάνω',
+  'serverHost.files.open': 'Άνοιγμα',
+  'serverHost.files.edit': 'Επεξεργασία',
+  'serverHost.files.notEditable': 'Δεν είναι αρχείο κειμένου',
+
+  'serverHost.paperConfig.explainer': 'Επεξεργάζεται απευθείας τα αρχεία ρυθμίσεων του ίδιου του Paper (paper-global.yml, paper-world-defaults.yml, …) - αυτά υπάρχουν μόνο αφού ο server έχει εκκινήσει τουλάχιστον μία φορά.',
+  'serverHost.paperConfig.empty': 'Δεν υπάρχουν ακόμα αρχεία ρυθμίσεων - ξεκίνα τον server μία φορά για να δημιουργηθούν.',
+
+  'serverHost.plugins.config': 'Αρχεία Ρυθμίσεων',
+  'serverHost.plugins.configEmpty': 'Αυτό το Plugin δεν έχει ακόμα αρχεία ρυθμίσεων.'
 }
 
 export default el

@@ -287,6 +287,7 @@ const it: Record<TranslationKey, string> = {
   'serverHost.tabs.console': 'Console',
   'serverHost.tabs.properties': 'Proprietà',
   'serverHost.tabs.plugins': 'Plugins',
+  'serverHost.tabs.paperConfig': 'Configurazione Paper',
   'serverHost.tabs.friendsMods': 'Mods degli amici',
   'serverHost.tabs.tunnel': 'Tunnel',
   'serverHost.tabs.general': 'Generale',
@@ -370,7 +371,19 @@ const it: Record<TranslationKey, string> = {
   'serverHost.friendsMods.unresolvedTooltip': 'Questo jar verrà incluso direttamente nell’esportazione invece di essere collegato da Modrinth.',
   'serverHost.friendsMods.export': 'Esporta .mrpack ({count})',
   'serverHost.friendsMods.exporting': 'Esportazione…',
-  'serverHost.friendsMods.exported': 'Esportato in {path}'
+  'serverHost.friendsMods.exported': 'Esportato in {path}',
+
+  'serverHost.files.back': '← Indietro',
+  'serverHost.files.up': '↑ Su',
+  'serverHost.files.open': 'Apri',
+  'serverHost.files.edit': 'Modifica',
+  'serverHost.files.notEditable': 'Non è un file di testo',
+
+  'serverHost.paperConfig.explainer': 'Modifica direttamente i file di configurazione di Paper stesso (paper-global.yml, paper-world-defaults.yml, …) - esistono solo dopo che il server è stato avviato almeno una volta.',
+  'serverHost.paperConfig.empty': 'Nessun file di configurazione ancora - avvia il server una volta per generarli.',
+
+  'serverHost.plugins.config': 'File di configurazione',
+  'serverHost.plugins.configEmpty': 'Questo Plugin non ha ancora file di configurazione.'
 }
 
 export default it

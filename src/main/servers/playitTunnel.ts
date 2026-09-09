@@ -1,5 +1,5 @@
 import { ipcMain, app, shell, BrowserWindow } from 'electron'
-import { existsSync, chmodSync, mkdirSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, chmodSync, mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { spawn, ChildProcess } from 'child_process'
 import { updateServerSettings, getServer } from './serverManager'
@@ -26,26 +26,25 @@ function binaryPath(): string {
   return join(toolsDir(), name)
 }
 
-// Verified live by actually running the downloaded binary: it does NOT
-// accept a secret path via an environment variable (an earlier version of
-// this file guessed PLAYIT_SECRET_PATH, which the agent silently ignores,
-// always falling back to a single shared default config location instead -
-// the actual root cause of the tunnel "just not working"). The real,
-// confirmed flags (from `playit.exe --help`) are `--secret-path <path>` and
-// `--secret <key>`. Also confirmed live: with a fresh/nonexistent
-// --secret-path and no --secret, the agent prints nothing useful at all -
-// it just logs "Waiting for frontend secret provisioning over IPC" and
-// waits forever for playit's own GUI companion app, which this integration
-// doesn't implement. There is no headless "print a claim URL, then poll
-// until claimed" mode. The only real headless path is a secret key the
-// user generates once themselves via playit's web wizard (requires being
-// logged into their own playit.gg account, which is exactly why this can't
-// be automated further) and pastes into this app.
+// Verified live by actually running the downloaded binary (twice now - see
+// git history for the first, incomplete fix): it does NOT accept a secret
+// path via an environment variable at all (an even earlier version of this
+// file guessed PLAYIT_SECRET_PATH, silently ignored). The real flags (from
+// `playit.exe --help`) are `--secret-path <path>` and `--secret <key>` -
+// but they are MUTUALLY EXCLUSIVE, confirmed live: passing both together
+// fails immediately with "the argument '--secret-path <SECRET_PATH>'
+// cannot be used with '--secret <SECRET>'" (the previous fix's actual bug -
+// it passed both on every launch, so the tunnel could never start at all).
+// Also confirmed live: `--secret-path` alone with a fresh/nonexistent file
+// waits forever for playit's own GUI companion app over IPC (no headless
+// claim-URL mode exists), and `--secret` alone never writes any file to
+// disk at all (secret_path reports None even in an isolated test) - it's a
+// pure per-run in-memory flag, not a bootstrap mechanism. So there is no
+// CLI-only way to get a *persistent* per-server secret file; the correct,
+// verified design is simpler than the previous attempt: always launch with
+// bare `--secret <key>`, no `--secret-path`, every time. No file collision
+// risk between concurrent per-server tunnels either, since none is written.
 export const PLAYIT_WIZARD_URL = 'https://playit.gg/account/setup/wizard/new-account/docker/docker-name'
-
-function secretPathFor(serverId: string): string {
-  return join(toolsDir(), `${serverId}.toml`)
-}
 
 async function ensureBinaryDownloaded(): Promise<string> {
   const dest = binaryPath()
@@ -107,14 +106,7 @@ export async function startTunnel(mainWindow: BrowserWindow, serverId: string, l
   }
   const bin = await ensureBinaryDownloaded()
 
-  const secretPath = secretPathFor(serverId)
-  // --secret only needs to actually take effect on the very first run (it
-  // bootstraps secretPath's file); passing it on every run is harmless -
-  // once the file exists the agent reads the already-claimed secret from
-  // it and just reconnects, per the CLI's own documented behavior.
-  const child = spawn(bin, ['--secret-path', secretPath, '--secret', server.tunnelSecretKey], {
-    cwd: toolsDir()
-  })
+  const child = spawn(bin, ['--secret', server.tunnelSecretKey], { cwd: toolsDir() })
   runningTunnels.set(serverId, child)
   addressLockedThisRun.delete(serverId)
 
@@ -190,15 +182,6 @@ export function claimTunnelUrl(url: string): void {
 export function setTunnelSecretKey(serverId: string, secretKey: string | null): void {
   const trimmed = secretKey?.trim() || null
   updateServerSettings(serverId, { tunnelSecretKey: trimmed, tunnelEnabled: trimmed !== null })
-  // A changed/cleared secret key invalidates whatever's on disk at
-  // secretPathFor(serverId) - deleting it forces a clean re-bootstrap with
-  // the new --secret on the next start instead of silently keeping a stale
-  // claimed session tied to the old key.
-  try {
-    rmSync(secretPathFor(serverId), { force: true })
-  } catch {
-    // Best-effort cleanup only.
-  }
 }
 
 // Called from serverProcess.ts when a server with tunnelEnabled+
