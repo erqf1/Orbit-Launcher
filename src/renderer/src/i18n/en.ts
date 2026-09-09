@@ -76,6 +76,7 @@ const en = {
   'settings.fullscreen': 'Start fullscreen',
   'settings.hideWhileRunning': 'Hide launcher window while this instance is running',
   'settings.quitOnClose': 'Quit launcher once the game closes',
+  'launch.quitSuppressedNotice': "The launcher wasn't closed because a server is currently running.",
   'settings.playtime': 'Playtime',
   'settings.playtimeTotal': 'Total: {time}',
   'settings.trackPlaytime': 'Track playtime for this instance',

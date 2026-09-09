@@ -9,6 +9,17 @@ import { getInstance, getInstanceRoot, markLaunched, addPlaytime } from '../inst
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
 
+// serverProcess.ts already imports resolveJavaPath from this module, so this
+// module can't import back from serverProcess.ts (circular import) to ask
+// "is a hosted server currently running" directly - same injected-callback
+// pattern as serverManager.ts's setIsServerRunningCheck. index.ts wires the
+// real check in once both modules are registered.
+let isAnyServerRunningCheck: (() => boolean) | null = null
+
+export function setIsAnyServerRunningCheck(check: () => boolean): void {
+  isAnyServerRunningCheck = check
+}
+
 // Old Minecraft (pre-1.13-ish, LWJGL 2) never declares itself DPI-aware, so
 // on any Windows display above 100% scaling, Windows silently scales its
 // framebuffer itself - the well-known "tiny correctly-rendered patches,
@@ -166,7 +177,18 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
         })
       }
 
-      if (instance.quitAppOnGameClose) app.quit()
+      if (instance.quitAppOnGameClose) {
+        // A hosted server is a direct child process of this same Electron
+        // main process (see serverProcess.ts) - quitting would kill it too,
+        // not just close the launcher window, so this option is suppressed
+        // (not silently ignored - the renderer surfaces a notice via
+        // launch:quitSuppressed) whenever one is still running.
+        if (isAnyServerRunningCheck?.()) {
+          if (!mainWindow.isDestroyed()) mainWindow.webContents.send('launch:quitSuppressed', {})
+        } else {
+          app.quit()
+        }
+      }
     })
 
     if (instance.closeOnLaunch) {

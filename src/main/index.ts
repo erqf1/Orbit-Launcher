@@ -4,7 +4,7 @@ import gracefulFs from 'graceful-fs'
 import { patchCreateWriteStreamForEmfile } from './emfileSafeFs'
 import { registerAuthHandlers } from './auth/msmcAuth'
 import { registerSkinHistoryHandlers } from './auth/skinHistory'
-import { registerLaunchHandlers, setPendingLaunchInstanceIdFromArgv } from './launch/launcher'
+import { registerLaunchHandlers, setPendingLaunchInstanceIdFromArgv, setIsAnyServerRunningCheck } from './launch/launcher'
 import { registerInstanceHandlers } from './instances/instanceManager'
 import { registerVersionHandlers } from './versions/versionManifest'
 import { registerLoaderHandlers } from './loaders'
@@ -20,7 +20,7 @@ import { registerServerHandlers } from './instances/servers'
 import { registerLogHandlers } from './instances/logs'
 import { registerAppSettingsHandlers } from './appSettings'
 import { registerServerManagerHandlers, setIsServerRunningCheck } from './servers/serverManager'
-import { registerServerProcessHandlers, isServerRunning } from './servers/serverProcess'
+import { registerServerProcessHandlers, isServerRunning, isAnyServerRunning } from './servers/serverProcess'
 import { registerServerPropertiesHandlers } from './servers/serverProperties'
 import { registerTunnelHandlers } from './servers/playitTunnel'
 import { registerFriendsModsHandlers } from './servers/friendsMods'
@@ -128,6 +128,7 @@ app.whenReady().then(() => {
   registerServerManagerHandlers()
   registerServerProcessHandlers(mainWindow)
   setIsServerRunningCheck(isServerRunning)
+  setIsAnyServerRunningCheck(isAnyServerRunning)
   registerServerPropertiesHandlers()
   registerTunnelHandlers(mainWindow)
   registerFriendsModsHandlers()

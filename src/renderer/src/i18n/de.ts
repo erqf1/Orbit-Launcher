@@ -75,6 +75,7 @@ const de: Record<TranslationKey, string> = {
   'settings.fullscreen': 'Vollbild starten',
   'settings.hideWhileRunning': 'Launcher-Fenster ausblenden, während diese Instanz läuft',
   'settings.quitOnClose': 'Launcher beenden, sobald das Spiel geschlossen wird',
+  'launch.quitSuppressedNotice': 'Launcher wurde nicht beendet, weil gerade ein Server läuft.',
   'settings.playtime': 'Spielzeit',
   'settings.playtimeTotal': 'Gesamt: {time}',
   'settings.trackPlaytime': 'Spielzeit für diese Instanz aufzeichnen',

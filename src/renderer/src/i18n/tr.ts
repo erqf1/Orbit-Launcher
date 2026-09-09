@@ -75,6 +75,7 @@ const tr: Record<TranslationKey, string> = {
   'settings.fullscreen': 'Tam ekran başlat',
   'settings.hideWhileRunning': 'Bu örnek çalışırken başlatıcı penceresini gizle',
   'settings.quitOnClose': 'Oyun kapandığında başlatıcıdan çık',
+  'launch.quitSuppressedNotice': "The launcher wasn't closed because a server is currently running.",
   'settings.playtime': 'Oynama Süresi',
   'settings.playtimeTotal': 'Toplam: {time}',
   'settings.trackPlaytime': 'Bu örnek için oynama süresini kaydet',

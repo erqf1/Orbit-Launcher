@@ -75,6 +75,7 @@ const el: Record<TranslationKey, string> = {
   'settings.fullscreen': 'Εκκίνηση σε πλήρη οθόνη',
   'settings.hideWhileRunning': 'Απόκρυψη του launcher όσο εκτελείται αυτή η instance',
   'settings.quitOnClose': 'Έξοδος από τον launcher μόλις κλείσει το παιχνίδι',
+  'launch.quitSuppressedNotice': "The launcher wasn't closed because a server is currently running.",
   'settings.playtime': 'Χρόνος Παιχνιδιού',
   'settings.playtimeTotal': 'Σύνολο: {time}',
   'settings.trackPlaytime': 'Καταγραφή χρόνου παιχνιδιού για αυτή την instance',

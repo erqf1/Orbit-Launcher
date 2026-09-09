@@ -17,6 +17,15 @@ export function isServerRunning(id: string): boolean {
   return runningServers.has(id)
 }
 
+// Used by launcher.ts's "quit launcher when the game closes" option - that
+// option must never actually quit while a hosted server is running, since
+// the server is a direct child process of this same Electron main process
+// and quitting takes it down too (killing a live world's connections/save
+// with it), rather than the intended "close the launcher after playing".
+export function isAnyServerRunning(): boolean {
+  return runningServers.size > 0
+}
+
 function buildMemoryArgs(memoryMin: string, memoryMax: string): string[] {
   return [`-Xmx${memoryMax}`, `-Xms${memoryMin}`]
 }
