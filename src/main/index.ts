@@ -23,6 +23,7 @@ import { registerServerProcessHandlers, isServerRunning } from './servers/server
 import { registerServerPropertiesHandlers } from './servers/serverProperties'
 import { registerTunnelHandlers } from './servers/playitTunnel'
 import { registerFriendsModsHandlers } from './servers/friendsMods'
+import { registerServerFileHandlers } from './servers/serverFiles'
 
 // `require`, not `import * as fs from 'fs'`: the latter produced a
 // read-only ESM namespace object under esbuild's interop, which is what
@@ -125,6 +126,7 @@ app.whenReady().then(() => {
   registerServerPropertiesHandlers()
   registerTunnelHandlers(mainWindow)
   registerFriendsModsHandlers()
+  registerServerFileHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

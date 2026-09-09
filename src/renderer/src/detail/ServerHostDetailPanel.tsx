@@ -6,6 +6,7 @@ import ServerPropertiesTab from './ServerPropertiesTab'
 import ServerTunnelTab from './ServerTunnelTab'
 import ServerGeneralTab from './ServerGeneralTab'
 import ServerPluginsTab from './ServerPluginsTab'
+import ServerPaperConfigTab from './ServerPaperConfigTab'
 import FriendsModsTab from './FriendsModsTab'
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
   onServerChanged: () => void
 }
 
-type TabKey = 'console' | 'properties' | 'plugins' | 'friendsMods' | 'tunnel' | 'general'
+type TabKey = 'console' | 'properties' | 'plugins' | 'paperConfig' | 'friendsMods' | 'tunnel' | 'general'
 
 function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): React.JSX.Element {
   const { t } = useLocale()
@@ -44,7 +45,7 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
   const tabs: TabKey[] = [
     'console',
     'properties',
-    ...(server.loader === 'paper' ? (['plugins'] as TabKey[]) : []),
+    ...(server.loader === 'paper' ? (['plugins', 'paperConfig'] as TabKey[]) : []),
     ...(server.loader === 'fabric' ? (['friendsMods'] as TabKey[]) : []),
     'tunnel',
     'general'
@@ -58,6 +59,8 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
         return t('serverHost.tabs.properties')
       case 'plugins':
         return t('serverHost.tabs.plugins')
+      case 'paperConfig':
+        return t('serverHost.tabs.paperConfig')
       case 'friendsMods':
         return t('serverHost.tabs.friendsMods')
       case 'tunnel':
@@ -75,6 +78,8 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
         return <ServerPropertiesTab server={server} onChanged={onServerChanged} />
       case 'plugins':
         return <ServerPluginsTab server={server} />
+      case 'paperConfig':
+        return <ServerPaperConfigTab server={server} />
       case 'friendsMods':
         return <FriendsModsTab server={server} />
       case 'tunnel':

@@ -364,6 +364,13 @@ export interface TunnelClosedEvent {
   serverId: string
 }
 
+export interface ServerFileEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  editable: boolean
+}
+
 function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
   ipcRenderer.on(channel, listener)
@@ -575,6 +582,13 @@ const api = {
   openTunnelClaimUrl: (url: string): Promise<void> => ipcRenderer.invoke('tunnel:openClaimUrl', url),
   setTunnelSecretKey: (serverId: string, secretKey: string | null): Promise<void> =>
     ipcRenderer.invoke('tunnel:setSecretKey', serverId, secretKey),
+
+  listServerFiles: (serverId: string, relativeDir: string): Promise<ServerFileEntry[]> =>
+    ipcRenderer.invoke('servers:hostListFiles', serverId, relativeDir),
+  readServerFile: (serverId: string, relativePath: string): Promise<string | null> =>
+    ipcRenderer.invoke('servers:hostReadFile', serverId, relativePath),
+  writeServerFile: (serverId: string, relativePath: string, content: string): Promise<void> =>
+    ipcRenderer.invoke('servers:hostWriteFile', serverId, relativePath, content),
 
   onServerLog: (callback: (event: ServerLogEvent) => void): (() => void) => onEvent('server:log', callback),
   onServerClosed: (callback: (event: ServerClosedEvent) => void): (() => void) =>

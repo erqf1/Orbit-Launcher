@@ -327,3 +327,10 @@ export interface TunnelAddressAssignedEvent {
 export interface TunnelClosedEvent {
   serverId: string
 }
+
+export interface ServerFileEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  editable: boolean
+}

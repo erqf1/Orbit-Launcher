@@ -287,6 +287,7 @@ const ru: Record<TranslationKey, string> = {
   'serverHost.tabs.console': 'Консоль',
   'serverHost.tabs.properties': 'Свойства',
   'serverHost.tabs.plugins': 'Plugins',
+  'serverHost.tabs.paperConfig': 'Конфигурация Paper',
   'serverHost.tabs.friendsMods': 'Mods для друзей',
   'serverHost.tabs.tunnel': 'Туннель',
   'serverHost.tabs.general': 'Общие',
@@ -370,7 +371,19 @@ const ru: Record<TranslationKey, string> = {
   'serverHost.friendsMods.unresolvedTooltip': 'Этот jar будет напрямую включён в экспорт, а не связан с Modrinth.',
   'serverHost.friendsMods.export': 'Экспортировать .mrpack ({count})',
   'serverHost.friendsMods.exporting': 'Экспорт…',
-  'serverHost.friendsMods.exported': 'Экспортировано в {path}'
+  'serverHost.friendsMods.exported': 'Экспортировано в {path}',
+
+  'serverHost.files.back': '← Назад',
+  'serverHost.files.up': '↑ Вверх',
+  'serverHost.files.open': 'Открыть',
+  'serverHost.files.edit': 'Редактировать',
+  'serverHost.files.notEditable': 'Не текстовый файл',
+
+  'serverHost.paperConfig.explainer': 'Напрямую редактирует собственные конфигурационные файлы Paper (paper-global.yml, paper-world-defaults.yml, …) - они появляются только после того, как сервер был запущен хотя бы один раз.',
+  'serverHost.paperConfig.empty': 'Конфигурационных файлов пока нет - запустите сервер один раз, чтобы их создать.',
+
+  'serverHost.plugins.config': 'Файлы конфигурации',
+  'serverHost.plugins.configEmpty': 'У этого Plugin пока нет файлов конфигурации.'
 }
 
 export default ru

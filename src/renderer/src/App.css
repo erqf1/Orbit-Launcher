@@ -2142,6 +2142,13 @@ button:not(:disabled):active {
   font-family: inherit;
 }
 
+.file-editor-textarea {
+  min-height: 400px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  white-space: pre;
+}
+
 .detail-tab-logs select {
   padding: 8px 10px;
   border-radius: var(--radius-sm);

@@ -288,6 +288,7 @@ const en = {
   'serverHost.tabs.console': 'Console',
   'serverHost.tabs.properties': 'Properties',
   'serverHost.tabs.plugins': 'Plugins',
+  'serverHost.tabs.paperConfig': 'Paper Config',
   'serverHost.tabs.friendsMods': "Friends' Mods",
   'serverHost.tabs.tunnel': 'Tunnel',
   'serverHost.tabs.general': 'General',
@@ -371,7 +372,19 @@ const en = {
   'serverHost.friendsMods.unresolvedTooltip': 'This jar will be bundled directly in the export rather than linked from Modrinth.',
   'serverHost.friendsMods.export': 'Export .mrpack ({count})',
   'serverHost.friendsMods.exporting': 'Exporting…',
-  'serverHost.friendsMods.exported': 'Exported to {path}'
+  'serverHost.friendsMods.exported': 'Exported to {path}',
+
+  'serverHost.files.back': '← Back',
+  'serverHost.files.up': '↑ Up',
+  'serverHost.files.open': 'Open',
+  'serverHost.files.edit': 'Edit',
+  'serverHost.files.notEditable': 'Not a text file',
+
+  'serverHost.paperConfig.explainer': "Edits Paper's own config files directly (paper-global.yml, paper-world-defaults.yml, …) - these only exist after the server has started at least once.",
+  'serverHost.paperConfig.empty': 'No config files yet - start the server once to generate them.',
+
+  'serverHost.plugins.config': 'Config Files',
+  'serverHost.plugins.configEmpty': 'This plugin has no config files yet.'
 }
 
 export default en

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from '../i18n'
 import PluginBrowserDialog from './PluginBrowserDialog'
+import FileConfigBrowser from './FileConfigBrowser'
 import type { InstalledPlugin, ServerInstance } from '../types'
 
 interface Props {
@@ -12,6 +13,7 @@ function ServerPluginsTab({ server }: Props): React.JSX.Element {
   const [plugins, setPlugins] = useState<InstalledPlugin[]>([])
   const [loading, setLoading] = useState(true)
   const [showBrowser, setShowBrowser] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
 
   const refresh = useCallback(() => {
     setLoading(true)
@@ -36,7 +38,14 @@ function ServerPluginsTab({ server }: Props): React.JSX.Element {
         <button type="button" onClick={() => setShowBrowser(true)}>
           {t('serverHost.plugins.browse')}
         </button>
+        <button type="button" onClick={() => setShowConfig((v) => !v)}>
+          {t('serverHost.plugins.config')}
+        </button>
       </div>
+
+      {showConfig && (
+        <FileConfigBrowser serverId={server.id} rootDir="plugins" emptyLabel={t('serverHost.plugins.configEmpty')} />
+      )}
 
       {loading ? (
         <p className="instance-meta">{t('common.loading')}</p>
