@@ -75,6 +75,7 @@ const pl: Record<TranslationKey, string> = {
   'settings.fullscreen': 'Uruchom w pełnym ekranie',
   'settings.hideWhileRunning': 'Ukryj okno launchera, gdy ta instancja działa',
   'settings.quitOnClose': 'Zamknij launcher po zamknięciu gry',
+  'launch.quitSuppressedNotice': "The launcher wasn't closed because a server is currently running.",
   'settings.playtime': 'Czas gry',
   'settings.playtimeTotal': 'Łącznie: {time}',
   'settings.trackPlaytime': 'Zapisuj czas gry dla tej instancji',

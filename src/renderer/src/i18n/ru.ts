@@ -75,6 +75,7 @@ const ru: Record<TranslationKey, string> = {
   'settings.fullscreen': 'Запускать в полноэкранном режиме',
   'settings.hideWhileRunning': 'Скрывать окно лаунчера, пока этот экземпляр запущен',
   'settings.quitOnClose': 'Закрывать лаунчер после выхода из игры',
+  'launch.quitSuppressedNotice': "The launcher wasn't closed because a server is currently running.",
   'settings.playtime': 'Время в игре',
   'settings.playtimeTotal': 'Всего: {time}',
   'settings.trackPlaytime': 'Учитывать время игры для этого экземпляра',

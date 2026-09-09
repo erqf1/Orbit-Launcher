@@ -189,6 +189,11 @@ function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    const off = window.api.onLaunchQuitSuppressed(() => setError(t('launch.quitSuppressedNotice')))
+    return off
+  }, [t])
+
+  useEffect(() => {
     refreshInstances()
     // Guards against StrictMode's dev-mode double-invoke firing this twice -
     // the backend now dedupes concurrent auth restores too (see

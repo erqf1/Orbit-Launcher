@@ -591,6 +591,7 @@ const api = {
     onEvent('launch:progress', callback),
   onClosed: (callback: (event: LaunchClosedEvent) => void): (() => void) =>
     onEvent('launch:closed', callback),
+  onLaunchQuitSuppressed: (callback: () => void): (() => void) => onEvent('launch:quitSuppressed', callback),
 
   listHostedServers: (): Promise<ServerInstance[]> => ipcRenderer.invoke('servers:hostList'),
   createHostedServer: (input: CreateServerInput): Promise<ServerInstance> =>
