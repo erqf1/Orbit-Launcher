@@ -13,6 +13,7 @@ import {
   type SavedAccountMeta
 } from './authStore'
 import { refocusMainWindow } from '../windowFocus'
+import { recordSkinHistory } from './skinHistory'
 
 export interface LauncherProfile {
   name: string
@@ -130,6 +131,12 @@ export async function getAccountCustomization(id: string): Promise<AccountCustom
   }
 }
 
+async function recordCustomizationAsHistory(id: string): Promise<AccountCustomization | null> {
+  const result = await getAccountCustomization(id)
+  if (result?.skinUrl) recordSkinHistory(id, result.skinUrl, result.variant)
+  return result
+}
+
 export async function changeSkin(id: string, variant: 'CLASSIC' | 'SLIM'): Promise<AccountCustomization | null> {
   const auth = requireAuth(id)
 
@@ -150,7 +157,73 @@ export async function changeSkin(id: string, variant: 'CLASSIC' | 'SLIM'): Promi
     body: form
   })
   if (!res.ok) throw new Error(`Skin-Upload fehlgeschlagen (HTTP ${res.status}).`)
-  return getAccountCustomization(id)
+  return recordCustomizationAsHistory(id)
+}
+
+// Same endpoint as the file-upload path above, but Mojang's skins endpoint
+// also accepts a plain JSON {url, variant} body instead of a multipart file
+// (confirmed against Mojang's own API docs - this is how re-equipping a
+// history entry or a texture found via a username lookup works: both are
+// already just a textures.minecraft.net URL, no local file to upload at all).
+export async function changeSkinByUrl(
+  id: string,
+  skinUrl: string,
+  variant: 'CLASSIC' | 'SLIM'
+): Promise<AccountCustomization | null> {
+  const auth = requireAuth(id)
+
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile/skins', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: skinUrl, variant: variant.toLowerCase() })
+  })
+  if (!res.ok) throw new Error(`Skin konnte nicht gesetzt werden (HTTP ${res.status}).`)
+  return recordCustomizationAsHistory(id)
+}
+
+export interface LookedUpSkin {
+  username: string
+  skinUrl: string
+  variant: 'CLASSIC' | 'SLIM'
+  capeUrl: string | null
+}
+
+interface SessionServerTextures {
+  textures: {
+    SKIN?: { url: string; metadata?: { model?: string } }
+    CAPE?: { url: string }
+  }
+}
+
+// Public, unauthenticated endpoints (no bearer token needed) - the same two
+// calls every third-party skin-viewer site makes: username -> UUID, then
+// UUID -> profile, whose base64 `textures` property blob carries the actual
+// skin/cape URLs. Verified live against Notch/jeb_ - a skin with no
+// `metadata.model` field is the classic model; `metadata.model === "slim"`
+// is the only marker for the slim/Alex model, there's no explicit "classic"
+// value ever written.
+export async function lookupSkinByUsername(username: string): Promise<LookedUpSkin> {
+  const profileRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(username)}`)
+  if (profileRes.status === 404) throw new Error(`Spieler "${username}" nicht gefunden.`)
+  if (!profileRes.ok) throw new Error(`Spielersuche fehlgeschlagen (HTTP ${profileRes.status}).`)
+  const { id: uuid, name } = (await profileRes.json()) as { id: string; name: string }
+
+  const sessionRes = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`)
+  if (!sessionRes.ok) throw new Error(`Profil konnte nicht geladen werden (HTTP ${sessionRes.status}).`)
+  const session = (await sessionRes.json()) as { properties: Array<{ name: string; value: string }> }
+  const texturesProp = session.properties.find((p) => p.name === 'textures')
+  if (!texturesProp) throw new Error(`Für "${name}" ist kein Skin gesetzt.`)
+
+  const decoded = JSON.parse(Buffer.from(texturesProp.value, 'base64').toString('utf-8')) as SessionServerTextures
+  const skin = decoded.textures.SKIN
+  if (!skin) throw new Error(`Für "${name}" ist kein Skin gesetzt.`)
+
+  return {
+    username: name,
+    skinUrl: skin.url,
+    variant: skin.metadata?.model === 'slim' ? 'SLIM' : 'CLASSIC',
+    capeUrl: decoded.textures.CAPE?.url ?? null
+  }
 }
 
 // capeId null unequips whatever vanilla cape is currently active - Mojang's
@@ -299,5 +372,9 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle('auth:getCustomization', (_event, id: string) => getAccountCustomization(id))
   ipcMain.handle('auth:changeSkin', (_event, id: string, variant: 'CLASSIC' | 'SLIM') => changeSkin(id, variant))
+  ipcMain.handle('auth:changeSkinByUrl', (_event, id: string, skinUrl: string, variant: 'CLASSIC' | 'SLIM') =>
+    changeSkinByUrl(id, skinUrl, variant)
+  )
+  ipcMain.handle('auth:lookupSkinByUsername', (_event, username: string) => lookupSkinByUsername(username))
   ipcMain.handle('auth:setActiveCape', (_event, id: string, capeId: string | null) => setActiveCape(id, capeId))
 }

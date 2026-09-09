@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import SkinViewer3D from './SkinViewer3D'
+import SkinPickerDialog from './SkinPickerDialog'
 import { useLocale } from './i18n'
 import type { AccountCustomization } from './types'
 
@@ -32,67 +34,6 @@ function faceAvatarStyle(skinUrl: string, size: number): React.CSSProperties {
   }
 }
 
-// A skin texture's front-facing regions (u, v, w, h in texture pixels, for
-// the standard 64x64 layout) - the "paper doll" below stacks these into a
-// flat front silhouette the same way Prism's skin picker preview does,
-// without needing a 3D renderer. Arm width differs by model: 4px (classic)
-// vs 3px (slim), same u/v origin either way.
-const DOLL_REGIONS = {
-  head: { u: 8, v: 8, w: 8, h: 8 },
-  body: { u: 20, v: 20, w: 8, h: 12 },
-  armRight: { u: 44, v: 20, h: 12 },
-  armLeft: { u: 36, v: 52, h: 12 },
-  legRight: { u: 4, v: 20, w: 4, h: 12 },
-  legLeft: { u: 20, v: 52, w: 4, h: 12 }
-}
-
-function regionStyle(
-  skinUrl: string,
-  scale: number,
-  region: { u: number; v: number; w: number; h: number },
-  left: number,
-  top: number
-): React.CSSProperties {
-  return {
-    position: 'absolute',
-    left: left * scale,
-    top: top * scale,
-    width: region.w * scale,
-    height: region.h * scale,
-    backgroundImage: `url(${skinUrl})`,
-    backgroundSize: `${64 * scale}px ${64 * scale}px`,
-    backgroundPosition: `-${region.u * scale}px -${region.v * scale}px`
-  }
-}
-
-interface SkinDollProps {
-  skinUrl: string
-  variant: 'CLASSIC' | 'SLIM'
-  scale: number
-}
-
-// Front-view paper doll: head centered on top, arms flanking the body,
-// legs side by side underneath - assembled purely from CSS-positioned
-// texture crops of the regions above.
-function SkinDoll({ skinUrl, variant, scale }: SkinDollProps): React.JSX.Element {
-  const armWidth = variant === 'SLIM' ? 3 : 4
-  const armRight = { ...DOLL_REGIONS.armRight, w: armWidth }
-  const armLeft = { ...DOLL_REGIONS.armLeft, w: armWidth }
-  const width = 8 + armWidth * 2
-  const bodyLeft = armWidth
-
-  return (
-    <div className="skin-doll" style={{ width: width * scale, height: 32 * scale }}>
-      <div style={regionStyle(skinUrl, scale, DOLL_REGIONS.head, bodyLeft, 0)} />
-      <div style={regionStyle(skinUrl, scale, DOLL_REGIONS.body, bodyLeft, 8)} />
-      <div style={regionStyle(skinUrl, scale, armLeft, 0, 8)} />
-      <div style={regionStyle(skinUrl, scale, armRight, bodyLeft + 8, 8)} />
-      <div style={regionStyle(skinUrl, scale, DOLL_REGIONS.legLeft, bodyLeft, 20)} />
-      <div style={regionStyle(skinUrl, scale, DOLL_REGIONS.legRight, bodyLeft + 4, 20)} />
-    </div>
-  )
-}
-
 function AccountSwitcher({
   activeId,
   accounts,
@@ -106,9 +47,9 @@ function AccountSwitcher({
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [customization, setCustomization] = useState<AccountCustomization | null>(null)
-  const [pendingVariant, setPendingVariant] = useState<'CLASSIC' | 'SLIM'>('CLASSIC')
   const [busySkin, setBusySkin] = useState(false)
   const [skinError, setSkinError] = useState<string | null>(null)
+  const [showSkinPicker, setShowSkinPicker] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   // Falls back to the first saved account rather than showing a bare "…"
   // placeholder - activeId briefly not matching any account can happen for
@@ -131,26 +72,11 @@ function AccountSwitcher({
     window.api.getAccountCustomization(activeAccount.id).then((result) => {
       if (cancelled) return
       setCustomization(result)
-      if (result) setPendingVariant(result.variant)
     })
     return () => {
       cancelled = true
     }
   }, [activeAccount?.id])
-
-  async function handleChangeSkin(): Promise<void> {
-    if (!activeAccount) return
-    setSkinError(null)
-    setBusySkin(true)
-    try {
-      const result = await window.api.changeSkin(activeAccount.id, pendingVariant)
-      setCustomization(result)
-    } catch (err) {
-      setSkinError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusySkin(false)
-    }
-  }
 
   async function handleSetCape(capeId: string | null): Promise<void> {
     if (!activeAccount) return
@@ -227,30 +153,21 @@ function AccountSwitcher({
               <div className="account-customization-title">{t('account.skinAndCape')}</div>
 
               <div className="skin-preview-row">
-                {customization?.skinUrl ? (
-                  <SkinDoll skinUrl={customization.skinUrl} variant={pendingVariant} scale={5} />
-                ) : (
-                  <div className="skin-doll placeholder" style={{ width: 70, height: 160 }} />
-                )}
+                <SkinViewer3D
+                  skinUrl={customization?.skinUrl ?? null}
+                  variant={customization?.variant ?? 'CLASSIC'}
+                  capeUrl={customization?.capes.find((c) => c.active)?.url ?? null}
+                  width={90}
+                  height={180}
+                />
                 <div className="skin-preview-controls">
-                  <div className="skin-variant-toggle">
-                    <button
-                      type="button"
-                      className={pendingVariant === 'CLASSIC' ? 'active' : ''}
-                      onClick={() => setPendingVariant('CLASSIC')}
-                    >
-                      Classic
-                    </button>
-                    <button
-                      type="button"
-                      className={pendingVariant === 'SLIM' ? 'active' : ''}
-                      onClick={() => setPendingVariant('SLIM')}
-                    >
-                      Slim
-                    </button>
-                  </div>
-                  <button type="button" className="save-button" onClick={handleChangeSkin} disabled={busySkin}>
-                    {busySkin ? '…' : t('account.changeSkin')}
+                  <button
+                    type="button"
+                    className="save-button"
+                    onClick={() => setShowSkinPicker(true)}
+                    disabled={busySkin}
+                  >
+                    {t('account.changeSkin')}
                   </button>
 
                   <div className="cape-list">
@@ -288,6 +205,15 @@ function AccountSwitcher({
             </div>
           )}
         </div>
+      )}
+
+      {showSkinPicker && activeAccount && (
+        <SkinPickerDialog
+          accountId={activeAccount.id}
+          customization={customization}
+          onApplied={setCustomization}
+          onClose={() => setShowSkinPicker(false)}
+        />
       )}
     </div>
   )

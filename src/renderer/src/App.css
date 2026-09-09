@@ -627,15 +627,15 @@ button {
   gap: 12px;
 }
 
-.skin-doll {
-  position: relative;
+.skin-viewer-3d-canvas {
   flex-shrink: 0;
-  image-rendering: pixelated;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  cursor: grab;
 }
 
-.skin-doll.placeholder {
-  background: var(--bg-input);
-  border-radius: var(--radius-sm);
+.skin-viewer-3d-canvas:active {
+  cursor: grabbing;
 }
 
 .skin-preview-controls {
@@ -646,22 +646,58 @@ button {
   gap: 8px;
 }
 
-.skin-variant-toggle {
+.skin-picker-layout {
   display: flex;
-  gap: 4px;
+  gap: 16px;
+  align-items: flex-start;
 }
 
-.skin-variant-toggle button {
-  padding: 5px 10px;
+.skin-picker-preview {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.skin-picker-sections {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skin-history-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skin-history-item {
+  position: relative;
+}
+
+.skin-history-thumb {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  image-rendering: pixelated;
+}
+
+.skin-history-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
   font-size: 12px;
-  background: var(--bg-input);
-}
-
-.skin-variant-toggle button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0c1116;
-  font-weight: 600;
+  line-height: 1;
+  background: var(--bg-panel);
 }
 
 .cape-list {
