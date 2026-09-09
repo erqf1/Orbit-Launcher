@@ -387,6 +387,11 @@ const tr: Record<TranslationKey, string> = {
   'serverHost.tunnel.createTunnelTitle': 'Tünel oluştur (bir kerelik, tarayıcında)',
   'serverHost.tunnel.createTunnelExplainer': "Buradaki ajan sadece playit.gg hesabına bağlanır - tüneli kendi başına oluşturamaz, bu yalnızca playit.gg'nin kendi panosunda olur. Orada ajanını seç ve bu sunucunun portuna yönlendiren bir TCP tüneli ekle; ardından atanan adresi aşağıdaki \"Herkese Açık Adres\" alanına yapıştır.",
   'serverHost.tunnel.createTunnelButton': 'Panoda Tünel Oluştur…',
+  'serverHost.tunnel.tutorialStep1': 'Panoda üstte "Tunnels" sekmesine git ve "new tunnel" butonuna tıkla.',
+  'serverHost.tunnel.tutorialStep2':
+    '"Minecraft Java" adında bir preset varsa onu seç (TCP + portu otomatik ayarlar) - yoksa TCP seç ve {port} portunu gir.',
+  'serverHost.tunnel.tutorialStep3': 'Hedef olarak ajanını seç (yukarıda kurduğun gizli anahtara sahip olan) ve tüneli oluştur.',
+  'serverHost.tunnel.tutorialStep4': 'Sana atanan adresi kopyala ve aşağıdaki "Genel Adres" alanına yapıştır.',
   'serverHost.tunnel.autoStart': 'Tüneli sunucuyla birlikte otomatik başlat',
   'serverHost.tunnel.start': 'Tüneli Başlat',
   'serverHost.tunnel.starting': 'Başlatılıyor…',

@@ -388,6 +388,11 @@ const es: Record<TranslationKey, string> = {
   'serverHost.tunnel.createTunnelExplainer':
     'El agente aquí solo se conecta a tu cuenta de playit.gg - no puede crear un túnel por sí mismo, eso solo se hace en el panel de playit.gg. Elige allí tu agente y añade un túnel TCP que apunte al puerto de este servidor; luego pega la dirección asignada en "Dirección pública" abajo.',
   'serverHost.tunnel.createTunnelButton': 'Crear túnel en el panel…',
+  'serverHost.tunnel.tutorialStep1': 'En el panel, ve arriba a "Tunnels" y haz clic en "new tunnel".',
+  'serverHost.tunnel.tutorialStep2':
+    'Si hay un preset "Minecraft Java", elígelo (configura TCP y el puerto automáticamente) - si no, elige TCP e introduce el puerto {port}.',
+  'serverHost.tunnel.tutorialStep3': 'Elige tu agente (el que tiene la clave secreta que configuraste arriba) como destino y crea el túnel.',
+  'serverHost.tunnel.tutorialStep4': 'Copia la dirección que te asignen y pégala en "Dirección pública" abajo.',
   'serverHost.tunnel.autoStart': 'Iniciar el túnel automáticamente con el servidor',
   'serverHost.tunnel.start': 'Iniciar túnel',
   'serverHost.tunnel.starting': 'Iniciando…',
