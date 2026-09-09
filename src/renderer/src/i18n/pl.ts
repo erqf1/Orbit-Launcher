@@ -106,6 +106,8 @@ const pl: Record<TranslationKey, string> = {
   'createInstance.name': 'Nazwa',
   'createInstance.installRecommendedMods': 'Zainstaluj polecane mody (wydajność + wygoda)',
   'createInstance.creating': 'Tworzenie…',
+  'createInstance.importInstead': 'Zamiast tego zaimportuj istniejącą instancję…',
+  'createInstance.importZip': 'Importuj z ZIP…',
 
   'cloneDialog.title': 'Duplikuj „{name}”',
   'cloneDialog.description': 'Domyślnie używana jest ta sama wersja/loader. Wybranie innej wersji spowoduje ponowną instalację loadera dla nowej instancji.',
@@ -133,6 +135,21 @@ const pl: Record<TranslationKey, string> = {
   'importPicker.notSupportedNotice': 'Znaleziono {label}, ale import z niego nie jest jeszcze obsługiwany - obecnie wspierane są tylko Prism Launcher i oficjalny Minecraft Launcher.',
   'importPicker.otherSectionTitle': 'Inne',
   'importPicker.chooseFolderManually': 'Wybierz folder ręcznie…',
+
+  'manualImport.title': 'Importuj folder ręcznie',
+  'manualImport.description': 'Wybierz dowolny folder zawierający istniejącą instalację Minecraft (mods/saves/config/… bezpośrednio w nim, lub zagnieżdżony podfolder minecraft/.minecraft) - wersję i loader określasz samodzielnie, niezależnie od tego, który launcher pierwotnie utworzył ten folder.',
+
+  'zipImport.title': 'Importuj z ZIP',
+  'zipImport.description': 'Modpaki Modrinth (.mrpack) oraz pliki ZIP modpacków CurseForge są automatycznie wykrywane na podstawie ich zawartości.',
+  'zipImport.chooseFile': 'Wybierz plik ZIP…',
+  'zipImport.formatMrpack': 'Wykryto: modpak Modrinth (.mrpack)',
+  'zipImport.formatCurseforge': 'Wykryto: modpak CurseForge',
+  'zipImport.formatUnknown': 'Nieznany format - nie znaleziono ani modrinth.index.json, ani manifest.json.',
+  'zipImport.curseforgeKeyTitle': 'Wymagany klucz API CurseForge',
+  'zipImport.curseforgeKeyExplainer': 'W przeciwieństwie do Modrinth, CurseForge wymaga od aplikacji zewnętrznych własnego, darmowego klucza API. Wygeneruj go raz i wklej tutaj - będzie obejmował każdy kolejny import z CurseForge.',
+  'zipImport.curseforgeKeyGetKey': 'Wygeneruj klucz API…',
+  'zipImport.curseforgeKeyPlaceholder': 'Wklej swój klucz API CurseForge…',
+  'zipImport.partialFailure': 'Nie udało się pobrać {count} plik(ów), reszta została zaimportowana:\n{details}',
 
   'officialImport.title': 'Importuj z Minecraft Launcher',
   'officialImport.description': 'Światy, Resource Packs, Shader Packs, serwery i ustawienia zostaną przeniesione jako nowa instancja o nazwie „Minecraft Launcher”, ustawiona na ostatnio używaną wersję.',

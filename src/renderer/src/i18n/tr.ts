@@ -106,6 +106,8 @@ const tr: Record<TranslationKey, string> = {
   'createInstance.name': 'İsim',
   'createInstance.installRecommendedMods': 'Önerilen modları yükle (performans + kolaylık)',
   'createInstance.creating': 'Oluşturuluyor…',
+  'createInstance.importInstead': 'Bunun yerine mevcut bir örneği içe aktar…',
+  'createInstance.importZip': "ZIP'ten içe aktar…",
 
   'cloneDialog.title': '"{name}" öğesini çoğalt',
   'cloneDialog.description': 'Varsayılan olarak aynı sürüm/loader kullanılır. Farklı bir sürüm seçildiğinde yeni örnek için loader yeniden kurulur.',
@@ -133,6 +135,21 @@ const tr: Record<TranslationKey, string> = {
   'importPicker.notSupportedNotice': '{label} bulundu, ancak içe aktarma henüz eklenmedi - şu an yalnızca Prism Launcher ve resmi Minecraft Launcher destekleniyor.',
   'importPicker.otherSectionTitle': 'Diğer',
   'importPicker.chooseFolderManually': 'Klasörü manuel seç…',
+
+  'manualImport.title': 'Klasörü Manuel İçe Aktar',
+  'manualImport.description': "Mevcut bir Minecraft kurulumu içeren herhangi bir klasörü seç (mods/saves/config/… doğrudan içinde, veya iç içe bir minecraft/.minecraft alt klasörü) - sürümü ve loader'ı, klasörü hangi launcher'ın oluşturduğuna bakılmaksızın kendin belirlersin.",
+
+  'zipImport.title': "ZIP'ten İçe Aktar",
+  'zipImport.description': "Modrinth modpack'leri (.mrpack) ve CurseForge modpack ZIP'leri, içeriklerine göre otomatik olarak tespit edilir.",
+  'zipImport.chooseFile': 'ZIP Dosyası Seç…',
+  'zipImport.formatMrpack': 'Tespit edildi: Modrinth modpack (.mrpack)',
+  'zipImport.formatCurseforge': 'Tespit edildi: CurseForge modpack',
+  'zipImport.formatUnknown': 'Bilinmeyen format - modrinth.index.json veya manifest.json bulunamadı.',
+  'zipImport.curseforgeKeyTitle': 'CurseForge API Anahtarı Gerekli',
+  'zipImport.curseforgeKeyExplainer': "Modrinth'in aksine, CurseForge üçüncü taraf uygulamaların kendi ücretsiz API anahtarını kullanmasını gerektirir. Bir kez oluştur ve buraya yapıştır - bundan sonraki her CurseForge içe aktarımını kapsayacaktır.",
+  'zipImport.curseforgeKeyGetKey': 'API Anahtarı Oluştur…',
+  'zipImport.curseforgeKeyPlaceholder': 'CurseForge API anahtarını yapıştır…',
+  'zipImport.partialFailure': '{count} dosya indirilemedi, kalanlar içe aktarıldı:\n{details}',
 
   'officialImport.title': "Minecraft Launcher'dan İçe Aktar",
   'officialImport.description': 'Dünyalar, Resource Packs, Shader Packs, sunucular ve ayarlar, son oynanan sürüme ayarlanmış olarak "Minecraft Launcher" adlı yeni bir örnek olarak aktarılır.',

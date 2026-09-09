@@ -106,6 +106,8 @@ const de: Record<TranslationKey, string> = {
   'createInstance.name': 'Name',
   'createInstance.installRecommendedMods': 'Empfohlene Mods installieren (Performance + Komfort)',
   'createInstance.creating': 'Erstelle…',
+  'createInstance.importInstead': 'Stattdessen bestehende Instanz importieren…',
+  'createInstance.importZip': 'Aus ZIP importieren…',
 
   'cloneDialog.title': '"{name}" duplizieren',
   'cloneDialog.description': 'Standardmäßig wird die gleiche Version/Loader verwendet. Bei einer anderen Version wird der Loader für die neue Instanz neu installiert.',
@@ -133,6 +135,21 @@ const de: Record<TranslationKey, string> = {
   'importPicker.notSupportedNotice': '{label} wurde gefunden, aber der Import dafür ist noch nicht eingebaut - nur Prism Launcher und der offizielle Minecraft Launcher werden bisher unterstützt.',
   'importPicker.otherSectionTitle': 'Andere',
   'importPicker.chooseFolderManually': 'Ordner manuell auswählen…',
+
+  'manualImport.title': 'Ordner manuell importieren',
+  'manualImport.description': 'Wähle einen beliebigen Ordner mit einer bestehenden Minecraft-Installation (mods/saves/config/… direkt drin, oder eine minecraft/.minecraft-Unterordner) - Version und Loader gibst du selbst an, unabhängig davon, welcher Launcher den Ordner ursprünglich angelegt hat.',
+
+  'zipImport.title': 'Aus ZIP importieren',
+  'zipImport.description': 'Modrinth-Modpacks (.mrpack) und CurseForge-Modpack-ZIPs werden automatisch anhand ihres Inhalts erkannt.',
+  'zipImport.chooseFile': 'ZIP-Datei auswählen…',
+  'zipImport.formatMrpack': 'Erkannt: Modrinth-Modpack (.mrpack)',
+  'zipImport.formatCurseforge': 'Erkannt: CurseForge-Modpack',
+  'zipImport.formatUnknown': 'Unbekanntes Format - weder modrinth.index.json noch manifest.json gefunden.',
+  'zipImport.curseforgeKeyTitle': 'CurseForge-API-Key erforderlich',
+  'zipImport.curseforgeKeyExplainer': 'CurseForge verlangt (im Gegensatz zu Modrinth) von Drittanbieter-Apps einen eigenen, kostenlosen API-Key. Einmal erzeugen und hier einfügen - gilt dann für jeden weiteren CurseForge-Import.',
+  'zipImport.curseforgeKeyGetKey': 'API-Key erzeugen…',
+  'zipImport.curseforgeKeyPlaceholder': 'CurseForge-API-Key einfügen…',
+  'zipImport.partialFailure': '{count} Datei(en) konnten nicht heruntergeladen werden, der Rest wurde importiert:\n{details}',
 
   'officialImport.title': 'Vom Minecraft Launcher importieren',
   'officialImport.description': 'Welten, Resource Packs, Shader Packs, Server und Einstellungen werden als neue Instanz namens „Minecraft Launcher" übernommen, gesetzt auf die zuletzt gespielte Version.',

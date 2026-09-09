@@ -336,3 +336,10 @@ export interface ServerFileEntry {
 }
 
 export type PaperConfigValue = string | number | boolean
+
+export type ZipFormat = 'mrpack' | 'curseforge' | 'unknown'
+
+export interface ZipImportResult {
+  instance: Instance
+  failures: string[]
+}

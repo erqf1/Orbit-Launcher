@@ -106,6 +106,8 @@ const el: Record<TranslationKey, string> = {
   'createInstance.name': 'Όνομα',
   'createInstance.installRecommendedMods': 'Εγκατάσταση προτεινόμενων mods (απόδοση + άνεση)',
   'createInstance.creating': 'Δημιουργία…',
+  'createInstance.importInstead': 'Αντί αυτού, εισαγωγή υπάρχουσας instance…',
+  'createInstance.importZip': 'Εισαγωγή από ZIP…',
 
   'cloneDialog.title': 'Διπλασιασμός «{name}»',
   'cloneDialog.description': 'Από προεπιλογή χρησιμοποιείται η ίδια έκδοση/loader. Επιλέγοντας διαφορετική έκδοση, ο loader θα εγκατασταθεί ξανά για τη νέα instance.',
@@ -133,6 +135,21 @@ const el: Record<TranslationKey, string> = {
   'importPicker.notSupportedNotice': 'Βρέθηκε {label}, αλλά η εισαγωγή από αυτόν δεν έχει υλοποιηθεί ακόμα - προς το παρόν υποστηρίζονται μόνο το Prism Launcher και το επίσημο Minecraft Launcher.',
   'importPicker.otherSectionTitle': 'Άλλο',
   'importPicker.chooseFolderManually': 'Χειροκίνητη επιλογή φακέλου…',
+
+  'manualImport.title': 'Χειροκίνητη εισαγωγή φακέλου',
+  'manualImport.description': 'Επίλεξε οποιονδήποτε φάκελο που περιέχει μια υπάρχουσα εγκατάσταση Minecraft (mods/saves/config/… απευθείας μέσα, ή έναν ενσωματωμένο υποφάκελο minecraft/.minecraft) - εσύ καθορίζεις την έκδοση και τον loader, ανεξάρτητα από το ποιος launcher δημιούργησε αρχικά τον φάκελο.',
+
+  'zipImport.title': 'Εισαγωγή από ZIP',
+  'zipImport.description': 'Τα modpacks Modrinth (.mrpack) και τα ZIP modpacks CurseForge εντοπίζονται αυτόματα από το περιεχόμενό τους.',
+  'zipImport.chooseFile': 'Επιλογή αρχείου ZIP…',
+  'zipImport.formatMrpack': 'Εντοπίστηκε: modpack Modrinth (.mrpack)',
+  'zipImport.formatCurseforge': 'Εντοπίστηκε: modpack CurseForge',
+  'zipImport.formatUnknown': 'Άγνωστη μορφή - δεν βρέθηκε ούτε modrinth.index.json ούτε manifest.json.',
+  'zipImport.curseforgeKeyTitle': 'Απαιτείται κλειδί API CurseForge',
+  'zipImport.curseforgeKeyExplainer': 'Σε αντίθεση με το Modrinth, το CurseForge απαιτεί από εφαρμογές τρίτων να έχουν το δικό τους δωρεάν κλειδί API. Δημιούργησέ το μία φορά και επικόλλησέ το εδώ - θα καλύπτει κάθε επόμενη εισαγωγή από CurseForge.',
+  'zipImport.curseforgeKeyGetKey': 'Δημιουργία κλειδιού API…',
+  'zipImport.curseforgeKeyPlaceholder': 'Επικόλληση του κλειδιού API CurseForge…',
+  'zipImport.partialFailure': 'Η λήψη {count} αρχείου/αρχείων απέτυχε, τα υπόλοιπα εισήχθησαν:\n{details}',
 
   'officialImport.title': 'Εισαγωγή από το Minecraft Launcher',
   'officialImport.description': 'Οι κόσμοι, τα Resource Packs, τα Shader Packs, οι servers και οι ρυθμίσεις θα μεταφερθούν ως νέα instance με το όνομα «Minecraft Launcher», ρυθμισμένη στην τελευταία έκδοση που παίχτηκε.',

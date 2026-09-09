@@ -107,6 +107,8 @@ const en = {
   'createInstance.name': 'Name',
   'createInstance.installRecommendedMods': 'Install recommended mods (performance + convenience)',
   'createInstance.creating': 'Creating…',
+  'createInstance.importInstead': 'Import an existing instance instead…',
+  'createInstance.importZip': 'Import from ZIP…',
 
   'cloneDialog.title': 'Duplicate "{name}"',
   'cloneDialog.description': 'By default the same version/loader is used. Choosing a different version reinstalls the loader for the new instance.',
@@ -134,6 +136,21 @@ const en = {
   'importPicker.notSupportedNotice': '{label} was found, but import for it is not built yet - only Prism Launcher and the official Minecraft Launcher are currently supported.',
   'importPicker.otherSectionTitle': 'Other',
   'importPicker.chooseFolderManually': 'Choose folder manually…',
+
+  'manualImport.title': 'Import Folder Manually',
+  'manualImport.description': "Pick any folder that holds an existing Minecraft install (mods/saves/config/… directly inside, or a nested minecraft/.minecraft subfolder) - you specify the version and loader yourself, regardless of which launcher originally created the folder.",
+
+  'zipImport.title': 'Import from ZIP',
+  'zipImport.description': 'Modrinth modpacks (.mrpack) and CurseForge modpack ZIPs are auto-detected from their contents.',
+  'zipImport.chooseFile': 'Choose ZIP File…',
+  'zipImport.formatMrpack': 'Detected: Modrinth modpack (.mrpack)',
+  'zipImport.formatCurseforge': 'Detected: CurseForge modpack',
+  'zipImport.formatUnknown': "Unknown format - found neither modrinth.index.json nor manifest.json.",
+  'zipImport.curseforgeKeyTitle': 'CurseForge API Key Required',
+  'zipImport.curseforgeKeyExplainer': "Unlike Modrinth, CurseForge requires third-party apps to bring their own free API key. Generate one once and paste it here - it'll cover every CurseForge import after that.",
+  'zipImport.curseforgeKeyGetKey': 'Generate API Key…',
+  'zipImport.curseforgeKeyPlaceholder': 'Paste your CurseForge API key…',
+  'zipImport.partialFailure': "{count} file(s) couldn't be downloaded, the rest were imported:\n{details}",
 
   'officialImport.title': 'Import from Minecraft Launcher',
   'officialImport.description': 'Worlds, resource packs, shader packs, servers and settings are taken over as a new instance named "Minecraft Launcher", set to the last-played version.',

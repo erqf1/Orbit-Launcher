@@ -16,9 +16,22 @@ interface Props {
   // the version picker is then replaced by a fixed display for that version
   // instead of offering every Minecraft version again.
   presetVersion?: string
+  // Importing was previously its own separate sidebar button, disconnected
+  // from "create new instance" even though both answer the same question
+  // ("I want a new instance in my list") - surfaced here instead so
+  // there's one place to go regardless of whether that instance is created
+  // fresh, brought in from another launcher, or unpacked from a modpack zip.
+  onImportInstead: () => void
+  onImportZip: () => void
 }
 
-function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): React.JSX.Element {
+function CreateInstanceDialog({
+  onCancel,
+  onCreate,
+  presetVersion,
+  onImportInstead,
+  onImportZip
+}: Props): React.JSX.Element {
   const { t } = useLocale()
   const [name, setName] = useState(t('createInstance.defaultName'))
   const [mcVersion, setMcVersion] = useState(presetVersion ?? '')
@@ -85,6 +98,15 @@ function CreateInstanceDialog({ onCancel, onCreate, presetVersion }: Props): Rea
         )}
 
         {error && <p className="error">{error}</p>}
+
+        <div className="detail-tab-header">
+          <button type="button" onClick={onImportInstead}>
+            {t('createInstance.importInstead')}
+          </button>
+          <button type="button" onClick={onImportZip}>
+            {t('createInstance.importZip')}
+          </button>
+        </div>
 
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>

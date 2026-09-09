@@ -25,6 +25,8 @@ import { registerTunnelHandlers } from './servers/playitTunnel'
 import { registerFriendsModsHandlers } from './servers/friendsMods'
 import { registerServerFileHandlers } from './servers/serverFiles'
 import { registerPaperConfigHandlers } from './servers/paperConfig'
+import { registerFolderImportHandlers } from './importers/folderImport'
+import { registerZipImportHandlers } from './importers/zipImport'
 
 // `require`, not `import * as fs from 'fs'`: the latter produced a
 // read-only ESM namespace object under esbuild's interop, which is what
@@ -129,6 +131,8 @@ app.whenReady().then(() => {
   registerFriendsModsHandlers()
   registerServerFileHandlers()
   registerPaperConfigHandlers()
+  registerFolderImportHandlers()
+  registerZipImportHandlers()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

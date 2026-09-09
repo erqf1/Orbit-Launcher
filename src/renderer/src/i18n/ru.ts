@@ -106,6 +106,8 @@ const ru: Record<TranslationKey, string> = {
   'createInstance.name': 'Имя',
   'createInstance.installRecommendedMods': 'Установить рекомендуемые моды (производительность + удобство)',
   'createInstance.creating': 'Создание…',
+  'createInstance.importInstead': 'Импортировать существующий экземпляр вместо этого…',
+  'createInstance.importZip': 'Импорт из ZIP…',
 
   'cloneDialog.title': 'Дублировать «{name}»',
   'cloneDialog.description': 'По умолчанию используются та же версия и загрузчик. При выборе другой версии загрузчик для нового экземпляра будет установлен заново.',
@@ -133,6 +135,21 @@ const ru: Record<TranslationKey, string> = {
   'importPicker.notSupportedNotice': '{label} найден, но импорт из него пока не реализован - на данный момент поддерживаются только Prism Launcher и официальный Minecraft Launcher.',
   'importPicker.otherSectionTitle': 'Другое',
   'importPicker.chooseFolderManually': 'Выбрать папку вручную…',
+
+  'manualImport.title': 'Импорт папки вручную',
+  'manualImport.description': 'Выберите любую папку с существующей установкой Minecraft (mods/saves/config/… прямо внутри, или вложенная подпапка minecraft/.minecraft) - версию и загрузчик вы указываете сами, независимо от того, какой лаунчер изначально создал эту папку.',
+
+  'zipImport.title': 'Импорт из ZIP',
+  'zipImport.description': 'Модпаки Modrinth (.mrpack) и модпак-ZIP CurseForge определяются автоматически по их содержимому.',
+  'zipImport.chooseFile': 'Выбрать ZIP-файл…',
+  'zipImport.formatMrpack': 'Обнаружено: модпак Modrinth (.mrpack)',
+  'zipImport.formatCurseforge': 'Обнаружено: модпак CurseForge',
+  'zipImport.formatUnknown': 'Неизвестный формат - не найден ни modrinth.index.json, ни manifest.json.',
+  'zipImport.curseforgeKeyTitle': 'Требуется API-ключ CurseForge',
+  'zipImport.curseforgeKeyExplainer': 'В отличие от Modrinth, CurseForge требует от сторонних приложений собственный бесплатный API-ключ. Создайте его один раз и вставьте здесь - он будет использоваться для каждого последующего импорта из CurseForge.',
+  'zipImport.curseforgeKeyGetKey': 'Создать API-ключ…',
+  'zipImport.curseforgeKeyPlaceholder': 'Вставьте свой API-ключ CurseForge…',
+  'zipImport.partialFailure': 'Не удалось скачать {count} файл(ов), остальные импортированы:\n{details}',
 
   'officialImport.title': 'Импорт из Minecraft Launcher',
   'officialImport.description': 'Миры, Resource Packs, Shader Packs, серверы и настройки будут перенесены как новый экземпляр с именем «Minecraft Launcher», установленный на последнюю сыгранную версию.',
