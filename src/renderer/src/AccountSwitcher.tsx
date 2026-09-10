@@ -20,15 +20,21 @@ interface Props {
   onToggleAskOnPlay: (value: boolean) => void
 }
 
-// Crops just the 8x8 face region out of a full skin texture via CSS
-// background positioning (scaled up 1:N) rather than pulling in a canvas or
-// a skin-rendering library for a small sidebar avatar.
+// Crops the 8x8 face region out of a full skin texture via CSS background
+// positioning (scaled up 1:N) rather than pulling in a canvas or a
+// skin-rendering library for a small sidebar avatar. Layers TWO crops of
+// the same texture - the "hat" overlay region (UV 40,8, on top) over the
+// base face region (UV 8,8, underneath) - since a real skin composites
+// both; cropping only the base region (as this used to) silently dropped
+// any hat/hair-overlay pixels the skin had.
 function faceAvatarStyle(skinUrl: string, size: number): React.CSSProperties {
   const scale = size / 8
+  const bgSize = `${64 * scale}px ${64 * scale}px`
   return {
-    backgroundImage: `url(${skinUrl})`,
-    backgroundSize: `${64 * scale}px ${64 * scale}px`,
-    backgroundPosition: `-${8 * scale}px -${8 * scale}px`,
+    backgroundImage: `url(${skinUrl}), url(${skinUrl})`,
+    backgroundSize: `${bgSize}, ${bgSize}`,
+    backgroundPosition: `-${40 * scale}px -${8 * scale}px, -${8 * scale}px -${8 * scale}px`,
+    backgroundRepeat: 'no-repeat, no-repeat',
     width: size,
     height: size
   }

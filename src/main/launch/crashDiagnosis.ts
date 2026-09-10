@@ -1,7 +1,7 @@
 import { readdirSync, existsSync } from 'fs'
 import { join } from 'path'
 import { getInstance, getInstanceRoot } from '../instances/instanceManager'
-import { checkJavaCompat, detectJavaInstallations } from '../java/javaManager'
+import { checkJavaCompat, detectJavaInstallations, findCompatibleJavaInstallation } from '../java/javaManager'
 import { resolveModEnvironment, getRequiredDependencies, mapWithConcurrency } from '../mods/modrinth'
 
 // Deliberately bounded to the most reliably-detectable, common cases rather
@@ -81,15 +81,12 @@ export async function diagnoseCrash(instanceId: string, logText: string): Promis
   const compat = await checkJavaCompat(instance.javaPath || 'java', instance.mcVersion)
   if (compat.mismatch && compat.requiredMajor !== null) {
     const installations = await detectJavaInstallations()
-    const exact = installations.find((i) => {
-      const major = /^1\.(\d+)/.exec(i.version)?.[1] ?? /^(\d+)/.exec(i.version)?.[1]
-      return major !== undefined && Number(major) === compat.requiredMajor
-    })
+    const match = findCompatibleJavaInstallation(installations, compat.requiredMajor)
     return {
       kind: 'javaMismatch',
       installedMajor: compat.installedMajor,
       requiredMajor: compat.requiredMajor,
-      suggestedJavaPath: exact?.path ?? null
+      suggestedJavaPath: match?.path ?? null
     }
   }
 

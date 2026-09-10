@@ -44,6 +44,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
   const [lightboxName, setLightboxName] = useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [zoomed, setZoomed] = useState(false)
+  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 })
   const [copied, setCopied] = useState(false)
 
   const refresh = useCallback(() => {
@@ -63,9 +64,25 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
     setLightboxName(name)
     setLightboxUrl(null)
     setZoomed(false)
+    setZoomOrigin({ x: 50, y: 50 })
     setCopied(false)
     const url = await window.api.getContentFileDataUrl(instanceId, 'screenshots', name)
     setLightboxUrl(url)
+  }
+
+  // Anchors the zoom to wherever was clicked (as a % of the image's own
+  // rendered box) instead of always scaling from the center - clicking near
+  // an edge/corner now actually zooms toward that spot, rather than the
+  // image always growing from its middle regardless of where you clicked.
+  function handleImageClick(e: React.MouseEvent<HTMLImageElement>): void {
+    if (!zoomed) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      setZoomOrigin({
+        x: ((e.clientX - rect.left) / rect.width) * 100,
+        y: ((e.clientY - rect.top) / rect.height) * 100
+      })
+    }
+    setZoomed((z) => !z)
   }
 
   async function handleRemove(name: string): Promise<void> {
@@ -119,7 +136,8 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
                 src={lightboxUrl}
                 alt={lightboxName}
                 className={zoomed ? 'zoomed' : ''}
-                onClick={() => setZoomed((z) => !z)}
+                style={zoomed ? { transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%` } : undefined}
+                onClick={handleImageClick}
                 title={zoomed ? t('screenshots.clickToShrink') : t('screenshots.clickToEnlarge')}
               />
             ) : (

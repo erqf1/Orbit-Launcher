@@ -4,16 +4,20 @@ import SkinViewer3D from './SkinViewer3D'
 import { useLocale } from './i18n'
 import type { AccountCustomization, LookedUpSkin, SkinHistoryEntry } from './types'
 
-// Crops just the 8x8 face region out of a full skin texture via CSS
-// background positioning - same technique AccountSwitcher's own sidebar
-// avatar uses, duplicated here rather than imported to avoid a circular
-// import between the two dialog/panel components.
+// Crops the 8x8 face region out of a full skin texture via CSS background
+// positioning - same technique AccountSwitcher's own sidebar avatar uses,
+// duplicated here rather than imported to avoid a circular import between
+// the two dialog/panel components. Layers the "hat" overlay region (UV
+// 40,8) on top of the base face region (UV 8,8) - a plain single-region
+// crop silently dropped any hat/hair-overlay pixels the skin had.
 function faceThumbStyle(skinUrl: string): React.CSSProperties {
   const scale = 48 / 8
+  const bgSize = `${64 * scale}px ${64 * scale}px`
   return {
-    backgroundImage: `url(${skinUrl})`,
-    backgroundSize: `${64 * scale}px ${64 * scale}px`,
-    backgroundPosition: `-${8 * scale}px -${8 * scale}px`
+    backgroundImage: `url(${skinUrl}), url(${skinUrl})`,
+    backgroundSize: `${bgSize}, ${bgSize}`,
+    backgroundPosition: `-${40 * scale}px -${8 * scale}px, -${8 * scale}px -${8 * scale}px`,
+    backgroundRepeat: 'no-repeat, no-repeat'
   }
 }
 

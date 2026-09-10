@@ -54,11 +54,22 @@ function backgroundStoreDir(): string {
 // rather than referenced by their original path, so a background survives
 // the source file moving/being deleted and doesn't need a file:// path
 // exposed to the renderer.
+// Reading a stored background can fail for reasons that have nothing to do
+// with whether the file itself is valid (a momentary AV/indexer lock, a
+// removable/network drive that went away) - previously unguarded, so one
+// bad file threw out of listCustomBackgrounds() entirely and silently
+// dropped every custom background from the list (not just the bad one),
+// which looked exactly like "custom backgrounds just don't work" even
+// though the files were still there in settings.customBackgrounds.
 function toDataUrl(storedPath: string): string | null {
   if (!existsSync(storedPath)) return null
   const mime = IMAGE_MIME_BY_EXT[extname(storedPath).toLowerCase()]
   if (!mime) return null
-  return `data:${mime};base64,${readFileSync(storedPath).toString('base64')}`
+  try {
+    return `data:${mime};base64,${readFileSync(storedPath).toString('base64')}`
+  } catch {
+    return null
+  }
 }
 
 export function listCustomBackgrounds(): string[] {
@@ -66,22 +77,27 @@ export function listCustomBackgrounds(): string[] {
   return settings.customBackgrounds.map(toDataUrl).filter((url): url is string => url !== null)
 }
 
+// Multi-select so adding several photos at once doesn't need re-opening the
+// picker per file; each valid image is copied in and appended before a
+// single re-read of the (now longer) list.
 export async function addCustomBackground(): Promise<string[]> {
   const result = await dialog.showOpenDialog({
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],
     filters: [{ name: 'Bilder', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
   })
   refocusMainWindow()
   if (result.canceled || result.filePaths.length === 0) return listCustomBackgrounds()
-  const src = result.filePaths[0]
-  const ext = extname(src).toLowerCase()
-  if (!IMAGE_MIME_BY_EXT[ext]) throw new Error('Nicht unterstütztes Bildformat.')
+
   const dir = backgroundStoreDir()
   mkdirSync(dir, { recursive: true })
-  const dest = join(dir, `${randomUUID()}-${basename(src)}`)
-  copyFileSync(src, dest)
   const settings = readSettings()
-  settings.customBackgrounds.push(dest)
+  for (const src of result.filePaths) {
+    const ext = extname(src).toLowerCase()
+    if (!IMAGE_MIME_BY_EXT[ext]) continue
+    const dest = join(dir, `${randomUUID()}-${basename(src)}`)
+    copyFileSync(src, dest)
+    settings.customBackgrounds.push(dest)
+  }
   writeSettings(settings)
   return listCustomBackgrounds()
 }

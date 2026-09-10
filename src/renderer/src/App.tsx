@@ -575,17 +575,28 @@ function App(): React.JSX.Element {
   }
 
   async function handleAddBackground(): Promise<void> {
-    const updated = await window.api.addCustomBackground()
-    setCustomBackgrounds(updated)
-    const newLength = DEFAULT_BACKGROUNDS.length + updated.length
-    setBgIndex(newLength - 1, newLength)
+    try {
+      const updated = await window.api.addCustomBackground()
+      setCustomBackgrounds(updated)
+      const newLength = DEFAULT_BACKGROUNDS.length + updated.length
+      setBgIndex(newLength - 1, newLength)
+    } catch (err) {
+      // Previously unguarded - a failure here (e.g. a locked/unreadable
+      // source file) silently did nothing instead of telling the user
+      // anything went wrong at all.
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   async function handleRemoveCurrentBackground(): Promise<void> {
     if (bgIndex < DEFAULT_BACKGROUNDS.length) return
-    const updated = await window.api.removeCustomBackground(bgIndex - DEFAULT_BACKGROUNDS.length)
-    setCustomBackgrounds(updated)
-    setBgIndex(0)
+    try {
+      const updated = await window.api.removeCustomBackground(bgIndex - DEFAULT_BACKGROUNDS.length)
+      setCustomBackgrounds(updated)
+      setBgIndex(0)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   // --bg-photo is read by body's background-image in App.css - set here

@@ -26,7 +26,11 @@ async function getJavaVersion(javaExecutable: string): Promise<string | null> {
 
 // A version string's leading number - "17.0.9" -> 17, the legacy "1.8.0_392"
 // -> 8 (Java's own pre-9 numbering quirk: "1.N" meant major version N).
-function javaMajorVersion(version: string): number | null {
+// Exported for reuse by findCompatibleJavaInstallation below and by
+// crashDiagnosis.ts, so there's one place that knows how to read a major
+// version out of either a `java -version` string or this same field on a
+// detected JavaInstallation.
+export function javaMajorVersion(version: string): number | null {
   const legacy = /^1\.(\d+)/.exec(version)
   if (legacy) return Number(legacy[1])
   const modern = /^(\d+)/.exec(version)
@@ -38,13 +42,24 @@ function javaMajorVersion(version: string): number | null {
 // version boundaries, only meant to catch an obviously wrong pairing (e.g.
 // Java 8 selected for 1.21) rather than gate anything.
 function requiredJavaMajorFor(mcVersion: string): number | null {
-  const match = /^1\.(\d+)/.exec(mcVersion)
-  if (!match) return null
-  const minor = Number(match[1])
-  if (minor >= 20.5 || (minor === 20 && mcVersion.includes('.5'))) return 21
-  if (minor >= 18) return 17
-  if (minor >= 17) return 16
-  return 8
+  const legacyMatch = /^1\.(\d+)/.exec(mcVersion)
+  if (legacyMatch) {
+    const minor = Number(legacyMatch[1])
+    if (minor >= 20.5 || (minor === 20 && mcVersion.includes('.5'))) return 21
+    if (minor >= 18) return 17
+    if (minor >= 17) return 16
+    return 8
+  }
+  // Mojang moved off the "1.x" version scheme in 2026 (current releases
+  // look like "26.2"/"26.1.2" now, confirmed live against the real version
+  // manifest elsewhere in this project) - every version under the new
+  // scheme is current/modern, needing whatever Java Mojang requires for
+  // new releases today. Without this branch, any current-era version
+  // silently fell through to "no known requirement" (null) below, which is
+  // exactly what let a too-old Java get used for a real 26.2 server
+  // instead of being caught here.
+  if (/^\d+\.\d+/.test(mcVersion)) return 21
+  return null
 }
 
 export interface JavaCompatCheck {
@@ -145,6 +160,20 @@ export async function detectJavaInstallations(): Promise<JavaInstallation[]> {
     if (version) results.push({ path: candidate, version })
   }
   return results
+}
+
+// Prefers an exact major-version match over a merely-newer one (a newer
+// major isn't guaranteed compatible with an older loader/version even
+// though it usually is) - shared by crashDiagnosis.ts's auto-fix and
+// serverProcess.ts's pre-flight check, so both pick a replacement Java the
+// same way instead of duplicating this search.
+export function findCompatibleJavaInstallation(
+  installations: JavaInstallation[],
+  requiredMajor: number
+): JavaInstallation | null {
+  const exact = installations.find((i) => javaMajorVersion(i.version) === requiredMajor)
+  if (exact) return exact
+  return installations.find((i) => (javaMajorVersion(i.version) ?? 0) >= requiredMajor) ?? null
 }
 
 export function registerJavaHandlers(): void {

@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { resolveJavaPath } from '../launch/launcher'
+import { checkJavaCompat, detectJavaInstallations, findCompatibleJavaInstallation } from '../java/javaManager'
 import { getServer, getServerRoot, markServerStarted } from './serverManager'
 import { autoStartTunnelIfConfigured } from './playitTunnel'
 
@@ -80,7 +81,26 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   }
 
   const root = getServerRoot(id)
-  const javaPath = await resolveJavaPath(server.javaPath)
+  let javaPath = await resolveJavaPath(server.javaPath)
+  // Unlike a client Instance (which warns pre-launch and lets the crash
+  // diagnosis offer a fix afterward), a hosted server has nothing
+  // equivalent watching for this - it would otherwise crash-loop with a
+  // cryptic UnsupportedClassVersionError from deep inside the Fabric/vanilla
+  // bundler every single start. Auto-switching to a detected compatible
+  // install here prevents the crash outright instead of just explaining it
+  // after the fact.
+  const compat = await checkJavaCompat(javaPath, server.mcVersion)
+  if (compat.mismatch && compat.requiredMajor !== null) {
+    const installations = await detectJavaInstallations()
+    const better = findCompatibleJavaInstallation(installations, compat.requiredMajor)
+    if (better) {
+      javaPath = better.path
+    } else {
+      throw new Error(
+        `Die verwendete Java-Version (${compat.installedVersion ?? 'unbekannt'}) ist zu alt für Minecraft ${server.mcVersion} (benötigt: Java ${compat.requiredMajor}) - keine passende Java-Installation gefunden. Bitte im General-Tab dieses Servers manuell eine neuere Java-Version auswählen.`
+      )
+    }
+  }
   const jvmArgs = server.jvmArgs ? server.jvmArgs.split(/\s+/).filter(Boolean) : []
   const args = [
     ...buildMemoryArgs(server.memoryMin, server.memoryMax),

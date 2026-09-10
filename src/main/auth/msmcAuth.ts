@@ -115,14 +115,7 @@ function requireAuth(id: string): MclcAuthorization {
 // every cape the account owns (only Mojang's own vanilla capes; a
 // third-party service like MinecraftCapes has its own separate API and
 // isn't covered by this).
-export async function getAccountCustomization(id: string): Promise<AccountCustomization | null> {
-  const auth = authorizationCache.get(id)
-  if (!auth) return null
-  const res = await fetch('https://api.minecraftservices.com/minecraft/profile', {
-    headers: { Authorization: `Bearer ${auth.access_token}` }
-  })
-  if (!res.ok) return null
-  const data = (await res.json()) as MinecraftServicesProfile
+function parseCustomization(data: MinecraftServicesProfile): AccountCustomization {
   const activeSkin = data.skins?.find((s) => s.state === 'ACTIVE')
   return {
     skinUrl: activeSkin?.url ?? null,
@@ -131,10 +124,40 @@ export async function getAccountCustomization(id: string): Promise<AccountCustom
   }
 }
 
+export async function getAccountCustomization(id: string): Promise<AccountCustomization | null> {
+  const auth = authorizationCache.get(id)
+  if (!auth) return null
+  const res = await fetch('https://api.minecraftservices.com/minecraft/profile', {
+    headers: { Authorization: `Bearer ${auth.access_token}` }
+  })
+  if (!res.ok) return null
+  return parseCustomization((await res.json()) as MinecraftServicesProfile)
+}
+
 async function recordCustomizationAsHistory(id: string): Promise<AccountCustomization | null> {
   const result = await getAccountCustomization(id)
   if (result?.skinUrl) recordSkinHistory(id, result.skinUrl, result.variant)
   return result
+}
+
+// Mojang's own skin/cape mutation endpoints (skins POST, capes/active
+// PUT+DELETE) all return the FULL updated profile in their response body -
+// same shape as the plain GET .../minecraft/profile above. Parsing that
+// directly instead of firing a *separate* GET request right after the
+// mutation avoids a real read-after-write race that was causing the skin
+// preview to sometimes go blank: Mojang's read path can lag slightly behind
+// a just-applied write, so an immediate follow-up GET could momentarily see
+// the OLD (or no) active skin. Falls back to a fresh GET only if the
+// mutation response ever doesn't parse as expected, rather than silently
+// returning nothing.
+async function applyCustomizationFromResponse(id: string, res: Response): Promise<AccountCustomization | null> {
+  try {
+    const result = parseCustomization((await res.json()) as MinecraftServicesProfile)
+    if (result.skinUrl) recordSkinHistory(id, result.skinUrl, result.variant)
+    return result
+  } catch {
+    return recordCustomizationAsHistory(id)
+  }
 }
 
 export async function changeSkin(id: string, variant: 'CLASSIC' | 'SLIM'): Promise<AccountCustomization | null> {
@@ -157,7 +180,7 @@ export async function changeSkin(id: string, variant: 'CLASSIC' | 'SLIM'): Promi
     body: form
   })
   if (!res.ok) throw new Error(`Skin-Upload fehlgeschlagen (HTTP ${res.status}).`)
-  return recordCustomizationAsHistory(id)
+  return applyCustomizationFromResponse(id, res)
 }
 
 // Same endpoint as the file-upload path above, but Mojang's skins endpoint
@@ -178,7 +201,7 @@ export async function changeSkinByUrl(
     body: JSON.stringify({ url: skinUrl, variant: variant.toLowerCase() })
   })
   if (!res.ok) throw new Error(`Skin konnte nicht gesetzt werden (HTTP ${res.status}).`)
-  return recordCustomizationAsHistory(id)
+  return applyCustomizationFromResponse(id, res)
 }
 
 export interface LookedUpSkin {
@@ -240,7 +263,7 @@ export async function setActiveCape(id: string, capeId: string | null): Promise<
     ...(capeId ? { body: JSON.stringify({ capeId }) } : {})
   })
   if (!res.ok) throw new Error(`Umhang konnte nicht geändert werden (HTTP ${res.status}).`)
-  return getAccountCustomization(id)
+  return applyCustomizationFromResponse(id, res)
 }
 
 async function applyMinecraftSession(
