@@ -47,8 +47,6 @@ function AccountSwitcher({
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [customization, setCustomization] = useState<AccountCustomization | null>(null)
-  const [busySkin, setBusySkin] = useState(false)
-  const [skinError, setSkinError] = useState<string | null>(null)
   const [showSkinPicker, setShowSkinPicker] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   // Falls back to the first saved account rather than showing a bare "…"
@@ -77,20 +75,6 @@ function AccountSwitcher({
       cancelled = true
     }
   }, [activeAccount?.id])
-
-  async function handleSetCape(capeId: string | null): Promise<void> {
-    if (!activeAccount) return
-    setSkinError(null)
-    setBusySkin(true)
-    try {
-      const result = await window.api.setActiveCape(activeAccount.id, capeId)
-      setCustomization(result)
-    } catch (err) {
-      setSkinError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusySkin(false)
-    }
-  }
 
   return (
     <div className="account-switcher" ref={ref}>
@@ -161,47 +145,11 @@ function AccountSwitcher({
                   height={180}
                 />
                 <div className="skin-preview-controls">
-                  <button
-                    type="button"
-                    className="save-button"
-                    onClick={() => setShowSkinPicker(true)}
-                    disabled={busySkin}
-                  >
+                  <button type="button" className="save-button" onClick={() => setShowSkinPicker(true)}>
                     {t('account.changeSkin')}
                   </button>
-
-                  <div className="cape-list">
-                    <button
-                      type="button"
-                      className={`cape-list-item${!customization?.capes.some((c) => c.active) ? ' active' : ''}`}
-                      onClick={() => handleSetCape(null)}
-                      disabled={busySkin}
-                    >
-                      <span className="cape-option cape-option-none">✕</span>
-                      {t('account.noCape')}
-                    </button>
-                    {customization?.capes.map((cape) => (
-                      <button
-                        key={cape.id}
-                        type="button"
-                        className={`cape-list-item${cape.active ? ' active' : ''}`}
-                        onClick={() => handleSetCape(cape.id)}
-                        disabled={busySkin}
-                      >
-                        <span className="cape-option">
-                          <img src={cape.url} alt="" />
-                        </span>
-                        {cape.alias}
-                      </button>
-                    ))}
-                  </div>
-                  {customization && customization.capes.length === 0 && (
-                    <p className="instance-meta">{t('account.noCapes')}</p>
-                  )}
                 </div>
               </div>
-
-              {skinError && <p className="error">{skinError}</p>}
             </div>
           )}
         </div>

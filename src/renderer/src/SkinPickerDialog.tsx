@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import SkinViewer3D from './SkinViewer3D'
 import { useLocale } from './i18n'
 import type { AccountCustomization, LookedUpSkin, SkinHistoryEntry } from './types'
@@ -47,6 +48,7 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
   const [searching, setSearching] = useState(false)
   const [applying, setApplying] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [capeBusy, setCapeBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -102,6 +104,19 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
     setHistory(next)
   }
 
+  async function handleSetCape(capeId: string | null): Promise<void> {
+    setError(null)
+    setCapeBusy(true)
+    try {
+      const result = await window.api.setActiveCape(accountId, capeId)
+      onApplied(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCapeBusy(false)
+    }
+  }
+
   async function handleApplyStaged(): Promise<void> {
     if (!staged) return
     setError(null)
@@ -123,9 +138,18 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
     ? staged.previewCapeUrl
     : customization?.capes.find((c) => c.active)?.url ?? null
 
-  return (
+  // Rendered through a portal into document.body rather than as a normal
+  // child - this dialog is triggered from inside AccountSwitcher, which
+  // lives inside <aside class="main-sidebar">. That sidebar has its own
+  // backdrop-filter (for the frosted-glass look), which per the CSS spec
+  // creates a new containing block for position:fixed descendants - so a
+  // plain nested .modal-backdrop got clipped to the sidebar's own 250px-wide
+  // box instead of centering over the whole window. Portaling to body
+  // escapes that entirely without needing to lift any state out of
+  // AccountSwitcher.
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="modal skin-picker-dialog" onClick={(e) => e.stopPropagation()}>
         <h2>{t('skinPicker.title')}</h2>
 
         <div className="skin-picker-layout">
@@ -197,6 +221,38 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
                 </ul>
               )}
             </section>
+
+            <section className="settings-section">
+              <h4 className="settings-section-title">{t('skinPicker.capesTitle')}</h4>
+              <div className="cape-list">
+                <button
+                  type="button"
+                  className={`cape-list-item${!customization?.capes.some((c) => c.active) ? ' active' : ''}`}
+                  onClick={() => handleSetCape(null)}
+                  disabled={capeBusy}
+                >
+                  <span className="cape-option cape-option-none">✕</span>
+                  {t('account.noCape')}
+                </button>
+                {customization?.capes.map((cape) => (
+                  <button
+                    key={cape.id}
+                    type="button"
+                    className={`cape-list-item${cape.active ? ' active' : ''}`}
+                    onClick={() => handleSetCape(cape.id)}
+                    disabled={capeBusy}
+                  >
+                    <span className="cape-option">
+                      <img src={cape.url} alt="" />
+                    </span>
+                    {cape.alias}
+                  </button>
+                ))}
+              </div>
+              {customization && customization.capes.length === 0 && (
+                <p className="instance-meta">{t('account.noCapes')}</p>
+              )}
+            </section>
           </div>
         </div>
 
@@ -208,7 +264,8 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -64,6 +64,24 @@ try {
 // means a future rename only changes branding, never where user data lives.
 app.setPath('userData', join(app.getPath('appData'), 'orbit-launcher'))
 
+// Only one running instance of the launcher makes sense - a second launch
+// (e.g. double-clicking the exe again while it's already open) should focus
+// the existing window instead of opening an independent second one. Must be
+// requested before app.whenReady()/createWindow() run in this process; if
+// the lock isn't acquired, another instance already holds it. app.quit()
+// alone doesn't stop the rest of this module from running - it only
+// schedules an async quit - so without process.exit this losing process
+// would still briefly create its own window and register every IPC handler
+// before actually quitting. Safe to exit immediately here since nothing
+// (no window, no child process) has been created in this process yet.
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+  process.exit(0)
+}
+
+let mainWindow: BrowserWindow | null = null
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -124,10 +142,11 @@ app.whenReady().then(() => {
 
   setPendingLaunchInstanceIdFromArgv(process.argv)
 
-  const mainWindow = createWindow()
-  registerAuthHandlers(mainWindow)
+  const win = createWindow()
+  mainWindow = win
+  registerAuthHandlers(win)
   registerSkinHistoryHandlers()
-  registerLaunchHandlers(mainWindow)
+  registerLaunchHandlers(win)
   registerInstanceHandlers()
   registerVersionHandlers()
   registerLoaderHandlers()
@@ -143,11 +162,11 @@ app.whenReady().then(() => {
   registerLogHandlers()
   registerAppSettingsHandlers()
   registerServerManagerHandlers()
-  registerServerProcessHandlers(mainWindow)
+  registerServerProcessHandlers(win)
   setIsServerRunningCheck(isServerRunning)
   setIsAnyServerRunningCheck(isAnyServerRunning)
   registerServerPropertiesHandlers()
-  registerTunnelHandlers(mainWindow)
+  registerTunnelHandlers(win)
   registerFriendsModsHandlers()
   registerServerFileHandlers()
   registerPaperConfigHandlers()
@@ -155,7 +174,21 @@ app.whenReady().then(() => {
   registerZipImportHandlers()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
+  })
+
+  // A second launch attempt (e.g. double-clicking the exe again) fires this
+  // in the already-running process instead of starting a new one, once the
+  // second process finds the lock unavailable and quits itself (see
+  // requestSingleInstanceLock above). Only ever show/focus/restore here -
+  // never close or quit mainWindow - so this can't conflict with the
+  // "never disappear while a hosted server is running" guard on its own
+  // 'close' handler above.
+  app.on('second-instance', () => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
   })
 })
 

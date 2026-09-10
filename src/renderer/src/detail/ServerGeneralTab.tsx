@@ -125,7 +125,11 @@ function ServerGeneralTab({ server, onSaved }: Props): React.JSX.Element {
 
         <label>
           {t('settings.jvmArgs')}
-          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
+          <input
+            value={jvmArgs}
+            onChange={(e) => setJvmArgs(e.target.value)}
+            placeholder={t('settings.jvmArgsPlaceholder')}
+          />
         </label>
       </section>
 

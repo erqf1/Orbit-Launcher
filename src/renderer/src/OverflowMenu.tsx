@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale } from './i18n'
 
 interface MenuItem {
   label: string
@@ -21,6 +22,7 @@ interface Props {
 // matter how high its own z-index went. Portaling to body sidesteps that
 // entirely; position is computed from the trigger button's own rect.
 function OverflowMenu({ items, disabled }: Props): React.JSX.Element {
+  const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState({ top: 0, right: 0 })
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -54,7 +56,7 @@ function OverflowMenu({ items, disabled }: Props): React.JSX.Element {
         className="overflow-trigger"
         onClick={toggleOpen}
         disabled={disabled}
-        aria-label="Weitere Aktionen"
+        aria-label={t('overflow.moreActions')}
       >
         ⋯
       </button>

@@ -44,6 +44,7 @@ export interface ModVersionSummary {
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  datePublished: string
 }
 
 export interface ModFileRef {
@@ -354,6 +355,7 @@ export async function listModVersions(
   const versions = (await res.json()) as Array<{
     id: string
     version_number: string
+    date_published: string
     files: Array<{ url: string; filename: string; primary: boolean }>
     dependencies: Array<{ project_id: string | null; dependency_type: string }>
   }>
@@ -369,9 +371,17 @@ export async function listModVersions(
       versionNumber: v.version_number,
       filename: file.filename,
       url: file.url,
-      requiredDependencyProjectIds
+      requiredDependencyProjectIds,
+      datePublished: v.date_published
     })
   }
+  // Modrinth's version-list endpoint carries no documented ordering
+  // guarantee - every caller here (install "best" version, dependency
+  // resolution, and critically the update-checker's "is there a newer
+  // version") needs versions[0] to reliably mean "the newest," so that
+  // ordering is enforced explicitly here rather than assumed from the API
+  // response order.
+  summaries.sort((a, b) => new Date(b.datePublished).getTime() - new Date(a.datePublished).getTime())
   return summaries
 }
 

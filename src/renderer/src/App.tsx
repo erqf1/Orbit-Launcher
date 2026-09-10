@@ -11,8 +11,17 @@ import LanguageSwitcher from './LanguageSwitcher'
 import ServerHostCard from './ServerHostCard'
 import CreateServerDialog from './CreateServerDialog'
 import ServerHostDetailPanel from './detail/ServerHostDetailPanel'
+import CrashDiagnosisBanner from './CrashDiagnosisBanner'
 import { useLocale } from './i18n'
-import type { CloneContentOptions, Instance, LoaderType, ServerInstance, ServerLoaderType } from './types'
+import type {
+  CloneContentOptions,
+  CrashDiagnosis,
+  Instance,
+  LoaderType,
+  PlayitTunnelConfig,
+  ServerInstance,
+  ServerLoaderType
+} from './types'
 import logo from './assets/logo.png'
 import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
@@ -93,6 +102,7 @@ interface LaunchSession {
   logs: string[]
   closed: boolean
   exitCode: number | null
+  crashDiagnosis: CrashDiagnosis | null
 }
 
 function App(): React.JSX.Element {
@@ -109,6 +119,7 @@ function App(): React.JSX.Element {
   const [showCreateServer, setShowCreateServer] = useState(false)
   const [showPlayitSettings, setShowPlayitSettings] = useState(false)
   const [playitTunnelAddress, setPlayitTunnelAddress] = useState<string | null>(null)
+  const [playitConfig, setPlayitConfig] = useState<PlayitTunnelConfig | null>(null)
   const [detailServerId, setDetailServerId] = useState<string | null>(null)
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -173,7 +184,10 @@ function App(): React.JSX.Element {
   }, [refreshServers])
 
   const refreshPlayitConfig = useCallback(() => {
-    window.api.getPlayitTunnelConfig().then((config) => setPlayitTunnelAddress(config.publicAddress))
+    window.api.getPlayitTunnelConfig().then((config) => {
+      setPlayitTunnelAddress(config.publicAddress)
+      setPlayitConfig(config)
+    })
   }, [])
 
   useEffect(() => {
@@ -218,19 +232,27 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const offLog = window.api.onLog(({ instanceId, line }) => {
       setLaunches((prev) => {
-        const existing = prev[instanceId] ?? { logs: [], closed: false, exitCode: null }
+        const existing = prev[instanceId] ?? { logs: [], closed: false, exitCode: null, crashDiagnosis: null }
         return { ...prev, [instanceId]: { ...existing, logs: [...existing.logs, line] } }
       })
     })
     const offClosed = window.api.onClosed(({ instanceId, code }) => {
       setLaunches((prev) => {
-        const existing = prev[instanceId] ?? { logs: [], closed: false, exitCode: null }
+        const existing = prev[instanceId] ?? { logs: [], closed: false, exitCode: null, crashDiagnosis: null }
         return { ...prev, [instanceId]: { ...existing, closed: true, exitCode: code } }
+      })
+    })
+    const offCrashDiagnosis = window.api.onCrashDiagnosis(({ instanceId, diagnosis }) => {
+      setLaunches((prev) => {
+        const existing = prev[instanceId]
+        if (!existing) return prev
+        return { ...prev, [instanceId]: { ...existing, crashDiagnosis: diagnosis } }
       })
     })
     return () => {
       offLog()
       offClosed()
+      offCrashDiagnosis()
     }
   }, [])
 
@@ -295,7 +317,10 @@ function App(): React.JSX.Element {
 
   async function launchWithActiveAccount(id: string): Promise<void> {
     setError(null)
-    setLaunches((prev) => ({ ...prev, [id]: { logs: [], closed: false, exitCode: null } }))
+    setLaunches((prev) => ({
+      ...prev,
+      [id]: { logs: [], closed: false, exitCode: null, crashDiagnosis: null }
+    }))
     setSelectedInstanceId(id)
     try {
       await window.api.launch(id)
@@ -433,7 +458,23 @@ function App(): React.JSX.Element {
     }
   }
 
+  // The shared playit.gg tunnel is now mandatory for hosting, not optional -
+  // starting a server without a valid tunnel would leave friends with no way
+  // to actually reach it, so this checks fresh (rather than trusting
+  // possibly-stale playitConfig state) before ever spawning the server
+  // process, and sends the user straight to the one place tunnel config
+  // lives instead of starting a server nobody can join.
   async function handleStartServer(id: string): Promise<void> {
+    const server = servers.find((s) => s.id === id)
+    const config = await window.api.getPlayitTunnelConfig()
+    setPlayitConfig(config)
+    setPlayitTunnelAddress(config.publicAddress)
+    const tunnelValid = !!config.secretKey && (!server || config.localPort === server.serverPort)
+    if (!tunnelValid) {
+      setError(t('serverHost.tunnelRequiredNotice'))
+      setShowPlayitSettings(true)
+      return
+    }
     try {
       await window.api.startHostedServer(id)
       refreshServers()
@@ -515,8 +556,16 @@ function App(): React.JSX.Element {
   // list that isn't limited to hardcoded assets.
   const backgrounds = [...DEFAULT_BACKGROUNDS, ...customBackgrounds]
 
-  function setBgIndex(index: number): void {
-    const wrapped = (index + backgrounds.length) % backgrounds.length
+  // listLength defaults to the current render's backgrounds.length, but
+  // handleAddBackground below must pass the just-updated length explicitly -
+  // setCustomBackgrounds(updated) only schedules a re-render, it doesn't
+  // change what `backgrounds` (and therefore the default listLength) closes
+  // over *within the same synchronous call*, so without this a freshly
+  // added background's target index got wrapped modulo the OLD (one
+  // shorter) list length and silently landed back on a default photo
+  // instead of the new one.
+  function setBgIndex(index: number, listLength: number = backgrounds.length): void {
+    const wrapped = (index + listLength) % listLength
     setBgIndexState(wrapped)
     try {
       localStorage.setItem(BG_INDEX_KEY, String(wrapped))
@@ -528,7 +577,8 @@ function App(): React.JSX.Element {
   async function handleAddBackground(): Promise<void> {
     const updated = await window.api.addCustomBackground()
     setCustomBackgrounds(updated)
-    setBgIndex(DEFAULT_BACKGROUNDS.length + updated.length - 1)
+    const newLength = DEFAULT_BACKGROUNDS.length + updated.length
+    setBgIndex(newLength - 1, newLength)
   }
 
   async function handleRemoveCurrentBackground(): Promise<void> {
@@ -581,7 +631,7 @@ function App(): React.JSX.Element {
   })
   const visibleInstances = sorted
 
-  const filterLabel = filter.type === 'all' ? 'Instanzen' : filter.value
+  const filterLabel = filter.type === 'all' ? t('instances.title') : filter.value
 
   return (
     <div className="app-shell">
@@ -590,7 +640,7 @@ function App(): React.JSX.Element {
           <span className="brand-mark" onClick={handleBrandClick}>
             <img src={logo} alt="" />
           </span>
-          <h1>Orbit Launcher</h1>
+          <h1>{t('app.title')}</h1>
         </div>
 
         <div className="view-mode-switch main-view-switch">
@@ -642,7 +692,7 @@ function App(): React.JSX.Element {
 
         {presentGroups.length > 0 && (
           <>
-            <p className="main-sidebar-section-label">Gruppen</p>
+            <p className="main-sidebar-section-label">{t('nav.groups')}</p>
             <nav>
               {presentGroups.map((group) => (
                 <button
@@ -759,7 +809,9 @@ function App(): React.JSX.Element {
                     onClick={() => setSelectedInstanceId(instanceId)}
                   >
                     {instanceName}
-                    {session.closed ? ` (beendet: ${session.exitCode})` : ' (läuft)'}
+                    {session.closed
+                      ? ` (${t('launch.exited', { code: String(session.exitCode) })})`
+                      : ` (${t('launch.running')})`}
                     <span
                       className="launch-tab-close"
                       onClick={(e) => {
@@ -773,7 +825,29 @@ function App(): React.JSX.Element {
                 )
               })}
             </div>
-            <pre className="log">{selectedLaunch?.logs.join('\n') ?? 'Kein Log ausgewählt.'}</pre>
+            <pre className="log">{selectedLaunch?.logs.join('\n') ?? t('launch.noLogSelected')}</pre>
+            {selectedLaunch?.closed &&
+              selectedLaunch.exitCode !== 0 &&
+              selectedLaunch.crashDiagnosis &&
+              selectedInstanceId &&
+              (() => {
+                const crashedInstance = instances.find((i) => i.id === selectedInstanceId)
+                if (!crashedInstance) return null
+                return (
+                  <CrashDiagnosisBanner
+                    instance={crashedInstance}
+                    diagnosis={selectedLaunch.crashDiagnosis}
+                    onFixed={() => {
+                      setLaunches((prev) => {
+                        const existing = prev[selectedInstanceId]
+                        if (!existing) return prev
+                        return { ...prev, [selectedInstanceId]: { ...existing, crashDiagnosis: null } }
+                      })
+                      refreshInstances()
+                    }}
+                  />
+                )
+              })()}
           </div>
         )}
         </>
@@ -802,6 +876,7 @@ function App(): React.JSX.Element {
                   onDelete={handleDeleteServer}
                   onStart={handleStartServer}
                   onStop={handleStopServer}
+                  onIconChanged={refreshServers}
                 />
               ))}
 
@@ -876,7 +951,7 @@ function App(): React.JSX.Element {
       {playPickerInstanceId && (
         <div className="modal-backdrop" onClick={() => setPlayPickerInstanceId(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Mit welchem Konto starten?</h2>
+            <h2>{t('account.pickForPlay')}</h2>
             <div className="play-account-picker">
               {accounts.map((account) => (
                 <button
@@ -891,7 +966,7 @@ function App(): React.JSX.Element {
             </div>
             <div className="modal-actions">
               <button type="button" onClick={() => setPlayPickerInstanceId(null)}>
-                Abbrechen
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -910,7 +985,7 @@ function App(): React.JSX.Element {
           type="button"
           className="bg-switcher-arrow"
           onClick={() => setBgIndex(bgIndex - 1)}
-          title="Vorheriger Hintergrund"
+          title={t('background.previous')}
         >
           ‹
         </button>
@@ -921,7 +996,7 @@ function App(): React.JSX.Element {
               type="button"
               className={`bg-switcher-dot${i === bgIndex ? ' active' : ''}`}
               onClick={() => setBgIndex(i)}
-              title={`Hintergrund ${i + 1}`}
+              title={t('background.numbered', { number: String(i + 1) })}
             />
           ))}
         </div>
@@ -929,12 +1004,17 @@ function App(): React.JSX.Element {
           type="button"
           className="bg-switcher-arrow"
           onClick={() => setBgIndex(bgIndex + 1)}
-          title="Nächster Hintergrund"
+          title={t('background.next')}
         >
           ›
         </button>
         <span className="bg-switcher-divider" />
-        <button type="button" className="bg-switcher-arrow" onClick={handleAddBackground} title="Eigenes Bild hinzufügen">
+        <button
+          type="button"
+          className="bg-switcher-arrow"
+          onClick={handleAddBackground}
+          title={t('background.addCustom')}
+        >
           +
         </button>
         {bgIndex >= DEFAULT_BACKGROUNDS.length && (
@@ -942,7 +1022,7 @@ function App(): React.JSX.Element {
             type="button"
             className="bg-switcher-arrow"
             onClick={handleRemoveCurrentBackground}
-            title="Dieses Bild entfernen"
+            title={t('background.removeThis')}
           >
             ×
           </button>

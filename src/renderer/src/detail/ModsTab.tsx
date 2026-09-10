@@ -10,6 +10,7 @@ interface Props {
 function ModsTab({ instance }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [installed, setInstalled] = useState<InstalledMod[]>([])
+  const [loadingInstalled, setLoadingInstalled] = useState(true)
   const [installedSearch, setInstalledSearch] = useState('')
   const [showModBrowser, setShowModBrowser] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +31,7 @@ function ModsTab({ instance }: Props): React.JSX.Element {
   const [updatingFilename, setUpdatingFilename] = useState<string | null>(null)
 
   const refreshInstalled = useCallback(() => {
-    window.api.listMods(instance.id).then(setInstalled)
+    window.api.listMods(instance.id).then(setInstalled).finally(() => setLoadingInstalled(false))
   }, [instance.id])
 
   useEffect(() => {
@@ -237,7 +238,9 @@ function ModsTab({ instance }: Props): React.JSX.Element {
             </button>
           </div>
         </div>
-        {installed.length === 0 ? (
+        {loadingInstalled ? (
+          <p className="instance-meta">{t('common.loading')}</p>
+        ) : installed.length === 0 ? (
           <p className="instance-meta">{t('mods.empty')}</p>
         ) : (
           <>

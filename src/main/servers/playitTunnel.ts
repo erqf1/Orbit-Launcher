@@ -191,16 +191,18 @@ export function isTunnelRunning(): boolean {
   return runningTunnel !== null
 }
 
-// Called from serverProcess.ts when a server with tunnelEnabled starts, so
-// the shared tunnel comes up automatically instead of requiring a separate
-// manual step in the Tunnel tab every time.
+// Called from serverProcess.ts whenever a server starts, so the shared
+// tunnel comes up automatically - the tunnel is mandatory for hosting now
+// (serverProcess.ts's startServer pre-flight-checks it via the renderer
+// before ever spawning the server process), not a per-server opt-in, so
+// this always attempts it rather than gating on a per-server flag.
 export async function autoStartTunnelIfConfigured(
   mainWindow: BrowserWindow,
   serverId: string,
   localPort: number
 ): Promise<void> {
   const server = getServer(serverId)
-  if (!server?.tunnelEnabled || !getPlayitTunnelConfig().secretKey) return
+  if (!server || !getPlayitTunnelConfig().secretKey) return
   try {
     await startTunnel(mainWindow, localPort)
   } catch (err) {

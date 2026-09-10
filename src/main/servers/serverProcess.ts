@@ -13,6 +13,34 @@ import { autoStartTunnelIfConfigured } from './playitTunnel'
 // keeps the real handle around instead of wrapping it in another library.
 const runningServers = new Map<string, ChildProcess>()
 
+// Buffers each server's console output here in the main process, not just
+// forwarded live to whichever renderer tab happens to be mounted - the
+// Console tab's own React state was getting wiped every time its panel was
+// closed/reopened (a remount) or the server stopped, even though the real
+// server process (and its output) had nothing to do with whether a tab
+// happened to be looking at it. Capped per-server so a very long-running
+// server (across any number of stop/start cycles) can't grow this
+// unboundedly; deliberately NOT cleared on start/stop - only an explicit
+// "Clear log" action in the UI resets it, since the user's whole point was
+// that closing the panel or stopping the server shouldn't lose the log.
+const MAX_LOG_LINES = 2000
+const serverLogBuffers = new Map<string, string[]>()
+
+export function getServerLogBuffer(id: string): string[] {
+  return serverLogBuffers.get(id) ?? []
+}
+
+export function clearServerLogBuffer(id: string): void {
+  serverLogBuffers.set(id, [])
+}
+
+function appendToLogBuffer(id: string, line: string): void {
+  const buffer = serverLogBuffers.get(id) ?? []
+  buffer.push(line)
+  if (buffer.length > MAX_LOG_LINES) buffer.splice(0, buffer.length - MAX_LOG_LINES)
+  serverLogBuffers.set(id, buffer)
+}
+
 export function isServerRunning(id: string): boolean {
   return runningServers.has(id)
 }
@@ -66,6 +94,7 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   runningServers.set(id, child)
 
   const send = (line: string): void => {
+    appendToLogBuffer(id, line)
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send('server:log', { serverId: id, line })
   }
 
@@ -173,4 +202,6 @@ export function registerServerProcessHandlers(mainWindow: BrowserWindow): void {
     sendServerCommand(id, command)
   )
   ipcMain.handle('servers:hostIsRunning', (_event, id: string) => isServerRunning(id))
+  ipcMain.handle('servers:hostGetLogBuffer', (_event, id: string) => getServerLogBuffer(id))
+  ipcMain.handle('servers:hostClearLogBuffer', (_event, id: string) => clearServerLogBuffer(id))
 }

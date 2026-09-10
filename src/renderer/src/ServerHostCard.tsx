@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import OverflowMenu from './OverflowMenu'
 import { useLocale } from './i18n'
 import type { ServerInstance } from './types'
 
@@ -15,6 +16,7 @@ interface Props {
   onDelete: (id: string) => void
   onStart: (id: string) => void
   onStop: (id: string) => void
+  onIconChanged: () => void
 }
 
 const LOADER_LABELS: Record<string, string> = {
@@ -23,10 +25,9 @@ const LOADER_LABELS: Record<string, string> = {
   paper: 'Paper'
 }
 
-// Deliberately reuses .instance-card's CSS (icon/banner customization
-// dropped for this MVP - a hosted server's identity is its Console tab, not
-// a cover image) so it fits visually into the same grid layout without new
-// CSS, just a loader-colored gradient like an un-iconed instance card gets.
+// Reuses .instance-card's CSS - an icon/banner renders exactly like a
+// client Instance's (InstanceCard.tsx), falling back to the same
+// loader-colored gradient + initial-letter glyph when neither is set.
 function ServerHostCard({
   server,
   isRunning,
@@ -35,11 +36,42 @@ function ServerHostCard({
   onRename,
   onDelete,
   onStart,
-  onStop
+  onStop,
+  onIconChanged
 }: Props): React.JSX.Element {
   const { t } = useLocale()
   const [editing, setEditing] = useState(false)
   const [draftName, setDraftName] = useState(server.name)
+  const [iconUrl, setIconUrl] = useState<string | null>(null)
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!server.iconFilename) {
+      setIconUrl(null)
+      return
+    }
+    window.api.getHostedServerIconDataUrl(server.id).then((url) => {
+      if (!cancelled) setIconUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [server.id, server.iconFilename])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!server.bannerFilename) {
+      setBannerUrl(null)
+      return
+    }
+    window.api.getHostedServerBannerDataUrl(server.id).then((url) => {
+      if (!cancelled) setBannerUrl(url)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [server.id, server.bannerFilename])
 
   function confirmRename(): void {
     const trimmed = draftName.trim()
@@ -50,6 +82,33 @@ function ServerHostCard({
     }
     setEditing(false)
   }
+
+  async function handleSetIcon(): Promise<void> {
+    await window.api.setHostedServerIcon(server.id)
+    onIconChanged()
+  }
+
+  async function handleClearIcon(): Promise<void> {
+    await window.api.clearHostedServerIcon(server.id)
+    onIconChanged()
+  }
+
+  async function handleSetBanner(): Promise<void> {
+    await window.api.setHostedServerBanner(server.id)
+    onIconChanged()
+  }
+
+  async function handleClearBanner(): Promise<void> {
+    await window.api.clearHostedServerBanner(server.id)
+    onIconChanged()
+  }
+
+  const overflowItems = [
+    { label: t('overflow.setIcon'), onClick: handleSetIcon },
+    ...(server.iconFilename ? [{ label: t('overflow.removeIcon'), onClick: handleClearIcon }] : []),
+    { label: t('overflow.setBanner'), onClick: handleSetBanner },
+    ...(server.bannerFilename ? [{ label: t('overflow.resetBanner'), onClick: handleClearBanner }] : [])
+  ]
 
   const nameElement = editing ? (
     <input
@@ -70,11 +129,20 @@ function ServerHostCard({
     <h3 onDoubleClick={() => setEditing(true)}>{server.name}</h3>
   )
 
+  const coverStyle = bannerUrl ? ({ backgroundImage: `url(${bannerUrl})` } as React.CSSProperties) : undefined
+
   return (
     <div className="instance-card">
-      <div className={`instance-cover loader-${server.loader}`}>
+      <div
+        className={`instance-cover loader-${server.loader}${bannerUrl ? ' has-banner' : ''}`}
+        style={coverStyle}
+      >
         {isRunning && <span className="running-pill">{t('serverHost.running')}</span>}
-        <span className="instance-cover-glyph">{server.name.charAt(0).toUpperCase()}</span>
+        {iconUrl ? (
+          <img className="instance-cover-icon" src={iconUrl} alt="" />
+        ) : (
+          <span className="instance-cover-glyph">{server.name.charAt(0).toUpperCase()}</span>
+        )}
       </div>
 
       <div className="instance-card-body">
@@ -85,7 +153,7 @@ function ServerHostCard({
           {server.loader !== 'vanilla' && (
             <span className={`pill pill-${server.loader}`}>{LOADER_LABELS[server.loader]}</span>
           )}
-          {server.tunnelEnabled && isRunning && tunnelHasAddress && (
+          {isRunning && tunnelHasAddress && (
             <span className="pill pill-version" title={t('serverHost.tunnelActiveTooltip')}>
               {t('serverHost.tunnelActive')}
             </span>
@@ -116,6 +184,7 @@ function ServerHostCard({
           <button type="button" onClick={() => onDelete(server.id)} disabled={isRunning}>
             {t('common.delete')}
           </button>
+          <OverflowMenu items={overflowItems} />
         </div>
       </div>
     </div>

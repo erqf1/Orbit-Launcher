@@ -1,9 +1,10 @@
-import { ipcMain, app, shell } from 'electron'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
-import { join } from 'path'
+import { ipcMain, app, shell, dialog } from 'electron'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync, cpSync, unlinkSync } from 'fs'
+import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
 import { getFabricStableInstallerVersion, downloadFabricServerJar } from '../loaders/fabric'
 import { downloadVanillaServerJar, downloadPaperServerJar, listPaperVersions, listPaperBuilds } from './serverJar'
+import { refocusMainWindow } from '../windowFocus'
 
 // Deliberately a sibling of instances/ rather than a variant of Instance -
 // hosting a server (a headless java process this app spawns/owns/streams
@@ -42,6 +43,12 @@ export interface ServerInstance {
   // This flag just controls whether *this* server should trigger that
   // shared tunnel to auto-start when it boots.
   tunnelEnabled: boolean
+  // Same filename-only, data-URL-on-read approach as Instance's
+  // iconFilename/bannerFilename (see instanceManager.ts) - lets a hosted
+  // server be branded the same way a client instance can, instead of always
+  // falling back to a loader-colored gradient with an initial letter.
+  iconFilename: string | null
+  bannerFilename: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -158,7 +165,9 @@ export async function createServer(input: CreateServerInput): Promise<ServerInst
     eulaAccepted: !!input.acceptEula,
     createdAt: new Date().toISOString(),
     lastStarted: null,
-    tunnelEnabled: false
+    tunnelEnabled: false,
+    iconFilename: null,
+    bannerFilename: null
   }
 
   // Written inline rather than via serverProperties.ts's acceptEula() -
@@ -251,6 +260,97 @@ export function openServerFolder(id: string): Promise<void> {
   })
 }
 
+const IMAGE_MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp'
+}
+
+// Mirrors instanceManager.ts's getInstanceIconDataUrl/setInstanceIcon/
+// clearInstanceIcon (and the banner equivalents) exactly - a data: URL
+// rather than a file:// path, to avoid touching the CSP's img-src.
+function toDataUrl(root: string, filename: string | null): string | null {
+  if (!filename) return null
+  const filePath = join(root, filename)
+  if (!existsSync(filePath)) return null
+  const mime = IMAGE_MIME_BY_EXT[extname(filename).toLowerCase()]
+  if (!mime) return null
+  return `data:${mime};base64,${readFileSync(filePath).toString('base64')}`
+}
+
+export function getServerIconDataUrl(id: string): string | null {
+  const server = getServer(id)
+  if (!server) return null
+  return toDataUrl(getServerRoot(id), server.iconFilename)
+}
+
+export function getServerBannerDataUrl(id: string): string | null {
+  const server = getServer(id)
+  if (!server) return null
+  return toDataUrl(getServerRoot(id), server.bannerFilename)
+}
+
+async function pickAndSetImage(
+  id: string,
+  field: 'iconFilename' | 'bannerFilename',
+  filenamePrefix: string
+): Promise<ServerInstance> {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Bild', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }]
+  })
+  refocusMainWindow()
+  const servers = readAll()
+  const server = servers.find((s) => s.id === id)
+  if (!server) throw new Error('Server nicht gefunden.')
+  if (result.canceled || result.filePaths.length === 0) return server
+
+  const root = getServerRoot(id)
+  const ext = extname(result.filePaths[0]).toLowerCase() || '.png'
+  const existing = server[field]
+  if (existing) {
+    const oldPath = join(root, existing)
+    if (existsSync(oldPath)) unlinkSync(oldPath)
+  }
+  const filename = `${filenamePrefix}${ext}`
+  cpSync(result.filePaths[0], join(root, filename))
+  server[field] = filename
+  writeAll(servers)
+  return server
+}
+
+function clearImage(id: string, field: 'iconFilename' | 'bannerFilename'): ServerInstance {
+  const servers = readAll()
+  const server = servers.find((s) => s.id === id)
+  if (!server) throw new Error('Server nicht gefunden.')
+  const existing = server[field]
+  if (existing) {
+    const filePath = join(getServerRoot(id), existing)
+    if (existsSync(filePath)) unlinkSync(filePath)
+  }
+  server[field] = null
+  writeAll(servers)
+  return server
+}
+
+export function setServerIcon(id: string): Promise<ServerInstance> {
+  return pickAndSetImage(id, 'iconFilename', 'icon')
+}
+
+export function clearServerIcon(id: string): ServerInstance {
+  return clearImage(id, 'iconFilename')
+}
+
+export function setServerBanner(id: string): Promise<ServerInstance> {
+  return pickAndSetImage(id, 'bannerFilename', 'banner')
+}
+
+export function clearServerBanner(id: string): ServerInstance {
+  return clearImage(id, 'bannerFilename')
+}
+
 export function registerServerManagerHandlers(): void {
   ipcMain.handle('servers:hostList', () => listServers())
   ipcMain.handle('servers:hostCreate', (_event, input: CreateServerInput) => createServer(input))
@@ -262,4 +362,10 @@ export function registerServerManagerHandlers(): void {
   ipcMain.handle('servers:hostOpenFolder', (_event, id: string) => openServerFolder(id))
   ipcMain.handle('servers:hostListPaperVersions', () => listPaperVersions())
   ipcMain.handle('servers:hostListPaperBuilds', (_event, mcVersion: string) => listPaperBuilds(mcVersion))
+  ipcMain.handle('servers:hostGetIconDataUrl', (_event, id: string) => getServerIconDataUrl(id))
+  ipcMain.handle('servers:hostSetIcon', (_event, id: string) => setServerIcon(id))
+  ipcMain.handle('servers:hostClearIcon', (_event, id: string) => clearServerIcon(id))
+  ipcMain.handle('servers:hostGetBannerDataUrl', (_event, id: string) => getServerBannerDataUrl(id))
+  ipcMain.handle('servers:hostSetBanner', (_event, id: string) => setServerBanner(id))
+  ipcMain.handle('servers:hostClearBanner', (_event, id: string) => clearServerBanner(id))
 }

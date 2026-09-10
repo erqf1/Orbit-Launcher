@@ -5,6 +5,7 @@ import { promisify } from 'util'
 import { Client } from 'minecraft-launcher-core'
 import { getMclcAuthorization, getMclcAuthorizationFor } from '../auth/msmcAuth'
 import { getInstance, getInstanceRoot, markLaunched, addPlaytime } from '../instances/instanceManager'
+import { diagnoseCrash } from './crashDiagnosis'
 
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
@@ -76,6 +77,22 @@ export async function resolveJavaPath(explicitPath: string | null): Promise<stri
 const activeInstanceIds = new Set<string>()
 const hideRequesters = new Set<string>()
 
+// Buffers each launch's debug/data text (capped) purely so a non-zero exit
+// can be scanned for known crash signatures (see crashDiagnosis.ts) - this
+// is the same raw stream already forwarded live to the renderer's log pane,
+// just also kept here long enough to analyze once the process exits.
+// Cleared per-launchId right after diagnosis runs, so it never accumulates
+// across launches.
+const MAX_CRASH_LOG_LINES = 4000
+const launchLogBuffers = new Map<string, string[]>()
+
+function appendToLaunchLogBuffer(launchId: string, line: string): void {
+  const buffer = launchLogBuffers.get(launchId) ?? []
+  buffer.push(line)
+  if (buffer.length > MAX_CRASH_LOG_LINES) buffer.splice(0, buffer.length - MAX_CRASH_LOG_LINES)
+  launchLogBuffers.set(launchId, buffer)
+}
+
 // Set from a `--launch-instance=<id>` argv flag (added by desktop shortcuts,
 // see instanceManager's createDesktopShortcut) and consumed once by the
 // renderer after it restores auth on startup, so a shortcut-triggered launch
@@ -140,18 +157,36 @@ export function registerLaunchHandlers(mainWindow: BrowserWindow): void {
     const launcher = new Client()
     const startedAt = Date.now()
 
-    launcher.on('debug', (e: string) =>
+    launcher.on('debug', (e: string) => {
+      appendToLaunchLogBuffer(launchId, String(e))
       mainWindow.webContents.send('launch:log', { launchId, instanceId, line: String(e) })
-    )
-    launcher.on('data', (e: string) =>
+    })
+    launcher.on('data', (e: string) => {
+      appendToLaunchLogBuffer(launchId, String(e))
       mainWindow.webContents.send('launch:log', { launchId, instanceId, line: String(e) })
-    )
+    })
     launcher.on('progress', (e: unknown) =>
       mainWindow.webContents.send('launch:progress', { launchId, instanceId, progress: e })
     )
     launcher.on('close', (code: number) => {
       mainWindow.webContents.send('launch:closed', { launchId, instanceId, code })
       activeInstanceIds.delete(instanceId)
+
+      if (code !== 0) {
+        const logText = (launchLogBuffers.get(launchId) ?? []).join('\n')
+        diagnoseCrash(instanceId, logText)
+          .then((diagnosis) => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('launch:crashDiagnosis', { launchId, instanceId, diagnosis })
+            }
+          })
+          .catch(() => {
+            // Diagnosis is best-effort - a failure here (e.g. a Java-compat
+            // exec call or Modrinth request failing) must never surface as
+            // if the launch itself failed differently than it already did.
+          })
+      }
+      launchLogBuffers.delete(launchId)
       if (instance.closeOnLaunch) {
         hideRequesters.delete(launchId)
         if (hideRequesters.size === 0 && !mainWindow.isDestroyed()) mainWindow.show()

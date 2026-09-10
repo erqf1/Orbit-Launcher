@@ -158,6 +158,38 @@ export async function exportFriendsMods(serverId: string, selectedFilenames: str
   return result.filePath
 }
 
+// A plain zip of raw .jar files (not a .mrpack) for the mods a friend
+// absolutely needs installed to join at all without things breaking -
+// scanServerMods's "clientAndServer" category, i.e. required on both sides,
+// as opposed to "serverOnly" (the server doesn't need the friend to have it)
+// or "clientOnly" (not even present on this server). Meant for a friend who
+// just wants to drag jars straight into their own mods/ folder rather than
+// use a .mrpack-aware launcher.
+export async function exportMandatoryModsZip(serverId: string): Promise<string | null> {
+  const server = getServer(serverId)
+  if (!server) throw new Error('Server nicht gefunden.')
+
+  const entries = await scanServerMods(serverId)
+  const mandatory = entries.filter((e) => e.compat === 'clientAndServer')
+  if (mandatory.length === 0) return null
+
+  const result = await dialog.showSaveDialog({
+    defaultPath: `${server.name}-required-mods.zip`,
+    filters: [{ name: 'ZIP', extensions: ['zip'] }]
+  })
+  refocusMainWindow()
+  if (result.canceled || !result.filePath) return null
+
+  const modsDir = join(getServerRoot(serverId), 'mods')
+  const zip = new AdmZip()
+  for (const entry of mandatory) {
+    zip.addLocalFile(join(modsDir, entry.filename))
+  }
+  mkdirSync(dirname(result.filePath), { recursive: true })
+  zip.writeZip(result.filePath)
+  return result.filePath
+}
+
 export interface ImportModsFromInstanceResult {
   imported: string[]
   skippedClientOnly: string[]
@@ -209,4 +241,5 @@ export function registerFriendsModsHandlers(): void {
   ipcMain.handle('friendsMods:importFromInstance', (_event, serverId: string, instanceId: string) =>
     importModsFromInstance(serverId, instanceId)
   )
+  ipcMain.handle('friendsMods:exportZip', (_event, serverId: string) => exportMandatoryModsZip(serverId))
 }

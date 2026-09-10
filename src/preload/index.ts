@@ -67,6 +67,22 @@ export interface LaunchClosedEvent {
   code: number
 }
 
+// Mirrors src/main/launch/crashDiagnosis.ts's CrashDiagnosis exactly - kept
+// as a discriminated union (rather than a localized message string) since
+// the main process has no access to the renderer's i18n system; the
+// renderer picks the right translated message + interpolates these values.
+export type CrashDiagnosis =
+  | { kind: 'oom'; currentMemoryMax: string; suggestedMemoryMax: string }
+  | { kind: 'javaMismatch'; installedMajor: number | null; requiredMajor: number; suggestedJavaPath: string | null }
+  | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
+  | { kind: 'unknown' }
+
+export interface LaunchCrashDiagnosisEvent {
+  launchId: string
+  instanceId: string
+  diagnosis: CrashDiagnosis
+}
+
 export type LoaderType = 'vanilla' | 'fabric' | 'quilt' | 'legacyfabric' | 'forge' | 'neoforge'
 
 export interface Instance {
@@ -190,6 +206,7 @@ export interface ModVersionSummary {
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  datePublished: string
 }
 
 export interface ModFileRef {
@@ -304,6 +321,8 @@ export interface ServerInstance {
   createdAt: string
   lastStarted: string | null
   tunnelEnabled: boolean
+  iconFilename: string | null
+  bannerFilename: string | null
 }
 
 export interface ServerSettingsPatch {
@@ -592,6 +611,8 @@ const api = {
   onClosed: (callback: (event: LaunchClosedEvent) => void): (() => void) =>
     onEvent('launch:closed', callback),
   onLaunchQuitSuppressed: (callback: () => void): (() => void) => onEvent('launch:quitSuppressed', callback),
+  onCrashDiagnosis: (callback: (event: LaunchCrashDiagnosisEvent) => void): (() => void) =>
+    onEvent('launch:crashDiagnosis', callback),
 
   listHostedServers: (): Promise<ServerInstance[]> => ipcRenderer.invoke('servers:hostList'),
   createHostedServer: (input: CreateServerInput): Promise<ServerInstance> =>
@@ -605,12 +626,26 @@ const api = {
   listPaperVersions: (): Promise<string[]> => ipcRenderer.invoke('servers:hostListPaperVersions'),
   listPaperBuilds: (mcVersion: string): Promise<PaperBuildSummary[]> =>
     ipcRenderer.invoke('servers:hostListPaperBuilds', mcVersion),
+  getHostedServerIconDataUrl: (id: string): Promise<string | null> =>
+    ipcRenderer.invoke('servers:hostGetIconDataUrl', id),
+  setHostedServerIcon: (id: string): Promise<ServerInstance> => ipcRenderer.invoke('servers:hostSetIcon', id),
+  clearHostedServerIcon: (id: string): Promise<ServerInstance> =>
+    ipcRenderer.invoke('servers:hostClearIcon', id),
+  getHostedServerBannerDataUrl: (id: string): Promise<string | null> =>
+    ipcRenderer.invoke('servers:hostGetBannerDataUrl', id),
+  setHostedServerBanner: (id: string): Promise<ServerInstance> => ipcRenderer.invoke('servers:hostSetBanner', id),
+  clearHostedServerBanner: (id: string): Promise<ServerInstance> =>
+    ipcRenderer.invoke('servers:hostClearBanner', id),
 
   startHostedServer: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostStart', id),
   stopHostedServer: (id: string): Promise<void> => ipcRenderer.invoke('servers:hostStop', id),
   sendHostedServerCommand: (id: string, command: string): Promise<void> =>
     ipcRenderer.invoke('servers:hostSendCommand', id, command),
   isHostedServerRunning: (id: string): Promise<boolean> => ipcRenderer.invoke('servers:hostIsRunning', id),
+  getHostedServerLogBuffer: (id: string): Promise<string[]> =>
+    ipcRenderer.invoke('servers:hostGetLogBuffer', id),
+  clearHostedServerLogBuffer: (id: string): Promise<void> =>
+    ipcRenderer.invoke('servers:hostClearLogBuffer', id),
 
   readServerProperties: (id: string): Promise<Record<string, string>> =>
     ipcRenderer.invoke('servers:hostPropertiesRead', id),
@@ -639,6 +674,8 @@ const api = {
     ipcRenderer.invoke('friendsMods:scan', serverId),
   exportFriendsMods: (serverId: string, selectedFilenames: string[]): Promise<string | null> =>
     ipcRenderer.invoke('friendsMods:export', serverId, selectedFilenames),
+  exportMandatoryModsZip: (serverId: string): Promise<string | null> =>
+    ipcRenderer.invoke('friendsMods:exportZip', serverId),
   importModsFromInstance: (serverId: string, instanceId: string): Promise<ImportModsFromInstanceResult> =>
     ipcRenderer.invoke('friendsMods:importFromInstance', serverId, instanceId),
 

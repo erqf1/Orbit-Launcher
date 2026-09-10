@@ -119,6 +119,18 @@ export interface LaunchClosedEvent {
   code: number
 }
 
+export type CrashDiagnosis =
+  | { kind: 'oom'; currentMemoryMax: string; suggestedMemoryMax: string }
+  | { kind: 'javaMismatch'; installedMajor: number | null; requiredMajor: number; suggestedJavaPath: string | null }
+  | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
+  | { kind: 'unknown' }
+
+export interface LaunchCrashDiagnosisEvent {
+  launchId: string
+  instanceId: string
+  diagnosis: CrashDiagnosis
+}
+
 export interface JavaInstallation {
   path: string
   version: string
@@ -157,6 +169,7 @@ export interface ModVersionSummary {
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  datePublished: string
 }
 
 export interface ModFileRef {
@@ -268,6 +281,8 @@ export interface ServerInstance {
   createdAt: string
   lastStarted: string | null
   tunnelEnabled: boolean
+  iconFilename: string | null
+  bannerFilename: string | null
 }
 
 export interface ServerSettingsPatch {

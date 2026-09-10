@@ -25,6 +25,8 @@ function FriendsModsTab({ server }: Props): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [exportedPath, setExportedPath] = useState<string | null>(null)
+  const [exportingZip, setExportingZip] = useState(false)
+  const [exportedZipPath, setExportedZipPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showBrowser, setShowBrowser] = useState(false)
 
@@ -80,6 +82,21 @@ function FriendsModsTab({ server }: Props): React.JSX.Element {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setExporting(false)
+    }
+  }
+
+  async function handleExportZip(): Promise<void> {
+    setExportingZip(true)
+    setError(null)
+    setExportedZipPath(null)
+    try {
+      const path = await window.api.exportMandatoryModsZip(server.id)
+      if (path) setExportedZipPath(path)
+      else setError(t('serverHost.friendsMods.noMandatoryMods'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExportingZip(false)
     }
   }
 
@@ -234,6 +251,14 @@ function FriendsModsTab({ server }: Props): React.JSX.Element {
         </button>
         {exportedPath && (
           <span className="instance-meta">{t('serverHost.friendsMods.exported', { path: exportedPath })}</span>
+        )}
+        <button type="button" onClick={handleExportZip} disabled={exportingZip}>
+          {exportingZip
+            ? t('serverHost.friendsMods.exportingZip')
+            : t('serverHost.friendsMods.downloadRequiredZip')}
+        </button>
+        {exportedZipPath && (
+          <span className="instance-meta">{t('serverHost.friendsMods.exported', { path: exportedZipPath })}</span>
         )}
       </div>
 

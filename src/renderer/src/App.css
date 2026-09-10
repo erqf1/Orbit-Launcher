@@ -1449,6 +1449,15 @@ button:not(:disabled):active {
   max-height: none;
 }
 
+/* Wide enough for the preview + sections side-by-side layout to breathe -
+   the old .modal-wide (440px) was fine for the sections alone, but rendered
+   this dialog clipped/cramped once paired with the 3D preview column,
+   before the deeper bug (it was also confined to the 250px sidebar via a
+   backdrop-filter containing block - see SkinPickerDialog.tsx) was fixed. */
+.skin-picker-dialog {
+  width: min(760px, 92vw);
+}
+
 .mod-browser-header {
   display: flex;
   align-items: center;
@@ -1643,7 +1652,7 @@ button:not(:disabled):active {
   font-size: 13px;
 }
 
-.mod-list li > span {
+.mod-list li > span:not(.mod-row-end) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2065,6 +2074,13 @@ button:not(:disabled):active {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+}
+
+.mod-version-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -2148,15 +2164,17 @@ button:not(:disabled):active {
   border-radius: var(--radius-sm);
   display: block;
   cursor: zoom-in;
-  transition:
-    max-width 0.28s ease,
-    max-height 0.28s ease;
+  transform: scale(1);
+  transform-origin: center center;
+  transition: transform 0.28s ease;
 }
 
-/* Discord-style click-to-zoom: both the lightbox and the image grow to a
-   much larger (but still viewport-bounded, so it stays a smooth CSS
-   transition rather than an unanimatable jump to "native size") target,
-   scrolling within the lightbox if it still doesn't fit. */
+/* Real magnification via a scale transform - max-width/max-height alone can
+   only ever shrink an image to fit a box, never enlarge it past its own
+   natural pixel size, which made the previous size-ceiling-only version of
+   this a no-op on any screenshot already smaller than the unzoomed ceiling.
+   The lightbox scrolls while zoomed so an image now bigger than the
+   viewport can be panned instead of clipped. */
 .screenshot-lightbox.zoomed {
   max-width: 97vw;
   max-height: 95vh;
@@ -2164,8 +2182,7 @@ button:not(:disabled):active {
 }
 
 .screenshot-lightbox img.zoomed {
-  max-width: 95vw;
-  max-height: 90vh;
+  transform: scale(2);
   cursor: zoom-out;
 }
 

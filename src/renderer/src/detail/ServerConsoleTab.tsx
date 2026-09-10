@@ -26,12 +26,32 @@ function ServerConsoleTab({ server, onChanged }: Props): React.JSX.Element {
   // this, the (now-stale) "still running" response could land after the
   // event already correctly set running=false, flipping it back to true.
   const closedWhileFetchingRef = useRef(false)
+  // The buffer-hydration fetch and the live onServerLog subscription both
+  // start at mount, so a line can legitimately arrive over the live event
+  // before the hydration promise resolves - queue those here and splice
+  // them in after hydration, rather than letting hydration's setLogs(...)
+  // (a full replace, not an append) silently clobber a line that was
+  // already appended live.
+  const hydratedRef = useRef(false)
+  const pendingLiveLinesRef = useRef<string[]>([])
 
   useEffect(() => {
     let cancelled = false
     closedWhileFetchingRef.current = false
+    hydratedRef.current = false
+    pendingLiveLinesRef.current = []
     window.api.isHostedServerRunning(server.id).then((value) => {
       if (!cancelled && !closedWhileFetchingRef.current) setRunning(value)
+    })
+    // The main process keeps a log buffer per server independent of whether
+    // any tab is mounted (see serverProcess.ts) - hydrate from it instead of
+    // starting from an empty array, so reopening this panel (or the server
+    // having since stopped) doesn't lose everything printed before now.
+    window.api.getHostedServerLogBuffer(server.id).then((buffered) => {
+      if (cancelled) return
+      setLogs([...buffered, ...pendingLiveLinesRef.current])
+      hydratedRef.current = true
+      pendingLiveLinesRef.current = []
     })
     return () => {
       cancelled = true
@@ -41,13 +61,22 @@ function ServerConsoleTab({ server, onChanged }: Props): React.JSX.Element {
   useEffect(() => {
     const offLog = window.api.onServerLog((event) => {
       if (event.serverId !== server.id) return
+      if (!hydratedRef.current) {
+        pendingLiveLinesRef.current.push(event.line)
+        return
+      }
       setLogs((prev) => [...prev, event.line])
     })
     const offClosed = window.api.onServerClosed((event) => {
       if (event.serverId !== server.id) return
       closedWhileFetchingRef.current = true
       setRunning(false)
-      setLogs((prev) => [...prev, `[${t('serverHost.console.exited', { code: event.code })}]`])
+      const exitLine = `[${t('serverHost.console.exited', { code: event.code })}]`
+      if (!hydratedRef.current) {
+        pendingLiveLinesRef.current.push(exitLine)
+        return
+      }
+      setLogs((prev) => [...prev, exitLine])
     })
     return () => {
       offLog()
@@ -65,7 +94,6 @@ function ServerConsoleTab({ server, onChanged }: Props): React.JSX.Element {
     try {
       await window.api.startHostedServer(server.id)
       setRunning(true)
-      setLogs([])
       onChanged()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -76,6 +104,11 @@ function ServerConsoleTab({ server, onChanged }: Props): React.JSX.Element {
 
   async function handleStop(): Promise<void> {
     await window.api.stopHostedServer(server.id)
+  }
+
+  async function handleClearLog(): Promise<void> {
+    await window.api.clearHostedServerLogBuffer(server.id)
+    setLogs([])
   }
 
   async function handleSendCommand(e: React.FormEvent): Promise<void> {
@@ -102,6 +135,9 @@ function ServerConsoleTab({ server, onChanged }: Props): React.JSX.Element {
             {starting ? t('serverHost.console.starting') : t('serverHost.console.start')}
           </button>
         )}
+        <button type="button" onClick={handleClearLog} disabled={logs.length === 0}>
+          {t('serverHost.console.clearLog')}
+        </button>
       </div>
 
       {!server.eulaAccepted && (

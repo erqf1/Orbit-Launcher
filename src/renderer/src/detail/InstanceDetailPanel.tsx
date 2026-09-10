@@ -209,7 +209,7 @@ function GeneralTab({
               type="number"
               value={windowWidth}
               onChange={(e) => setWindowWidth(e.target.value)}
-              placeholder="Standard"
+              placeholder={t('settings.defaultPlaceholder')}
               disabled={fullscreen}
             />
           </label>
@@ -219,7 +219,7 @@ function GeneralTab({
               type="number"
               value={windowHeight}
               onChange={(e) => setWindowHeight(e.target.value)}
-              placeholder="Standard"
+              placeholder={t('settings.defaultPlaceholder')}
               disabled={fullscreen}
             />
           </label>
@@ -268,7 +268,7 @@ function GeneralTab({
         </label>
         {overrideAccount && (
           <select value={overrideAccountId} onChange={(e) => setOverrideAccountId(e.target.value)}>
-            <option value="">Konto wählen…</option>
+            <option value="">{t('settings.chooseAccount')}</option>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -289,7 +289,7 @@ function GeneralTab({
           <input
             value={autoJoinServer}
             onChange={(e) => setAutoJoinServer(e.target.value)}
-            placeholder="Serveradresse (auch im Server-Tab einstellbar)"
+            placeholder={t('settings.autoJoinPlaceholder')}
           />
         )}
       </section>
@@ -299,10 +299,10 @@ function GeneralTab({
         <label>
           {t('settings.javaInstallation')}
           {loadingJava ? (
-            <p className="instance-meta">Suche Java-Installationen…</p>
+            <p className="instance-meta">{t('settings.searchingJava')}</p>
           ) : (
             <select value={javaPath} onChange={(e) => setJavaPath(e.target.value)}>
-              <option value="">System-Standard (java)</option>
+              <option value="">{t('settings.systemDefaultJava')}</option>
               {javaOptions.map((j) => (
                 <option key={j.path} value={j.path}>
                   {j.version} — {j.path}
@@ -317,8 +317,11 @@ function GeneralTab({
 
         {compat?.mismatch && !skipJavaCompatWarning && (
           <p className="error">
-            Warnung: Java {compat.installedMajor} wirkt falsch für Minecraft {instance.mcVersion} (empfohlen:
-            Java {compat.requiredMajor}). Das Spiel startet eventuell nicht.
+            {t('settings.javaMismatchWarning', {
+              installed: String(compat.installedMajor),
+              mcVersion: instance.mcVersion,
+              required: String(compat.requiredMajor)
+            })}
           </p>
         )}
         <label className="checkbox-label">
@@ -340,12 +343,7 @@ function GeneralTab({
             <input value={memoryMax} onChange={(e) => setMemoryMax(e.target.value)} placeholder="4G" />
           </label>
         </div>
-        {!memoryValid && (
-          <p className="error">
-            Speicher als Zahl + M oder G angeben (z.B. 2G oder 2048M), Minimum darf Maximum nicht
-            überschreiten.
-          </p>
-        )}
+        {!memoryValid && <p className="error">{t('settings.memoryFormatError')}</p>}
       </section>
 
       {error && <p className="error">{error}</p>}
@@ -407,11 +405,19 @@ function AdvancedTab({
         <h4 className="settings-section-title">{t('settings.arguments')}</h4>
         <label>
           {t('settings.jvmArgs')}
-          <input value={jvmArgs} onChange={(e) => setJvmArgs(e.target.value)} placeholder="z.B. -XX:+UseG1GC" />
+          <input
+            value={jvmArgs}
+            onChange={(e) => setJvmArgs(e.target.value)}
+            placeholder={t('settings.jvmArgsPlaceholder')}
+          />
         </label>
         <label>
           {t('settings.mcArgs')}
-          <input value={mcArgs} onChange={(e) => setMcArgs(e.target.value)} placeholder="optional" />
+          <input
+            value={mcArgs}
+            onChange={(e) => setMcArgs(e.target.value)}
+            placeholder={t('settings.optionalPlaceholder')}
+          />
         </label>
       </section>
 
@@ -422,7 +428,7 @@ function AdvancedTab({
           <input
             value={preLaunchCommand}
             onChange={(e) => setPreLaunchCommand(e.target.value)}
-            placeholder="optional"
+            placeholder={t('settings.optionalPlaceholder')}
           />
         </label>
         <label>
@@ -430,13 +436,10 @@ function AdvancedTab({
           <input
             value={postExitCommand}
             onChange={(e) => setPostExitCommand(e.target.value)}
-            placeholder="optional"
+            placeholder={t('settings.optionalPlaceholder')}
           />
         </label>
-        <p className="instance-meta">
-          Beide laufen im Instanzordner mit den Umgebungsvariablen INST_NAME, INST_ID, INST_DIR, INST_MC_DIR
-          und (falls gesetzt) INST_JAVA.
-        </p>
+        <p className="instance-meta">{t('settings.envVarHelp')}</p>
       </section>
 
       <section className="settings-section">
@@ -448,14 +451,14 @@ function AdvancedTab({
                 <input
                   value={v.name}
                   onChange={(e) => updateEnvVar(i, 'name', e.target.value)}
-                  placeholder="NAME"
+                  placeholder={t('settings.envVarNamePlaceholder')}
                 />
                 <input
                   value={v.value}
                   onChange={(e) => updateEnvVar(i, 'value', e.target.value)}
-                  placeholder="Wert"
+                  placeholder={t('settings.envVarValuePlaceholder')}
                 />
-                <button type="button" onClick={() => removeEnvVar(i)} title="Entfernen">
+                <button type="button" onClick={() => removeEnvVar(i)} title={t('common.delete')}>
                   ×
                 </button>
               </div>
