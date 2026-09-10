@@ -26,8 +26,18 @@ import logo from './assets/logo.png'
 import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
 import bgPhoto3 from './assets/bg-photo-3.png'
+import bgPhoto4 from './assets/bg-photo-4.png'
+import bgPhoto5 from './assets/bg-photo-5.png'
+import bgPhoto6 from './assets/bg-photo-6.png'
+import bgPhoto7 from './assets/bg-photo-7.png'
+import bgPhoto8 from './assets/bg-photo-8.png'
 
-const DEFAULT_BACKGROUNDS = [bgPhoto1, bgPhoto2, bgPhoto3]
+// Fixed set of 8 bundled backgrounds, cycled via the arrows/dots - no
+// user-added custom backgrounds (that feature was removed: reading an
+// arbitrary user-picked file back as a data: URL for a CSS background was
+// fragile for large photos and not worth the complexity for what's meant
+// to be a small fixed set of launcher wallpapers).
+const DEFAULT_BACKGROUNDS = [bgPhoto1, bgPhoto2, bgPhoto3, bgPhoto4, bgPhoto5, bgPhoto6, bgPhoto7, bgPhoto8]
 
 interface Account {
   name: string
@@ -130,7 +140,6 @@ function App(): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
-  const [customBackgrounds, setCustomBackgrounds] = useState<string[]>([])
   const [bgIndex, setBgIndexState] = useState<number>(readStoredBgIndex)
   const [askOnPlay, setAskOnPlayState] = useState(false)
   const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
@@ -544,28 +553,10 @@ function App(): React.JSX.Element {
     }
   }
 
-  useEffect(() => {
-    window.api
-      .listCustomBackgrounds()
-      .then(setCustomBackgrounds)
-      .catch(() => setCustomBackgrounds([]))
-  }, [])
+  const backgrounds = DEFAULT_BACKGROUNDS
 
-  // Bundled default photos always come first; any PNGs the user adds via
-  // the switcher's "+" get appended after them, so the arrows work over a
-  // list that isn't limited to hardcoded assets.
-  const backgrounds = [...DEFAULT_BACKGROUNDS, ...customBackgrounds]
-
-  // listLength defaults to the current render's backgrounds.length, but
-  // handleAddBackground below must pass the just-updated length explicitly -
-  // setCustomBackgrounds(updated) only schedules a re-render, it doesn't
-  // change what `backgrounds` (and therefore the default listLength) closes
-  // over *within the same synchronous call*, so without this a freshly
-  // added background's target index got wrapped modulo the OLD (one
-  // shorter) list length and silently landed back on a default photo
-  // instead of the new one.
-  function setBgIndex(index: number, listLength: number = backgrounds.length): void {
-    const wrapped = (index + listLength) % listLength
+  function setBgIndex(index: number): void {
+    const wrapped = (index + backgrounds.length) % backgrounds.length
     setBgIndexState(wrapped)
     try {
       localStorage.setItem(BG_INDEX_KEY, String(wrapped))
@@ -574,38 +565,12 @@ function App(): React.JSX.Element {
     }
   }
 
-  async function handleAddBackground(): Promise<void> {
-    try {
-      const updated = await window.api.addCustomBackground()
-      setCustomBackgrounds(updated)
-      const newLength = DEFAULT_BACKGROUNDS.length + updated.length
-      setBgIndex(newLength - 1, newLength)
-    } catch (err) {
-      // Previously unguarded - a failure here (e.g. a locked/unreadable
-      // source file) silently did nothing instead of telling the user
-      // anything went wrong at all.
-      setError(err instanceof Error ? err.message : String(err))
-    }
-  }
-
-  async function handleRemoveCurrentBackground(): Promise<void> {
-    if (bgIndex < DEFAULT_BACKGROUNDS.length) return
-    try {
-      const updated = await window.api.removeCustomBackground(bgIndex - DEFAULT_BACKGROUNDS.length)
-      setCustomBackgrounds(updated)
-      setBgIndex(0)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
-  }
-
   // --bg-photo is read by body's background-image in App.css - set here
   // instead of a static CSS url() so the arrows can switch it live.
   useEffect(() => {
-    const list = [...DEFAULT_BACKGROUNDS, ...customBackgrounds]
-    const clamped = ((bgIndex % list.length) + list.length) % list.length
-    document.documentElement.style.setProperty('--bg-photo', `url(${list[clamped]})`)
-  }, [bgIndex, customBackgrounds])
+    const clamped = ((bgIndex % backgrounds.length) + backgrounds.length) % backgrounds.length
+    document.documentElement.style.setProperty('--bg-photo', `url(${backgrounds[clamped]})`)
+  }, [bgIndex])
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null
   const detailServer = servers.find((s) => s.id === detailServerId) ?? null
@@ -1019,25 +984,6 @@ function App(): React.JSX.Element {
         >
           ›
         </button>
-        <span className="bg-switcher-divider" />
-        <button
-          type="button"
-          className="bg-switcher-arrow"
-          onClick={handleAddBackground}
-          title={t('background.addCustom')}
-        >
-          +
-        </button>
-        {bgIndex >= DEFAULT_BACKGROUNDS.length && (
-          <button
-            type="button"
-            className="bg-switcher-arrow"
-            onClick={handleRemoveCurrentBackground}
-            title={t('background.removeThis')}
-          >
-            ×
-          </button>
-        )}
       </div>
     </div>
   )
