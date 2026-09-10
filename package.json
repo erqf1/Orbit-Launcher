@@ -4,8 +4,16 @@
   "description": "Custom Minecraft launcher",
   "main": "./out/main/index.js",
   "private": true,
+  "license": "Apache-2.0",
   "author": "",
-  "homepage": "https://orbit-launcher.invalid",
+  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/orbit-launcher",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/orbit-launcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/orbit-launcher/issues"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

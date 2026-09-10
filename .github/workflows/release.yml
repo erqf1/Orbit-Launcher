@@ -1,0 +1,61 @@
+name: Release
+
+# Push a tag like v1.0.0 to build both platforms and publish a GitHub
+# Release with the installers attached. workflow_dispatch lets you trigger
+# a one-off build/publish run manually (e.g. to test the pipeline) without
+# needing a real tag.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # electron itself doesn't auto-download its binary via a postinstall
+      # script (see the project's own notes on this) - this explicit step
+      # is required after every fresh install, on every platform.
+      - name: Install Electron binary
+        run: npx install-electron
+
+      - name: Build renderer/main/preload
+        run: npx electron-vite build
+
+      # A real GitHub Actions runner is a clean VM each time, so this
+      # sidesteps two problems that only exist on the maintainer's own
+      # Windows machine: Windows Defender locking electron-builder's NSIS
+      # tool-download cache mid-extract, and Linux AppImage/deb packaging
+      # tools (mksquashfs, fpm) simply not existing on native Windows at
+      # all. Native runners for both OSes make the real installers
+      # (NSIS .exe, AppImage, .deb) buildable here even though they aren't
+      # locally, with no workaround needed.
+      - name: Build and publish (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

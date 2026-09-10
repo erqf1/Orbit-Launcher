@@ -6,6 +6,14 @@ directories:
 files:
   - out/**/*
   - package.json
+# electron-builder can also infer this from package.json's "repository"
+# field, but it's spelled out here so the GitHub Actions release workflow's
+# --publish always-if-tag has an unambiguous target regardless of that
+# field's exact URL shape.
+publish:
+  provider: github
+  owner: YOUR_GITHUB_USERNAME
+  repo: orbit-launcher
 win:
   icon: build/icon.ico
   target:
