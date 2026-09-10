@@ -309,6 +309,7 @@ const de: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft-EULA',
 
   'serverHost.new': '+ Server hosten',
+  'serverHost.addressForFriendsLabel': 'Freunde treten bei unter:',
   'serverHost.addressForFriendsTooltip': 'Adresse für Freunde zum Beitreten',
   'serverHost.thisServer': 'diesen Server',
   'serverHost.confirmDelete': '"{name}" wirklich löschen? Das entfernt Welt und Dateien unwiderruflich.',

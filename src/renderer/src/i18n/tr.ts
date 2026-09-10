@@ -309,6 +309,7 @@ const tr: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Sunucu Barındır',
+  'serverHost.addressForFriendsLabel': 'Arkadaşlar şuradan katılır:',
   'serverHost.addressForFriendsTooltip': 'Arkadaşların katılması için adres',
   'serverHost.thisServer': 'bu sunucu',
   'serverHost.confirmDelete': '"{name}" gerçekten silinsin mi? Bu, dünyasını ve dosyalarını kalıcı olarak siler.',

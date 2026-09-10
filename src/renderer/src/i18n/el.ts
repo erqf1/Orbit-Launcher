@@ -309,6 +309,7 @@ const el: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Φιλοξένησε Server',
+  'serverHost.addressForFriendsLabel': 'Οι φίλοι συνδέονται στο:',
   'serverHost.addressForFriendsTooltip': 'Διεύθυνση για να συνδεθούν φίλοι',
   'serverHost.thisServer': 'αυτόν τον server',
   'serverHost.confirmDelete': 'Διαγραφή του «{name}»; Αυτό αφαιρεί οριστικά τον κόσμο και τα αρχεία του.',

@@ -309,6 +309,7 @@ const it: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Ospita un server',
+  'serverHost.addressForFriendsLabel': 'Gli amici entrano su:',
   'serverHost.addressForFriendsTooltip': 'Indirizzo per far entrare gli amici',
   'serverHost.thisServer': 'questo server',
   'serverHost.confirmDelete': 'Eliminare davvero "{name}"? Questo rimuove definitivamente il suo mondo e i suoi file.',

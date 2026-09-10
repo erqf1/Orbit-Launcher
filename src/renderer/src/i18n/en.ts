@@ -310,6 +310,7 @@ const en = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Host a Server',
+  'serverHost.addressForFriendsLabel': 'Friends join at:',
   'serverHost.addressForFriendsTooltip': 'Address for friends to join',
   'serverHost.thisServer': 'this server',
   'serverHost.confirmDelete': 'Really delete "{name}"? This permanently removes its world and files.',

@@ -844,8 +844,9 @@ function App(): React.JSX.Element {
               <div className="app-main-header-actions">
                 {playitTunnelAddress && (
                   <div className="tunnel-address-bar" title={t('serverHost.addressForFriendsTooltip')}>
+                    <span className="tunnel-address-label">{t('serverHost.addressForFriendsLabel')}</span>
                     <span className="tunnel-address-value">{playitTunnelAddress}</span>
-                    <button type="button" onClick={handleCopyTunnelAddress}>
+                    <button type="button" className="save-button" onClick={handleCopyTunnelAddress}>
                       {copiedTunnelAddress ? t('common.copied') : t('common.copy')}
                     </button>
                   </div>
