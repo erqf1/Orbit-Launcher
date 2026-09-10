@@ -12,8 +12,8 @@ files:
 # field's exact URL shape.
 publish:
   provider: github
-  owner: YOUR_GITHUB_USERNAME
-  repo: orbit-launcher
+  owner: erqf1
+  repo: Orbit-Launcher
 win:
   icon: build/icon.ico
   target:

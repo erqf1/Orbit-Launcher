@@ -17,7 +17,7 @@ A custom Minecraft: Java Edition launcher built from scratch with Electron, Reac
 
 ## Download
 
-Grab the latest Windows or Linux build from the [Releases page](https://github.com/YOUR_GITHUB_USERNAME/orbit-launcher/releases/latest).
+Grab the latest Windows or Linux build from the [Releases page](https://github.com/erqf1/Orbit-Launcher/releases/latest).
 
 ## Building from source
 
