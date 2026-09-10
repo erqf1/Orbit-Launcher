@@ -27,17 +27,17 @@ import bgPhoto1 from './assets/bg-photo-1.png'
 import bgPhoto2 from './assets/bg-photo-2.png'
 import bgPhoto3 from './assets/bg-photo-3.png'
 import bgPhoto4 from './assets/bg-photo-4.png'
-import bgPhoto5 from './assets/bg-photo-5.png'
 import bgPhoto6 from './assets/bg-photo-6.png'
 import bgPhoto7 from './assets/bg-photo-7.png'
 import bgPhoto8 from './assets/bg-photo-8.png'
 
-// Fixed set of 8 bundled backgrounds, cycled via the arrows/dots - no
+// Fixed set of bundled backgrounds, cycled via the arrows/dots - no
 // user-added custom backgrounds (that feature was removed: reading an
 // arbitrary user-picked file back as a data: URL for a CSS background was
 // fragile for large photos and not worth the complexity for what's meant
-// to be a small fixed set of launcher wallpapers).
-const DEFAULT_BACKGROUNDS = [bgPhoto1, bgPhoto2, bgPhoto3, bgPhoto4, bgPhoto5, bgPhoto6, bgPhoto7, bgPhoto8]
+// to be a small fixed set of launcher wallpapers). The snowy one that used
+// to be here was dropped per explicit feedback.
+const DEFAULT_BACKGROUNDS = [bgPhoto1, bgPhoto2, bgPhoto3, bgPhoto4, bgPhoto6, bgPhoto7, bgPhoto8]
 
 interface Account {
   name: string
