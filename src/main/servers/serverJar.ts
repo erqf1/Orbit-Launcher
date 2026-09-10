@@ -21,11 +21,39 @@ interface PaperProjectResponse {
 // Paper's old api.papermc.io/v2 API was fully sunset (confirmed live -
 // returns {"ok":false,"error":"sunset"}), superseded by this fill.papermc.io/v3
 // API - do not revert to v2, it no longer works at all.
+//
+// data.versions groups builds by family (e.g. "26.2": ["26.2","26.2-rc-2"],
+// "1.21": [...,"1.21.11",...]) with no guaranteed family order - confirmed
+// live that "26.2" (Paper's newest family) comes first. A plain
+// Object.values(...).flat() therefore returned release candidates mixed in
+// with stable releases, in an order where paperVersions[0] - used as this
+// dialog's auto-selected default - was "26.2" regardless of what the user
+// actually wanted. Filter to stable releases only (anything with a letter is
+// a pre-release/RC channel marker) and sort newest-first so both the
+// dropdown and the auto-picked default are meaningful.
 export async function listPaperVersions(): Promise<string[]> {
   const res = await fetch(`${PAPER_API}/projects/paper`)
   if (!res.ok) throw new Error(`Paper-Versionsliste konnte nicht geladen werden (HTTP ${res.status}).`)
   const data = (await res.json()) as PaperProjectResponse
-  return Object.values(data.versions).flat()
+  const all = Object.values(data.versions).flat()
+  const stable = all.filter((v) => !/[a-zA-Z]/.test(v))
+  return stable.sort(compareMcVersionsDesc)
+}
+
+// Mojang's post-2026 scheme (e.g. "26.2") supersedes the old "1.x" scheme, so
+// any non-"1.x" version sorts ahead of every "1.x" version; within a scheme,
+// compare each dot-separated segment numerically.
+function compareMcVersionsDesc(a: string, b: string): number {
+  const aLegacy = a.startsWith('1.')
+  const bLegacy = b.startsWith('1.')
+  if (aLegacy !== bLegacy) return aLegacy ? 1 : -1
+  const aParts = a.split('.').map(Number)
+  const bParts = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const diff = (bParts[i] || 0) - (aParts[i] || 0)
+    if (diff !== 0) return diff
+  }
+  return 0
 }
 
 export interface PaperBuildSummary {
