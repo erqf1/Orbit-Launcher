@@ -6,3 +6,5 @@ dist-electron
 *.tsbuildinfo
 .DS_Store
 .eb-cache
+.claude
+website
