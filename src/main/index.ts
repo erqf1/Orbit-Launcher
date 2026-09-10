@@ -82,12 +82,26 @@ if (!gotSingleInstanceLock) {
 
 let mainWindow: BrowserWindow | null = null
 
+// A packaged build already gets this for free - electron-builder.yml's
+// win.icon embeds build/icon.ico directly into the compiled exe, and
+// Electron falls back to an exe's own icon when no explicit `icon` option
+// is given. In dev mode there's no custom-compiled exe at all (it runs
+// through node_modules/electron/dist/electron.exe, which carries Electron's
+// own default icon) - this is what actually put Electron's icon in the
+// title bar/taskbar during development, so it's set explicitly here.
+// build/ isn't part of the packaged app's files (see electron-builder.yml),
+// so this path only resolves in dev - existsSync guards against passing a
+// bad path to BrowserWindow in the packaged build rather than relying on
+// Electron to silently ignore it.
+const iconPath = join(__dirname, '../../build/icon.png')
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    ...(fs.existsSync(iconPath) ? { icon: iconPath } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

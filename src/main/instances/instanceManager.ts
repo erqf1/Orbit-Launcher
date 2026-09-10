@@ -440,10 +440,21 @@ export async function createDesktopShortcut(id: string): Promise<string> {
   if (process.platform === 'win32') {
     const shortcutPath = join(desktopDir, `${baseName}.lnk`)
     const args = app.isPackaged ? launchFlag : `"${devEntryScript}" ${launchFlag}`
+    // A shortcut inherits its icon from `target` by default - fine once
+    // packaged (target is the real, correctly-iconed Orbit Launcher.exe),
+    // but in dev `target` is node_modules/electron/dist/electron.exe, which
+    // carries Electron's own generic icon. Overriding it explicitly with
+    // the same build/icon.ico electron-builder embeds into the packaged
+    // exe keeps a dev-created shortcut looking right too; only set when the
+    // file actually resolves (it isn't part of the packaged app's files, so
+    // this only ever applies in dev - the packaged case is already correct
+    // without it).
+    const iconPath = join(app.getAppPath(), 'build', 'icon.ico')
     const ok = shell.writeShortcutLink(shortcutPath, 'create', {
       target: execPath,
       args,
-      description: `${instance.name} in Orbit Launcher starten`
+      description: `${instance.name} in Orbit Launcher starten`,
+      ...(existsSync(iconPath) ? { icon: iconPath, iconIndex: 0 } : {})
     })
     if (!ok) throw new Error('Verknüpfung konnte nicht erstellt werden.')
     return shortcutPath
