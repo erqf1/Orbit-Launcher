@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { resolveJavaPath } from '../launch/launcher'
 import { checkJavaCompat, detectJavaInstallations, findCompatibleJavaInstallation } from '../java/javaManager'
-import { getServer, getServerRoot, markServerStarted } from './serverManager'
+import { getServer, getServerRoot, markServerStarted, updateServerSettings } from './serverManager'
 import { autoStartTunnelIfConfigured } from './playitTunnel'
 
 // Server hosting is the first place in this codebase that spawns java
@@ -58,6 +58,22 @@ export function isAnyServerRunning(): boolean {
 function buildMemoryArgs(memoryMin: string, memoryMax: string): string[] {
   return [`-Xmx${memoryMax}`, `-Xms${memoryMin}`]
 }
+
+// Mojang's actual required-Java-version-per-Minecraft-version keeps moving
+// (confirmed the hard way: the static mcVersion-based heuristic in
+// javaManager.ts's requiredJavaMajorFor guessed Java 21 for a version that
+// actually needed Java 25, since it still assumed the last known bump - the
+// exact kind of drift that heuristic can't reliably keep up with). Rather
+// than trying to hardcode Mojang's requirement again and risk it going
+// stale the same way, this reacts to the JVM's OWN error, which always
+// states the real number - "class file version 69.0" is unambiguously
+// "needs Java 25" (Java's class-file-major = 44 + java major, a fixed JVM
+// spec fact, not a guess). classFileVersion is the first captured group.
+const UNSUPPORTED_CLASS_VERSION_PATTERN = /class file version (\d+)\.0.*?up to \d+\.0/
+// Guards against retrying forever if even the auto-selected "better" Java
+// still isn't enough (or none was found) - one retry per start attempt,
+// cleared once a start attempt is no longer taking the retry path.
+const javaRetryAttempted = new Set<string>()
 
 export async function startServer(mainWindow: BrowserWindow, id: string): Promise<void> {
   const server = getServer(id)
@@ -151,6 +167,16 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
 
   child.on('close', (code) => {
     runningServers.delete(id)
+    if (code !== 0 && !javaRetryAttempted.has(id)) {
+      const logText = (serverLogBuffers.get(id) ?? []).join('\n')
+      const versionMatch = UNSUPPORTED_CLASS_VERSION_PATTERN.exec(logText)
+      if (versionMatch) {
+        javaRetryAttempted.add(id)
+        void retryWithCompatibleJava(mainWindow, id, Number(versionMatch[1]) - 44)
+        return
+      }
+    }
+    javaRetryAttempted.delete(id)
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send('server:closed', { serverId: id, code: code ?? 0 })
     }
@@ -179,6 +205,51 @@ export async function startServer(mainWindow: BrowserWindow, id: string): Promis
   // server start itself (autoStartTunnelIfConfigured already reports its
   // own failure to the tunnel log rather than throwing past this point).
   void autoStartTunnelIfConfigured(mainWindow, id, server.serverPort)
+}
+
+// Reacts to a real UnsupportedClassVersionError instead of only trusting
+// the pre-flight guess in startServer above (see the comment on
+// UNSUPPORTED_CLASS_VERSION_PATTERN for why the guess alone isn't
+// sufficient) - looks for an installed Java that's actually new enough
+// (the real number, read off the crash itself), persists it as this
+// server's Java so future starts don't need to retry again, and starts it
+// for real. Falls back to one clear, accurate error if no such install
+// exists locally.
+async function retryWithCompatibleJava(
+  mainWindow: BrowserWindow,
+  id: string,
+  requiredMajor: number
+): Promise<void> {
+  const send = (line: string): void => {
+    appendToLogBuffer(id, line)
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('server:log', { serverId: id, line })
+  }
+  send(
+    `[Auto-Fix] Die verwendete Java-Version ist zu alt für diesen Server (benötigt: Java ${requiredMajor}) - suche nach einer passenden Installation...`
+  )
+  const installations = await detectJavaInstallations()
+  const better = findCompatibleJavaInstallation(installations, requiredMajor)
+  if (!better) {
+    javaRetryAttempted.delete(id)
+    send(
+      `[Fehler] Keine lokale Java-${requiredMajor}-Installation gefunden. Bitte Java ${requiredMajor} oder neuer installieren und im General-Tab dieses Servers auswählen.`
+    )
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('server:closed', { serverId: id, code: -1 })
+    return
+  }
+  send(`[Auto-Fix] Java ${better.version} gefunden (${better.path}) - starte den Server damit neu...`)
+  try {
+    updateServerSettings(id, { javaPath: better.path })
+  } catch (err) {
+    send(`[Warnung] Java-Pfad konnte nicht gespeichert werden: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  try {
+    await startServer(mainWindow, id)
+  } catch (err) {
+    javaRetryAttempted.delete(id)
+    send(`[Fehler] Neustart fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`)
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send('server:closed', { serverId: id, code: -1 })
+  }
 }
 
 // "stop" already saves the world as part of its own shutdown sequence

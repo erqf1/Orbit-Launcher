@@ -2183,7 +2183,11 @@ button:not(:disabled):active {
 
 .screenshot-lightbox img.zoomed {
   transform: scale(2);
-  cursor: zoom-out;
+  cursor: grab;
+}
+
+.screenshot-lightbox img.zoomed:active {
+  cursor: grabbing;
 }
 
 .screenshot-lightbox-actions {
