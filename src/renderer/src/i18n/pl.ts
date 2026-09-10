@@ -262,8 +262,8 @@ const pl: Record<TranslationKey, string> = {
   'screenshots.empty': 'Brak zrzutów ekranu.',
   'screenshots.clickToShrink': 'Kliknij, aby pomniejszyć',
   'screenshots.clickToEnlarge': 'Kliknij, aby powiększyć',
-  'screenshots.copied': 'Skopiowano!',
-  'screenshots.copy': 'Kopiuj',
+  'common.copied': 'Skopiowano!',
+  'common.copy': 'Kopiuj',
 
   'servers.heading': 'Serwery: {count}',
   'servers.empty': 'Brak serwerów na liście.',
@@ -309,6 +309,7 @@ const pl: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Hostuj serwer',
+  'serverHost.addressForFriendsTooltip': 'Adres do dołączenia dla znajomych',
   'serverHost.thisServer': 'ten serwer',
   'serverHost.confirmDelete': 'Na pewno usunąć „{name}”? To trwale usunie jego świat i pliki.',
   'serverHost.deleteWhileRunning': '„{name}” jest teraz uruchomiony i nie można go usunąć.',

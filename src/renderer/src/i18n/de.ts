@@ -262,8 +262,8 @@ const de: Record<TranslationKey, string> = {
   'screenshots.empty': 'Keine Screenshots vorhanden.',
   'screenshots.clickToShrink': 'Klicken zum Verkleinern',
   'screenshots.clickToEnlarge': 'Klicken zum Vergrößern',
-  'screenshots.copied': 'Kopiert!',
-  'screenshots.copy': 'Kopieren',
+  'common.copied': 'Kopiert!',
+  'common.copy': 'Kopieren',
 
   'servers.heading': '{count} Server',
   'servers.empty': 'Keine Server in der Liste.',
@@ -309,6 +309,7 @@ const de: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft-EULA',
 
   'serverHost.new': '+ Server hosten',
+  'serverHost.addressForFriendsTooltip': 'Adresse für Freunde zum Beitreten',
   'serverHost.thisServer': 'diesen Server',
   'serverHost.confirmDelete': '"{name}" wirklich löschen? Das entfernt Welt und Dateien unwiderruflich.',
   'serverHost.deleteWhileRunning': '"{name}" läuft gerade und kann nicht gelöscht werden.',

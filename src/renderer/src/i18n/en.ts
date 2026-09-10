@@ -263,8 +263,8 @@ const en = {
   'screenshots.empty': 'No screenshots available.',
   'screenshots.clickToShrink': 'Click to shrink',
   'screenshots.clickToEnlarge': 'Click to enlarge',
-  'screenshots.copied': 'Copied!',
-  'screenshots.copy': 'Copy',
+  'common.copied': 'Copied!',
+  'common.copy': 'Copy',
 
   'servers.heading': '{count} Servers',
   'servers.empty': 'No servers in the list.',
@@ -310,6 +310,7 @@ const en = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Host a Server',
+  'serverHost.addressForFriendsTooltip': 'Address for friends to join',
   'serverHost.thisServer': 'this server',
   'serverHost.confirmDelete': 'Really delete "{name}"? This permanently removes its world and files.',
   'serverHost.deleteWhileRunning': '"{name}" is currently running and cannot be deleted.',

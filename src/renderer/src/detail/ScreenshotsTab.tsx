@@ -203,7 +203,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
                 {lightboxName}
               </span>
               <button type="button" onClick={handleCopy}>
-                {copied ? t('screenshots.copied') : t('screenshots.copy')}
+                {copied ? t('common.copied') : t('common.copy')}
               </button>
               <button type="button" onClick={() => handleRemove(lightboxName)}>
                 {t('common.delete')}

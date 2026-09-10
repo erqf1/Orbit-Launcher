@@ -262,8 +262,8 @@ const el: Record<TranslationKey, string> = {
   'screenshots.empty': 'Δεν υπάρχουν στιγμιότυπα.',
   'screenshots.clickToShrink': 'Κλικ για σμίκρυνση',
   'screenshots.clickToEnlarge': 'Κλικ για μεγέθυνση',
-  'screenshots.copied': 'Αντιγράφηκε!',
-  'screenshots.copy': 'Αντιγραφή',
+  'common.copied': 'Αντιγράφηκε!',
+  'common.copy': 'Αντιγραφή',
 
   'servers.heading': '{count} Servers',
   'servers.empty': 'Δεν υπάρχουν servers στη λίστα.',
@@ -309,6 +309,7 @@ const el: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Φιλοξένησε Server',
+  'serverHost.addressForFriendsTooltip': 'Διεύθυνση για να συνδεθούν φίλοι',
   'serverHost.thisServer': 'αυτόν τον server',
   'serverHost.confirmDelete': 'Διαγραφή του «{name}»; Αυτό αφαιρεί οριστικά τον κόσμο και τα αρχεία του.',
   'serverHost.deleteWhileRunning': 'Το «{name}» εκτελείται αυτή τη στιγμή και δεν μπορεί να διαγραφεί.',

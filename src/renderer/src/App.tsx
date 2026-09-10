@@ -145,6 +145,7 @@ function App(): React.JSX.Element {
   const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCat, setShowCat] = useState(false)
+  const [copiedTunnelAddress, setCopiedTunnelAddress] = useState(false)
   const brandClicksRef = useRef(0)
   const brandClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const authRestoreStarted = useRef(false)
@@ -501,6 +502,13 @@ function App(): React.JSX.Element {
     }
   }
 
+  async function handleCopyTunnelAddress(): Promise<void> {
+    if (!playitTunnelAddress) return
+    await navigator.clipboard.writeText(playitTunnelAddress)
+    setCopiedTunnelAddress(true)
+    setTimeout(() => setCopiedTunnelAddress(false), 1500)
+  }
+
   async function handleDeleteServer(id: string): Promise<void> {
     const server = servers.find((s) => s.id === id)
     const label = server ? server.name : t('serverHost.thisServer')
@@ -833,9 +841,19 @@ function App(): React.JSX.Element {
           <>
             <div className="app-main-header">
               <h2>{t('nav.serverHostingView')}</h2>
-              <button type="button" onClick={() => setShowPlayitSettings(true)}>
-                {t('playitSettings.openButton')}
-              </button>
+              <div className="app-main-header-actions">
+                {playitTunnelAddress && (
+                  <div className="tunnel-address-bar" title={t('serverHost.addressForFriendsTooltip')}>
+                    <span className="tunnel-address-value">{playitTunnelAddress}</span>
+                    <button type="button" onClick={handleCopyTunnelAddress}>
+                      {copiedTunnelAddress ? t('common.copied') : t('common.copy')}
+                    </button>
+                  </div>
+                )}
+                <button type="button" onClick={() => setShowPlayitSettings(true)}>
+                  {t('playitSettings.openButton')}
+                </button>
+              </div>
             </div>
 
             {error && <p className="error">{error}</p>}

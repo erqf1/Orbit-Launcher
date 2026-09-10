@@ -262,8 +262,8 @@ const tr: Record<TranslationKey, string> = {
   'screenshots.empty': 'Ekran görüntüsü yok.',
   'screenshots.clickToShrink': 'Küçültmek için tıkla',
   'screenshots.clickToEnlarge': 'Büyütmek için tıkla',
-  'screenshots.copied': 'Kopyalandı!',
-  'screenshots.copy': 'Kopyala',
+  'common.copied': 'Kopyalandı!',
+  'common.copy': 'Kopyala',
 
   'servers.heading': '{count} Sunucu',
   'servers.empty': 'Listede sunucu yok.',
@@ -309,6 +309,7 @@ const tr: Record<TranslationKey, string> = {
   'createServer.acceptEulaLink': 'Minecraft EULA',
 
   'serverHost.new': '+ Sunucu Barındır',
+  'serverHost.addressForFriendsTooltip': 'Arkadaşların katılması için adres',
   'serverHost.thisServer': 'bu sunucu',
   'serverHost.confirmDelete': '"{name}" gerçekten silinsin mi? Bu, dünyasını ve dosyalarını kalıcı olarak siler.',
   'serverHost.deleteWhileRunning': '"{name}" şu anda çalışıyor ve silinemez.',
