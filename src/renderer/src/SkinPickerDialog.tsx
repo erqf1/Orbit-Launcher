@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import SkinViewer3D from './SkinViewer3D'
 import { useLocale } from './i18n'
 import type { AccountCustomization, LookedUpSkin, SkinHistoryEntry } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 // Crops the 8x8 face region out of a full skin texture via CSS background
 // positioning - same technique AccountSwitcher's own sidebar avatar uses,
@@ -152,7 +153,7 @@ function SkinPickerDialog({ accountId, customization, onApplied, onClose }: Prop
   // escapes that entirely without needing to lift any state out of
   // AccountSwitcher.
   return createPortal(
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...useBackdropClose(onClose)}>
       <div className="modal skin-picker-dialog" onClick={(e) => e.stopPropagation()}>
         <h2>{t('skinPicker.title')}</h2>
 

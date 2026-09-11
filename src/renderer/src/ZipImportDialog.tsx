@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocale } from './i18n'
 import type { ZipFormat } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -85,7 +86,7 @@ function ZipImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('zipImport.title')}</h2>
         <p className="instance-meta">{t('zipImport.description')}</p>

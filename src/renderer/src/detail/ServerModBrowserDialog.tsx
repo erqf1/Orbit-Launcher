@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
 import type { FriendsModEntry, ModSearchResult, ServerInstance } from '../types'
+import { useBackdropClose } from '../useBackdropClose'
 
 interface Props {
   server: ServerInstance
@@ -60,7 +61,7 @@ function ServerModBrowserDialog({ server, installed, onClose, onInstalled }: Pro
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...useBackdropClose(onClose)}>
       <div className="modal mod-browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="mod-browser-header">
           <h2>{t('serverHost.serverMods.browseDialogTitle')}</h2>

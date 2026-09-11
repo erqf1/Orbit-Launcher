@@ -30,6 +30,7 @@ import bgPhoto4 from './assets/bg-photo-4.png'
 import bgPhoto6 from './assets/bg-photo-6.png'
 import bgPhoto7 from './assets/bg-photo-7.png'
 import bgPhoto8 from './assets/bg-photo-8.png'
+import { useBackdropClose } from './useBackdropClose'
 
 // Fixed set of bundled backgrounds, cycled via the arrows/dots - no
 // user-added custom backgrounds (that feature was removed: reading an
@@ -976,7 +977,7 @@ function App(): React.JSX.Element {
       )}
 
       {playPickerInstanceId && (
-        <div className="modal-backdrop" onClick={() => setPlayPickerInstanceId(null)}>
+        <div className="modal-backdrop" {...useBackdropClose(() => setPlayPickerInstanceId(null))}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{t('account.pickForPlay')}</h2>
             <div className="play-account-picker">

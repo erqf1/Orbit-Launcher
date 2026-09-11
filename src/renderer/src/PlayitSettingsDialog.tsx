@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocale } from './i18n'
 import type { PlayitTunnelConfig } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -120,7 +121,7 @@ function PlayitSettingsDialog({ onCancel, onChanged }: Props): React.JSX.Element
   const portValid = /^\d+$/.test(portInput) && Number(portInput) > 0 && Number(portInput) < 65536
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('playitSettings.title')}</h2>
         <p className="instance-meta">{t('playitSettings.explainer')}</p>

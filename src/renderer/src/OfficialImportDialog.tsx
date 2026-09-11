@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocale } from './i18n'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -39,7 +40,7 @@ function OfficialImportDialog({ onCancel, onImported }: Props): React.JSX.Elemen
   }
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('officialImport.title')}</h2>
         <p className="instance-meta">{t('officialImport.description')}</p>

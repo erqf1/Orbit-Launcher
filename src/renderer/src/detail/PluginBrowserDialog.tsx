@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
 import type { InstalledPlugin, ModDependency, ModSearchResult, ServerInstance } from '../types'
+import { useBackdropClose } from '../useBackdropClose'
 
 interface Props {
   server: ServerInstance
@@ -90,7 +91,7 @@ function PluginBrowserDialog({ server, installed, onClose, onInstalled }: Props)
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...useBackdropClose(onClose)}>
       <div className="modal mod-browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="mod-browser-header">
           <h2>{t('serverHost.plugins.browseDialogTitle')}</h2>

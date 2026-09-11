@@ -3,6 +3,7 @@ import VersionLoaderFields from './VersionLoaderFields'
 import { useLocale } from './i18n'
 import type { TranslationKey } from './i18n/en'
 import type { CloneContentOptions, Instance, LoaderType } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   instance: Instance
@@ -70,7 +71,7 @@ function CloneAsVersionDialog({ instance, onCancel, onClone }: Props): React.JSX
   const canSubmit = !submitting && !!mcVersion && (loader === 'vanilla' || !!loaderVersion)
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h2>{t('cloneDialog.title', { name: instance.name })}</h2>
         <p className="instance-meta">{t('cloneDialog.description')}</p>

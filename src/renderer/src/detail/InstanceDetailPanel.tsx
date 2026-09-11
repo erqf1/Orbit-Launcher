@@ -8,6 +8,7 @@ import ScreenshotsTab from './ScreenshotsTab'
 import WorldsTab from './WorldsTab'
 import ServersTab from './ServersTab'
 import LogsTab from './LogsTab'
+import { useBackdropClose } from '../useBackdropClose'
 
 interface Account {
   id: string
@@ -591,7 +592,7 @@ function InstanceDetailPanel({ instance, accounts, onClose, onInstanceChanged }:
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...useBackdropClose(onClose)}>
       <div className="instance-detail" onClick={(e) => e.stopPropagation()}>
         <div className="instance-detail-sidebar">
           {editingName ? (

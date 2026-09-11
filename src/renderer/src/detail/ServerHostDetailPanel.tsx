@@ -7,6 +7,7 @@ import ServerGeneralTab from './ServerGeneralTab'
 import ServerPluginsTab from './ServerPluginsTab'
 import ServerPaperConfigTab from './ServerPaperConfigTab'
 import FriendsModsTab from './FriendsModsTab'
+import { useBackdropClose } from '../useBackdropClose'
 
 interface Props {
   server: ServerInstance
@@ -91,7 +92,7 @@ function ServerHostDetailPanel({ server, onClose, onServerChanged }: Props): Rea
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...useBackdropClose(onClose)}>
       <div className="instance-detail" onClick={(e) => e.stopPropagation()}>
         <div className="instance-detail-sidebar">
           {editingName ? (

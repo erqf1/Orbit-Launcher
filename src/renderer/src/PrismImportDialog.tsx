@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocale } from './i18n'
 import type { PrismInstanceSummary } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -86,7 +87,7 @@ function PrismImportDialog({ onCancel, onImported }: Props): React.JSX.Element {
   ).length
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h2>{t('prismImport.title')}</h2>
         <p className="instance-meta">{t('prismImport.description')}</p>

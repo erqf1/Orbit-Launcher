@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
 import type { ContentFileEntry } from '../types'
+import { useBackdropClose } from '../useBackdropClose'
 
 interface Props {
   instanceId: string
@@ -178,7 +179,7 @@ function ScreenshotsTab({ instanceId }: Props): React.JSX.Element {
       )}
 
       {lightboxName && (
-        <div className="modal-backdrop" onClick={() => setLightboxName(null)}>
+        <div className="modal-backdrop" {...useBackdropClose(() => setLightboxName(null))}>
           <div
             className={`screenshot-lightbox${zoomed ? ' zoomed' : ''}`}
             onClick={(e) => e.stopPropagation()}

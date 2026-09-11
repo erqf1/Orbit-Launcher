@@ -2,6 +2,7 @@ import { useState } from 'react'
 import VersionLoaderFields from './VersionLoaderFields'
 import { useLocale } from './i18n'
 import type { LoaderType } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -66,7 +67,7 @@ function CreateInstanceDialog({
     !submitting && !!mcVersion && (loader === 'vanilla' || !!loaderVersion)
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h2>{t('createInstance.title')}</h2>
 

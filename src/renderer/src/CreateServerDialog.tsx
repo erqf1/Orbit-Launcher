@@ -3,6 +3,7 @@ import { useLocale } from './i18n'
 import { useMinecraftVersions, useLoaderVersions } from './useVersionPicker'
 import { usePaperVersions, usePaperBuilds } from './useServerVersionPicker'
 import type { ServerLoaderType } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -104,7 +105,7 @@ function CreateServerDialog({ onCancel, onCreate }: Props): React.JSX.Element {
     !submitting && !!mcVersion && acceptEula && (loader !== 'fabric' || !!fabricLoaderVersion)
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <h2>{t('createServer.title')}</h2>
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import VersionLoaderFields from './VersionLoaderFields'
 import { useLocale } from './i18n'
 import type { LoaderType } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -65,7 +66,7 @@ function ManualFolderImportDialog({ onCancel, onImported }: Props): React.JSX.El
   const canImport = !importing && !!folderPath && !!name.trim() && !!mcVersion && (loader === 'vanilla' || !!loaderVersion)
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('manualImport.title')}</h2>
         <p className="instance-meta">{t('manualImport.description')}</p>

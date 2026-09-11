@@ -4,6 +4,7 @@ import OfficialImportDialog from './OfficialImportDialog'
 import ManualFolderImportDialog from './ManualFolderImportDialog'
 import { useLocale } from './i18n'
 import type { LauncherOption } from './types'
+import { useBackdropClose } from './useBackdropClose'
 
 interface Props {
   onCancel: () => void
@@ -47,7 +48,7 @@ function ImportPickerDialog({ onCancel, onImported }: Props): React.JSX.Element 
   const detected = launchers?.filter((l) => l.detected) ?? []
 
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
+    <div className="modal-backdrop" {...useBackdropClose(onCancel)}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>{t('importPicker.title')}</h2>
         <p className="instance-meta">{t('importPicker.subtitle')}</p>
