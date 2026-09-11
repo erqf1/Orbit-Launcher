@@ -13,7 +13,20 @@ import { resolveModEnvironment, getRequiredDependencies, mapWithConcurrency } fr
 export type CrashDiagnosis =
   | { kind: 'oom'; currentMemoryMax: string; suggestedMemoryMax: string }
   | { kind: 'javaMismatch'; installedMajor: number | null; requiredMajor: number; suggestedJavaPath: string | null }
-  | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
+  | {
+      kind: 'missingDependency'
+      modTitle: string
+      missingDepTitle: string
+      missingDepProjectId: string
+      missingDepVersionId: string
+      missingDepFile: { url: string; filename: string }
+      // Filename of an already-installed jar for this dependency's project
+      // that is NOT the required version - set when the dependency isn't
+      // simply absent but present at an incompatible version (e.g. an old
+      // Sodium jar installed before Iris). null when nothing for this
+      // project is installed at all.
+      missingDepInstalledFilename: string | null
+    }
   | { kind: 'unknown' }
 
 // A runtime java.lang.OutOfMemoryError (heap exhausted while playing) is far
@@ -54,7 +67,14 @@ async function findMissingDependency(
   instanceId: string,
   mcVersion: string,
   loader: string
-): Promise<{ modTitle: string; missingDepTitle: string; missingDepProjectId: string } | null> {
+): Promise<{
+  modTitle: string
+  missingDepTitle: string
+  missingDepProjectId: string
+  missingDepVersionId: string
+  missingDepFile: { url: string; filename: string }
+  missingDepInstalledFilename: string | null
+} | null> {
   const modsDir = join(getInstanceRoot(instanceId), 'mods')
   if (!existsSync(modsDir)) return null
   const files = readdirSync(modsDir).filter((f) => f.toLowerCase().endsWith('.jar'))
@@ -63,14 +83,27 @@ async function findMissingDependency(
   const resolved = await mapWithConcurrency(files, 6, (filename) =>
     resolveModEnvironment(join(modsDir, filename))
   )
-  const installedProjectIds = new Set(resolved.filter((r) => r !== null).map((r) => r!.projectId))
 
   for (const mod of resolved) {
     if (!mod) continue
-    const deps = await getRequiredDependencies(mod.projectId, mcVersion, loader).catch(() => [])
-    const missing = deps.find((dep) => !installedProjectIds.has(dep.projectId))
+    const deps = await getRequiredDependencies(mod.projectId, mcVersion, loader, { instanceId }).catch(() => [])
+    // A dependency only counts as satisfied when the exact required version
+    // is what's actually on disk - not merely "some version of this project
+    // exists". An old Sodium jar installed before Iris (or a newer one
+    // grabbed independently) is a real project match but not necessarily
+    // the build Iris was tested against; treating mere presence as
+    // "satisfied" is exactly why the Iris/Sodium version-mismatch crash was
+    // never caught here before.
+    const missing = deps.find((dep) => !dep.installed || dep.installed.versionId !== dep.versionId)
     if (missing) {
-      return { modTitle: mod.title, missingDepTitle: missing.title, missingDepProjectId: missing.projectId }
+      return {
+        modTitle: mod.title,
+        missingDepTitle: missing.title,
+        missingDepProjectId: missing.projectId,
+        missingDepVersionId: missing.versionId,
+        missingDepFile: missing.file,
+        missingDepInstalledFilename: missing.installed?.filename ?? null
+      }
     }
   }
   return null

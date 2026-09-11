@@ -74,7 +74,15 @@ export interface LaunchClosedEvent {
 export type CrashDiagnosis =
   | { kind: 'oom'; currentMemoryMax: string; suggestedMemoryMax: string }
   | { kind: 'javaMismatch'; installedMajor: number | null; requiredMajor: number; suggestedJavaPath: string | null }
-  | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
+  | {
+      kind: 'missingDependency'
+      modTitle: string
+      missingDepTitle: string
+      missingDepProjectId: string
+      missingDepVersionId: string
+      missingDepFile: { url: string; filename: string }
+      missingDepInstalledFilename: string | null
+    }
   | { kind: 'unknown' }
 
 export interface LaunchCrashDiagnosisEvent {
@@ -200,18 +208,39 @@ export interface ModSearchResult {
   downloads: number
 }
 
+export interface RequiredDependency {
+  projectId: string
+  versionId: string | null
+}
+
 export interface ModVersionSummary {
   id: string
   versionNumber: string
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  requiredDependencies: RequiredDependency[]
   datePublished: string
 }
 
 export interface ModFileRef {
   url: string
   filename: string
+}
+
+// A required dependency resolved to the exact version that should be
+// installed (Modrinth's own pinned version_id when the depending mod's
+// version specifies one, else the newest matching game version + loader),
+// plus whether that project is already installed in the target instance/
+// server and, if so, under which filename and Modrinth version - so a
+// caller can tell "already satisfied", "needs replacing" (wrong version on
+// disk) and "not installed at all" apart instead of just checking whether
+// the project is present at all.
+export interface ModDependency extends ModSearchResult {
+  versionId: string
+  versionNumber: string
+  file: ModFileRef
+  installed: { filename: string; versionId: string } | null
 }
 
 export interface InstalledMod {
@@ -519,8 +548,18 @@ const api = {
   getModDependencies: (
     projectId: string,
     mcVersion: string,
-    loader: string
-  ): Promise<ModSearchResult[]> => ipcRenderer.invoke('mods:dependencies', projectId, mcVersion, loader),
+    loader: string,
+    options?: { versionId?: string; instanceId?: string; serverId?: string }
+  ): Promise<ModDependency[]> =>
+    ipcRenderer.invoke(
+      'mods:dependencies',
+      projectId,
+      mcVersion,
+      loader,
+      options?.versionId,
+      options?.instanceId,
+      options?.serverId
+    ),
   listCuratedMods: (mcVersion: string, loader: string): Promise<CuratedMod[]> =>
     ipcRenderer.invoke('mods:curated', mcVersion, loader),
 

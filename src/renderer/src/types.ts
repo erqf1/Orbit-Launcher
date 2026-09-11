@@ -122,7 +122,15 @@ export interface LaunchClosedEvent {
 export type CrashDiagnosis =
   | { kind: 'oom'; currentMemoryMax: string; suggestedMemoryMax: string }
   | { kind: 'javaMismatch'; installedMajor: number | null; requiredMajor: number; suggestedJavaPath: string | null }
-  | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
+  | {
+      kind: 'missingDependency'
+      modTitle: string
+      missingDepTitle: string
+      missingDepProjectId: string
+      missingDepVersionId: string
+      missingDepFile: { url: string; filename: string }
+      missingDepInstalledFilename: string | null
+    }
   | { kind: 'unknown' }
 
 export interface LaunchCrashDiagnosisEvent {
@@ -163,18 +171,31 @@ export interface ModSearchResult {
   downloads: number
 }
 
+export interface RequiredDependency {
+  projectId: string
+  versionId: string | null
+}
+
 export interface ModVersionSummary {
   id: string
   versionNumber: string
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  requiredDependencies: RequiredDependency[]
   datePublished: string
 }
 
 export interface ModFileRef {
   url: string
   filename: string
+}
+
+export interface ModDependency extends ModSearchResult {
+  versionId: string
+  versionNumber: string
+  file: ModFileRef
+  installed: { filename: string; versionId: string } | null
 }
 
 export interface CuratedMod extends ModSearchResult {

@@ -38,12 +38,30 @@ export interface ModSearchResult {
   downloads: number
 }
 
+// A required dependency as recorded on the specific mod version that needs
+// it - Modrinth lets a version pin the *exact* dependency version it was
+// built/tested against (`version_id`, non-null) rather than just naming the
+// dependency project. This is precisely how Iris records "this build needs
+// this exact Sodium build": confirmed live against the real API - Iris
+// 1.7.6's dependency entry for Sodium carries version_id "ryOMVRuG" (Sodium
+// 0.5.12-beta.2), while the newest Sodium build for the identical game
+// version + loader at the time was a different, later build ("OihdIimA",
+// 0.5.13) that Iris 1.7.6 was never tested against. Resolving this
+// dependency as "whatever's newest for this game version + loader" instead
+// of respecting version_id is exactly the Iris/Sodium "not compatible"
+// crash reported in the field.
+export interface RequiredDependency {
+  projectId: string
+  versionId: string | null
+}
+
 export interface ModVersionSummary {
   id: string
   versionNumber: string
   filename: string
   url: string
   requiredDependencyProjectIds: string[]
+  requiredDependencies: RequiredDependency[]
   datePublished: string
 }
 
@@ -357,21 +375,25 @@ export async function listModVersions(
     version_number: string
     date_published: string
     files: Array<{ url: string; filename: string; primary: boolean }>
-    dependencies: Array<{ project_id: string | null; dependency_type: string }>
+    dependencies: Array<{ project_id: string | null; version_id: string | null; dependency_type: string }>
   }>
   const summaries: ModVersionSummary[] = []
   for (const v of versions) {
     const file = v.files.find((f) => f.primary) ?? v.files[0]
     if (!file) continue
-    const requiredDependencyProjectIds = v.dependencies
-      .filter((d) => d.dependency_type === 'required' && d.project_id)
-      .map((d) => d.project_id as string)
+    const requiredDeps = v.dependencies.filter((d) => d.dependency_type === 'required' && d.project_id)
+    const requiredDependencyProjectIds = requiredDeps.map((d) => d.project_id as string)
+    const requiredDependencies: RequiredDependency[] = requiredDeps.map((d) => ({
+      projectId: d.project_id as string,
+      versionId: d.version_id ?? null
+    }))
     summaries.push({
       id: v.id,
       versionNumber: v.version_number,
       filename: file.filename,
       url: file.url,
       requiredDependencyProjectIds,
+      requiredDependencies,
       datePublished: v.date_published
     })
   }
@@ -385,22 +407,106 @@ export async function listModVersions(
   return summaries
 }
 
-// Resolves the required-dependency project IDs on a mod's best-matching
-// version into full project info, so the UI can show names before
-// installing (rather than the user finding out mid-game via a crash log).
+async function getVersionById(
+  versionId: string
+): Promise<{ id: string; versionNumber: string; url: string; filename: string } | null> {
+  const res = await fetch(`${MODRINTH_API}/version/${encodeURIComponent(versionId)}`)
+  if (!res.ok) return null
+  const v = (await res.json()) as {
+    id: string
+    version_number: string
+    files: Array<{ url: string; filename: string; primary: boolean }>
+  }
+  const file = v.files.find((f) => f.primary) ?? v.files[0]
+  if (!file) return null
+  return { id: v.id, versionNumber: v.version_number, url: file.url, filename: file.filename }
+}
+
+export interface ResolvedDependency extends ModSearchResult {
+  // The exact version to install to satisfy this dependency - Modrinth's
+  // pinned version_id resolved to a full version record when the depending
+  // mod's version specifies one, or the newest version matching game
+  // version + loader as a fallback when no exact version is pinned.
+  versionId: string
+  versionNumber: string
+  file: ModFileRef
+  // Set when this dependency's project already has a jar installed in the
+  // target mods/plugins folder - its filename and the Modrinth version id
+  // that jar actually is. Checking project-id presence alone (as this used
+  // to do) treats *any* installed version as "dependency satisfied", which
+  // is exactly wrong for Iris/Sodium: an old Sodium jar installed before
+  // Iris is a real project match but not necessarily the version Iris
+  // needs. Callers should compare installed.versionId against versionId to
+  // tell "already satisfied", "needs replacing" and "not installed at all"
+  // apart, instead of installing this version blindly alongside whatever
+  // is already there.
+  installed: { filename: string; versionId: string } | null
+}
+
+// Resolves the required dependencies of a specific mod version (or, if
+// versionId is omitted, the newest matching game version + loader) into
+// full project + exact-version info, so the UI can show names *and* install
+// the exact right build before installing (rather than the user finding
+// out mid-game via a crash log). When instanceId/serverId is given, each
+// dependency is also checked against what's actually on disk there, so a
+// dependency whose project is present under an incompatible version isn't
+// mistaken for one that's already satisfied.
 export async function getRequiredDependencies(
   projectId: string,
   mcVersion: string,
-  loader: string
-): Promise<ModSearchResult[]> {
+  loader: string,
+  options?: { versionId?: string; instanceId?: string; serverId?: string }
+): Promise<ResolvedDependency[]> {
   const versions = await listModVersions(projectId, mcVersion, loader)
-  const best = versions[0]
-  if (!best || best.requiredDependencyProjectIds.length === 0) return []
+  const target = (options?.versionId ? versions.find((v) => v.id === options.versionId) : undefined) ?? versions[0]
+  if (!target || target.requiredDependencies.length === 0) return []
 
-  const infos = await Promise.all(
-    best.requiredDependencyProjectIds.map((id) => getProjectInfo(id).catch(() => null))
+  const existingModsDir = options?.instanceId
+    ? join(getInstanceRoot(options.instanceId), 'mods')
+    : options?.serverId
+      ? join(getServerRoot(options.serverId), 'plugins')
+      : undefined
+
+  const installedByProject = new Map<string, { filename: string; versionId: string }>()
+  if (existingModsDir && existsSync(existingModsDir)) {
+    const files = readdirSync(existingModsDir).filter((f) => f.toLowerCase().endsWith('.jar'))
+    const resolved = await mapWithConcurrency(files, 6, async (filename) => ({
+      filename,
+      env: await resolveModEnvironment(join(existingModsDir, filename)).catch(() => null)
+    }))
+    for (const { filename, env } of resolved) {
+      if (env) installedByProject.set(env.projectId, { filename, versionId: env.versionId })
+    }
+  }
+
+  const resolved = await Promise.all(
+    target.requiredDependencies.map(async (dep): Promise<ResolvedDependency | null> => {
+      const info = await getProjectInfo(dep.projectId).catch(() => null)
+      if (!info) return null
+
+      // Prefer the exact version Modrinth pinned this dependency to; only
+      // fall back to "newest for this game version + loader" when there's no
+      // pin, or the pinned version no longer resolves (e.g. removed since).
+      let versionRecord = dep.versionId ? await getVersionById(dep.versionId).catch(() => null) : null
+      if (!versionRecord) {
+        const depVersions = await listModVersions(dep.projectId, mcVersion, loader)
+        const best = depVersions[0]
+        if (best) {
+          versionRecord = { id: best.id, versionNumber: best.versionNumber, url: best.url, filename: best.filename }
+        }
+      }
+      if (!versionRecord) return null
+
+      return {
+        ...info,
+        versionId: versionRecord.id,
+        versionNumber: versionRecord.versionNumber,
+        file: { url: versionRecord.url, filename: versionRecord.filename },
+        installed: installedByProject.get(dep.projectId) ?? null
+      }
+    })
   )
-  return infos.filter((info): info is ModSearchResult => info !== null)
+  return resolved.filter((d): d is ResolvedDependency => d !== null)
 }
 
 export async function installMod(instanceId: string, file: ModFileRef): Promise<void> {
@@ -863,8 +969,15 @@ export function registerModHandlers(): void {
   )
   ipcMain.handle(
     'mods:dependencies',
-    (_event, projectId: string, mcVersion: string, loader: string) =>
-      getRequiredDependencies(projectId, mcVersion, loader)
+    (
+      _event,
+      projectId: string,
+      mcVersion: string,
+      loader: string,
+      versionId?: string,
+      instanceId?: string,
+      serverId?: string
+    ) => getRequiredDependencies(projectId, mcVersion, loader, { versionId, instanceId, serverId })
   )
   ipcMain.handle('mods:install', (_event, instanceId: string, file: ModFileRef) =>
     installMod(instanceId, file)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ModBrowserDialog from './ModBrowserDialog'
 import { useLocale } from '../i18n'
-import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModSearchResult, UpdateCandidate } from '../types'
+import type { CuratedMod, Instance, InstalledMod, ModCheckResult, ModDependency, UpdateCandidate } from '../types'
 
 interface Props {
   instance: Instance
@@ -38,15 +38,31 @@ function ModsTab({ instance }: Props): React.JSX.Element {
     refreshInstalled()
   }, [refreshInstalled])
 
-  async function installOne(projectId: string): Promise<ModSearchResult[]> {
+  async function installOne(projectId: string): Promise<ModDependency[]> {
     const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
     const best = versions[0]
     if (!best) {
       throw new Error(t('mods.noMatchingVersion'))
     }
     await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
-    if (best.requiredDependencyProjectIds.length === 0) return []
-    return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader)
+    if (best.requiredDependencies.length === 0) return []
+    return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader, {
+      versionId: best.id,
+      instanceId: instance.id
+    })
+  }
+
+  // Installs (or, if an incompatible version of the same project is already
+  // on disk, replaces) exactly the dependency version Modrinth resolved -
+  // mirrors ModBrowserDialog's installDependency (see there for why this
+  // matters for e.g. Iris/Sodium).
+  async function installDependency(dep: ModDependency): Promise<void> {
+    if (dep.installed && dep.installed.versionId === dep.versionId) return
+    if (dep.installed) {
+      await window.api.updateMod(instance.id, dep.installed.filename, dep.file)
+    } else {
+      await window.api.installMod(instance.id, dep.file)
+    }
   }
 
   async function handleRemove(filename: string): Promise<void> {
@@ -187,18 +203,19 @@ function ModsTab({ instance }: Props): React.JSX.Element {
     setError(null)
     setInstallingBatch(true)
     try {
-      const extraDeps = new Map<string, ModSearchResult>()
+      const extraDeps = new Map<string, ModDependency>()
       for (const projectId of selectedCurated) {
         const deps = await installOne(projectId)
         for (const dep of deps) {
-          if (!selectedCurated.has(dep.projectId)) extraDeps.set(dep.projectId, dep)
+          const alreadySatisfied = dep.installed && dep.installed.versionId === dep.versionId
+          if (!selectedCurated.has(dep.projectId) && !alreadySatisfied) extraDeps.set(dep.projectId, dep)
         }
       }
       refreshInstalled()
       if (extraDeps.size > 0) {
         const names = [...extraDeps.values()].map((d) => d.title).join(', ')
         if (window.confirm(t('mods.extraDepsConfirm', { names }))) {
-          for (const dep of extraDeps.values()) await installOne(dep.projectId)
+          for (const dep of extraDeps.values()) await installDependency(dep)
           refreshInstalled()
         }
       }

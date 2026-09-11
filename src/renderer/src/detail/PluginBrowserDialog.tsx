@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
-import type { InstalledPlugin, ModSearchResult, ServerInstance } from '../types'
+import type { InstalledPlugin, ModDependency, ModSearchResult, ServerInstance } from '../types'
 
 interface Props {
   server: ServerInstance
@@ -44,13 +44,28 @@ function PluginBrowserDialog({ server, installed, onClose, onInstalled }: Props)
   // listPluginVersions in modrinth.ts - Modrinth doesn't loader-scope
   // plugins the way it does mods), so dependency resolution reuses the same
   // 'vanilla' loader value for consistency with what was actually installed.
-  async function installOne(projectId: string): Promise<ModSearchResult[]> {
+  async function installOne(projectId: string): Promise<ModDependency[]> {
     const versions = await window.api.listPluginVersions(projectId, server.mcVersion)
     const best = versions[0]
     if (!best) throw new Error(t('mods.noMatchingVersion'))
     await window.api.installPlugin(server.id, { url: best.url, filename: best.filename })
-    if (best.requiredDependencyProjectIds.length === 0) return []
-    return window.api.getModDependencies(projectId, server.mcVersion, 'vanilla')
+    if (best.requiredDependencies.length === 0) return []
+    return window.api.getModDependencies(projectId, server.mcVersion, 'vanilla', {
+      versionId: best.id,
+      serverId: server.id
+    })
+  }
+
+  // Mirrors ModBrowserDialog's installDependency - installs (or, if an
+  // incompatible version of the same project is already on disk, replaces)
+  // exactly the version Modrinth resolved for this dependency, instead of
+  // adding a second, potentially mismatched copy alongside an existing one.
+  async function installDependency(dep: ModDependency): Promise<void> {
+    if (dep.installed && dep.installed.versionId === dep.versionId) return
+    if (dep.installed) {
+      await window.api.removePlugin(server.id, dep.installed.filename)
+    }
+    await window.api.installPlugin(server.id, dep.file)
   }
 
   async function handleInstall(projectId: string): Promise<void> {
@@ -59,10 +74,11 @@ function PluginBrowserDialog({ server, installed, onClose, onInstalled }: Props)
     try {
       const deps = await installOne(projectId)
       onInstalled()
-      if (deps.length > 0) {
-        const names = deps.map((d) => d.title).join(', ')
+      const pending = deps.filter((dep) => !dep.installed || dep.installed.versionId !== dep.versionId)
+      if (pending.length > 0) {
+        const names = pending.map((d) => d.title).join(', ')
         if (window.confirm(t('mods.dependenciesConfirm', { names }))) {
-          for (const dep of deps) await installOne(dep.projectId)
+          for (const dep of pending) await installDependency(dep)
           onInstalled()
         }
       }

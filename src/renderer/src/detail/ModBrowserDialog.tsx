@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocale } from '../i18n'
-import type { Instance, InstalledMod, ModSearchResult, ModVersionSummary } from '../types'
+import type { Instance, InstalledMod, ModDependency, ModSearchResult, ModVersionSummary } from '../types'
 
 interface Props {
   instance: Instance
@@ -51,20 +51,28 @@ function ModBrowserDialog({ instance, installed, onClose, onInstalled }: Props):
     }
   }, [query, instance.mcVersion, instance.loader])
 
-  async function installVersion(projectId: string, version: ModVersionSummary): Promise<ModSearchResult[]> {
+  async function installVersion(projectId: string, version: ModVersionSummary): Promise<ModDependency[]> {
     await window.api.installMod(instance.id, { url: version.url, filename: version.filename })
-    if (version.requiredDependencyProjectIds.length === 0) return []
-    return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader)
+    if (version.requiredDependencies.length === 0) return []
+    return window.api.getModDependencies(projectId, instance.mcVersion, instance.loader, {
+      versionId: version.id,
+      instanceId: instance.id
+    })
   }
 
-  // Dependencies are always auto-installed at their own newest matching
-  // version - the version picker is for the mod the user explicitly chose
-  // to install, not for every dependency it drags in.
-  async function installBest(projectId: string): Promise<ModSearchResult[]> {
-    const versions = await window.api.listModVersions(projectId, instance.mcVersion, instance.loader)
-    const best = versions[0]
-    if (!best) throw new Error(t('mods.noMatchingVersion'))
-    return installVersion(projectId, best)
+  // Installs (or, if an incompatible version of the same project is already
+  // on disk, replaces) exactly the dependency version Modrinth resolved -
+  // which respects the depending mod's own pinned version_id when it has
+  // one (e.g. Iris pinning an exact compatible Sodium build) instead of
+  // independently grabbing "whatever's newest" and potentially leaving a
+  // mismatched old jar sitting alongside a freshly-added new one.
+  async function installDependency(dep: ModDependency): Promise<void> {
+    if (dep.installed && dep.installed.versionId === dep.versionId) return
+    if (dep.installed) {
+      await window.api.updateMod(instance.id, dep.installed.filename, dep.file)
+    } else {
+      await window.api.installMod(instance.id, dep.file)
+    }
   }
 
   async function openVersionPicker(projectId: string): Promise<void> {
@@ -98,10 +106,11 @@ function ModBrowserDialog({ instance, installed, onClose, onInstalled }: Props):
     try {
       const deps = await installVersion(projectId, version)
       onInstalled()
-      if (deps.length > 0) {
-        const names = deps.map((d) => d.title).join(', ')
+      const pending = deps.filter((dep) => !dep.installed || dep.installed.versionId !== dep.versionId)
+      if (pending.length > 0) {
+        const names = pending.map((d) => d.title).join(', ')
         if (window.confirm(t('mods.dependenciesConfirm', { names }))) {
-          for (const dep of deps) await installBest(dep.projectId)
+          for (const dep of pending) await installDependency(dep)
           onInstalled()
         }
       }

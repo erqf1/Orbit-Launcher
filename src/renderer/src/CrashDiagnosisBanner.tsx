@@ -61,14 +61,16 @@ function CrashDiagnosisBanner({ instance, diagnosis, onFixed }: Props): React.JS
       } else if (diagnosis.kind === 'javaMismatch' && diagnosis.suggestedJavaPath) {
         await window.api.updateInstanceSettings(instance.id, { javaPath: diagnosis.suggestedJavaPath })
       } else if (diagnosis.kind === 'missingDependency') {
-        const versions = await window.api.listModVersions(
-          diagnosis.missingDepProjectId,
-          instance.mcVersion,
-          instance.loader
-        )
-        const best = versions[0]
-        if (!best) throw new Error(t('mods.noMatchingVersion'))
-        await window.api.installMod(instance.id, { url: best.url, filename: best.filename })
+        // Uses the exact version crashDiagnosis.ts already resolved (Modrinth's
+        // pinned version_id when the crashing mod's version specifies one),
+        // not an independently re-fetched "newest for this game version +
+        // loader" - and replaces an incompatible already-installed jar rather
+        // than adding a second, still-mismatched copy alongside it.
+        if (diagnosis.missingDepInstalledFilename) {
+          await window.api.updateMod(instance.id, diagnosis.missingDepInstalledFilename, diagnosis.missingDepFile)
+        } else {
+          await window.api.installMod(instance.id, diagnosis.missingDepFile)
+        }
       }
       onFixed()
     } catch (err) {
