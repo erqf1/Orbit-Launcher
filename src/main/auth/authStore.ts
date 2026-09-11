@@ -78,7 +78,18 @@ export function setAskOnPlay(value: boolean): void {
 }
 
 export function saveAccountToken(id: string, name: string, token: string): void {
-  if (!safeStorage.isEncryptionAvailable()) return
+  // Silently no-op'ing here used to be the actual bug: a successful Microsoft
+  // login would come back with a valid profile, but if safeStorage couldn't
+  // encrypt (no keyring backend available - see the password-store switch in
+  // index.ts for the common Linux cause), nothing ever got written and this
+  // account never made it into the index either. The login IPC call still
+  // resolved without throwing, so the renderer had no error to show and
+  // just fell back to "accounts.length === 0" -> the login button again, as
+  // if nothing had happened. Throwing here instead means callers (the
+  // auth:login handler in msmcAuth.ts) surface a real, visible error.
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('Sichere Speicherung ist auf diesem System nicht verfügbar. Das Konto konnte nicht gespeichert werden.')
+  }
   writeFileSync(getTokenPath(id), safeStorage.encryptString(token))
 
   const index = readIndex()

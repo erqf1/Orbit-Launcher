@@ -64,6 +64,26 @@ try {
 // means a future rename only changes branding, never where user data lives.
 app.setPath('userData', join(app.getPath('appData'), 'orbit-launcher'))
 
+// authStore.ts persists Microsoft account tokens via Electron's safeStorage,
+// which on Linux normally shells out to whatever freedesktop Secret Service
+// backend is running (gnome-keyring, kwallet). Plenty of real Linux setups -
+// minimal window managers like i3/sway/dwm (common on Arch, e.g. the pacman
+// build), a DE-less install, or just a session where the dbus session bus
+// isn't wired up the way GNOME/KDE's own session manager does it - have none
+// of those running, so safeStorage.isEncryptionAvailable() is simply false.
+// That used to make login look like it silently did nothing: the OAuth popup
+// would succeed, but authStore's saveAccountToken no-op'd instead of
+// persisting the account (see authStore.ts), so the app just fell back to
+// showing the login button again with no error. Forcing Electron's built-in
+// "basic" store (an obfuscated on-disk store that doesn't depend on any
+// keyring daemon) sidesteps that entirely - must be set before app is ready.
+// One-time cost: a Linux user whose token was already encrypted via a real
+// keyring backend before this change will need to log in again once, since
+// that ciphertext won't decrypt under the basic store's own key.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('password-store', 'basic')
+}
+
 // Only one running instance of the launcher makes sense - a second launch
 // (e.g. double-clicking the exe again while it's already open) should focus
 // the existing window instead of opening an independent second one. Must be
