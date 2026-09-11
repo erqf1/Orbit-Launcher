@@ -54,6 +54,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # electron-builder's pacman target shells out to fpm, which itself
+      # shells out to bsdtar (from libarchive-tools) to build the archive -
+      # ubuntu-latest does not have bsdtar preinstalled (only GNU tar), so
+      # the pacman build failed with a bare "exit code 127" until this was
+      # added; AppImage/deb never needed it and kept working either way.
+      - name: Install pacman packaging dependency (bsdtar)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+
       - name: Build and publish (Linux)
         if: runner.os == 'Linux'
         run: npx electron-builder --linux --publish always
