@@ -12,6 +12,8 @@ const ru: Record<TranslationKey, string> = {
   'view.grid': 'Плитка',
   'view.list': 'Список',
   'view.default': ' (по умолчанию)',
+  'view.settings': 'Настройки вида',
+  'view.layout': 'Расположение',
 
   'instances.title': 'Экземпляры',
   'instances.new': '+ Новый экземпляр',

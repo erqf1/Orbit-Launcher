@@ -12,6 +12,8 @@ const fr: Record<TranslationKey, string> = {
   'view.grid': 'Grille',
   'view.list': 'Liste',
   'view.default': ' (Par défaut)',
+  'view.settings': "Paramètres d'affichage",
+  'view.layout': 'Disposition',
 
   'instances.title': 'Instances',
   'instances.new': '+ Nouvelle instance',

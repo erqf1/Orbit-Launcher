@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'fs'
 import { dirname, join } from 'path'
 import AdmZip from 'adm-zip'
 import { getServerRoot, getServer } from './serverManager'
-import { getInstanceRoot } from '../instances/instanceManager'
+import { getInstance, getInstanceRoot } from '../instances/instanceManager'
 import {
   resolveModEnvironment,
   mapWithConcurrency,
@@ -203,12 +203,29 @@ export interface ImportModsFromInstanceResult {
 // philosophy as scanServerMods - a private/dev mod is far more likely to be
 // something the server genuinely needs than a client-only mod that happens
 // to be unrecognized.
+//
+// Deliberately restricted to an instance on the SAME Minecraft version as
+// this server: nothing here ever checked that before, so picking any Fabric
+// instance (the renderer's picker only filtered by loader, not version) would
+// happily copy e.g. 1.20.1-built mod jars into a 1.21 server's mods/ - the
+// copy itself "succeeds" (files land on disk, imported/skipped come back
+// looking correct), but the server then fails to load those mods at all,
+// which is exactly the "import reports success but nothing actually works"
+// failure mode this was producing in practice.
 export async function importModsFromInstance(
   serverId: string,
   instanceId: string
 ): Promise<ImportModsFromInstanceResult> {
   const server = getServer(serverId)
   if (!server) throw new Error('Server nicht gefunden.')
+
+  const instance = getInstance(instanceId)
+  if (!instance) throw new Error('Instanz nicht gefunden.')
+  if (instance.mcVersion !== server.mcVersion) {
+    throw new Error(
+      `Die Instanz nutzt Minecraft ${instance.mcVersion}, der Server aber ${server.mcVersion} - Mods dieser Version funktionieren auf dem Server nicht.`
+    )
+  }
 
   const sourceModsDir = join(getInstanceRoot(instanceId), 'mods')
   if (!existsSync(sourceModsDir)) return { imported: [], skippedClientOnly: [] }

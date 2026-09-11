@@ -12,6 +12,8 @@ const it: Record<TranslationKey, string> = {
   'view.grid': 'Griglia',
   'view.list': 'Elenco',
   'view.default': ' (Predefinito)',
+  'view.settings': 'Impostazioni vista',
+  'view.layout': 'Layout',
 
   'instances.title': 'Istanze',
   'instances.new': '+ Nuova istanza',

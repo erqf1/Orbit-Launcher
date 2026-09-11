@@ -16,12 +16,26 @@ export type CrashDiagnosis =
   | { kind: 'missingDependency'; modTitle: string; missingDepTitle: string; missingDepProjectId: string }
   | { kind: 'unknown' }
 
-const OOM_PATTERN = /OutOfMemoryError/
-// Covers both plain JVM class-loading failures and Fabric/Quilt's own
-// mixin-apply-failure wording (the most common "a required mod isn't
-// installed" shape for the loaders this app can actually resolve a mods/
-// folder against Modrinth for) - not a Forge/NeoForge-specific signature.
-const MISSING_CLASS_PATTERN = /ClassNotFoundException|NoClassDefFoundError|Mixin apply failed/
+// A runtime java.lang.OutOfMemoryError (heap exhausted while playing) is far
+// from the only real-world "out of memory" shape - by far the more common
+// one in practice is the JVM refusing to even *start* because -Xmx was set
+// higher than the machine actually has available, which never throws
+// OutOfMemoryError at all: HotSpot just prints one of these and exits before
+// Minecraft's own code ever runs. Missing these meant the single most common
+// memory misconfiguration was silently falling through to "unknown".
+const OOM_PATTERN =
+  /OutOfMemoryError|Could not reserve enough space for object heap|insufficient memory for the Java Runtime Environment|Invalid maximum heap size/i
+// Covers plain JVM class-loading failures, Fabric/Quilt's own
+// mixin-apply-failure wording, AND fabric-loader's/quilt-loader's *own*
+// pre-flight dependency-resolution failure (ModResolutionException /
+// "incompatible mod set" / "which is missing!") - in practice that pre-flight
+// check is the most common way a missing required mod actually surfaces on
+// these loaders, and it happens before any class is ever touched, so it
+// never produces a ClassNotFoundException/NoClassDefFoundError/Mixin error -
+// missing it meant this, the headline "missing dependency" case, was never
+// detected. Not a Forge/NeoForge-specific signature.
+const MISSING_CLASS_PATTERN =
+  /ClassNotFoundException|NoClassDefFoundError|Mixin apply failed|ModResolutionException|which is missing!|incompatible mod set/i
 
 // A mod jar's max memory as "1234M"/"2G" -> raw megabytes, so bumping it is
 // simple arithmetic regardless of which unit the user's own value used.

@@ -112,6 +112,20 @@ function createWindow(): BrowserWindow {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // show() is documented to also grant keyboard focus, but that's not
+    // reliable everywhere - the OAuth popup in msmcAuth.ts hit the same
+    // family of bug (modal:true rendering a window that GNOME/Wayland never
+    // actually focuses) and needed an explicit fix there. A freshly-mapped
+    // top-level window can hit an even more basic version of it: some Linux
+    // window managers apply focus-stealing prevention to windows shown
+    // outside a direct user gesture (this one is 'show:false' + shown
+    // later, from ready-to-show), leaving it visible but without real
+    // input focus - clicks still land since hit-testing doesn't need
+    // focus, but every keystroke into every text field goes nowhere until
+    // the user manually alt-tabs away and back. Calling focus() explicitly
+    // mirrors what the 'second-instance' handler below already does for
+    // the same reason.
+    mainWindow.focus()
   })
 
   // A hosted server is a direct child process of this same Electron main

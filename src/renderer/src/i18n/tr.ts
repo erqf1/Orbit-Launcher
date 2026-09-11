@@ -12,6 +12,8 @@ const tr: Record<TranslationKey, string> = {
   'view.grid': 'Kartlar',
   'view.list': 'Liste',
   'view.default': ' (Varsayılan)',
+  'view.settings': 'Görünüm ayarları',
+  'view.layout': 'Düzen',
 
   'instances.title': 'Örnekler',
   'instances.new': '+ Yeni Örnek',

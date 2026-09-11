@@ -337,11 +337,16 @@ export function registerAuthHandlers(mainWindow: BrowserWindow): void {
       // 'select_account' also means adding a second/third account here
       // always offers Microsoft's own account picker rather than silently
       // reusing whatever session the login webview already has cached.
+      // modal:true rides on the OS window manager's own transient-window
+      // hints; on Linux (GNOME/Wayland especially) that can make the popup
+      // render but never actually receive keyboard focus, so login can
+      // never be typed into - Windows' native modal handling doesn't have
+      // this problem, so only skip it on Linux.
       const xboxManager = await authManager.launch('electron', {
         width: 520,
         height: 700,
         parent: mainWindow,
-        modal: true
+        ...(process.platform === 'linux' ? {} : { modal: true })
       })
       const minecraft = await xboxManager.getMinecraft()
       const profile = await applyMinecraftSession(minecraft)

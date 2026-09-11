@@ -42,10 +42,19 @@ export function javaMajorVersion(version: string): number | null {
 // version boundaries, only meant to catch an obviously wrong pairing (e.g.
 // Java 8 selected for 1.21) rather than gate anything.
 function requiredJavaMajorFor(mcVersion: string): number | null {
-  const legacyMatch = /^1\.(\d+)/.exec(mcVersion)
+  // Capturing only the minor digits (the old /^1\.(\d+)/ regex) loses
+  // version entirely, so a plain "minor >= 20.5" comparison can never be
+  // true (minor is always a whole number) - this used to special-case
+  // exactly "1.20.5" via a fragile mcVersion.includes('.5') string check,
+  // which silently missed 1.20.6 (also a real MC version, also requiring
+  // Java 21) and anything else in the 1.20.5+ range with a second decimal
+  // (e.g. 1.20.10). Parsing the patch number explicitly and comparing
+  // (minor, patch) properly fixes the whole 1.20.x boundary.
+  const legacyMatch = /^1\.(\d+)(?:\.(\d+))?/.exec(mcVersion)
   if (legacyMatch) {
     const minor = Number(legacyMatch[1])
-    if (minor >= 20.5 || (minor === 20 && mcVersion.includes('.5'))) return 21
+    const patch = Number(legacyMatch[2] ?? '0')
+    if (minor > 20 || (minor === 20 && patch >= 5)) return 21
     if (minor >= 18) return 17
     if (minor >= 17) return 16
     return 8

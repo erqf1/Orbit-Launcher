@@ -140,6 +140,8 @@ function App(): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>({ type: 'all' })
   const [viewMode, setViewModeState] = useState<InstanceViewLayout>(readStoredViewMode)
   const [sortMode, setSortModeState] = useState<SortMode>(readStoredSortMode)
+  const [viewSettingsOpen, setViewSettingsOpen] = useState(false)
+  const viewSettingsRef = useRef<HTMLDivElement>(null)
   const [bgIndex, setBgIndexState] = useState<number>(readStoredBgIndex)
   const [askOnPlay, setAskOnPlayState] = useState(false)
   const [playPickerInstanceId, setPlayPickerInstanceId] = useState<string | null>(null)
@@ -561,6 +563,16 @@ function App(): React.JSX.Element {
     }
   }
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent): void {
+      if (viewSettingsRef.current && !viewSettingsRef.current.contains(e.target as Node)) {
+        setViewSettingsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const backgrounds = DEFAULT_BACKGROUNDS
 
   function setBgIndex(index: number): void {
@@ -693,16 +705,6 @@ function App(): React.JSX.Element {
           </>
         )}
 
-        <p className="main-sidebar-section-label">{t('nav.sortLabel')}</p>
-        <select
-          className="main-sidebar-sort"
-          value={sortMode}
-          onChange={(e) => setSortMode(e.target.value as SortMode)}
-        >
-          <option value="name">{t('sort.name')}</option>
-          <option value="lastPlayed">{t('sort.lastPlayed')}</option>
-          <option value="created">{t('sort.created')}</option>
-        </select>
         </>
         )}
 
@@ -732,24 +734,54 @@ function App(): React.JSX.Element {
         <>
         <div className="app-main-header">
           <h2>{filterLabel}</h2>
-          <div className="view-mode-switch">
+          <div className="view-settings" ref={viewSettingsRef}>
             <button
               type="button"
-              className={viewMode === 'grid' ? 'active' : ''}
-              onClick={() => setViewMode('grid')}
-              title={`${t('view.grid')}${t('view.default')}`}
+              className={`icon-button${viewSettingsOpen ? ' active' : ''}`}
+              onClick={() => setViewSettingsOpen((o) => !o)}
+              title={t('view.settings')}
+              aria-haspopup="true"
+              aria-expanded={viewSettingsOpen}
             >
-              ▦ {t('view.grid')}
-              {t('view.default')}
+              ⚙
             </button>
-            <button
-              type="button"
-              className={viewMode === 'list' ? 'active' : ''}
-              onClick={() => setViewMode('list')}
-              title={t('view.list')}
-            >
-              ☰ {t('view.list')}
-            </button>
+            {viewSettingsOpen && (
+              <div className="view-settings-panel">
+                <div className="view-settings-group">
+                  <p className="view-settings-label">{t('nav.sortLabel')}</p>
+                  <select
+                    className="main-sidebar-sort"
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value as SortMode)}
+                  >
+                    <option value="name">{t('sort.name')}</option>
+                    <option value="lastPlayed">{t('sort.lastPlayed')}</option>
+                    <option value="created">{t('sort.created')}</option>
+                  </select>
+                </div>
+                <div className="view-settings-group">
+                  <p className="view-settings-label">{t('view.layout')}</p>
+                  <div className="view-mode-switch">
+                    <button
+                      type="button"
+                      className={viewMode === 'grid' ? 'active' : ''}
+                      onClick={() => setViewMode('grid')}
+                      title={`${t('view.grid')}${t('view.default')}`}
+                    >
+                      ▦ {t('view.grid')}
+                    </button>
+                    <button
+                      type="button"
+                      className={viewMode === 'list' ? 'active' : ''}
+                      onClick={() => setViewMode('list')}
+                      title={t('view.list')}
+                    >
+                      ☰ {t('view.list')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

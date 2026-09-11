@@ -89,7 +89,7 @@ function AccountSwitcher({
           <span className="account-face-avatar" style={faceAvatarStyle(customization.skinUrl, 20)} />
         )}
         <span className="account">
-          {t('app.loggedInAs')} <strong>{activeAccount?.name ?? '…'}</strong>
+          <strong>{activeAccount?.name ?? '…'}</strong>
         </span>
       </button>
       {open && (

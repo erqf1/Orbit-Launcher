@@ -12,6 +12,8 @@ const de: Record<TranslationKey, string> = {
   'view.grid': 'Kästchen',
   'view.list': 'Liste',
   'view.default': ' (Standard)',
+  'view.settings': 'Ansichtseinstellungen',
+  'view.layout': 'Ansicht',
 
   'instances.title': 'Instanzen',
   'instances.new': '+ Neue Instanz',

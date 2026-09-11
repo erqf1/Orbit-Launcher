@@ -12,6 +12,8 @@ const es: Record<TranslationKey, string> = {
   'view.grid': 'Cuadrícula',
   'view.list': 'Lista',
   'view.default': ' (Predeterminado)',
+  'view.settings': 'Ajustes de vista',
+  'view.layout': 'Diseño',
 
   'instances.title': 'Instancias',
   'instances.new': '+ Nueva instancia',

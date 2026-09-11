@@ -12,6 +12,8 @@ const el: Record<TranslationKey, string> = {
   'view.grid': 'Πλέγμα',
   'view.list': 'Λίστα',
   'view.default': ' (Προεπιλογή)',
+  'view.settings': 'Ρυθμίσεις προβολής',
+  'view.layout': 'Διάταξη',
 
   'instances.title': 'Instances',
   'instances.new': '+ Νέα Instance',

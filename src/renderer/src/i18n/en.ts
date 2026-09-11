@@ -13,6 +13,8 @@ const en = {
   'view.grid': 'Grid',
   'view.list': 'List',
   'view.default': ' (Default)',
+  'view.settings': 'View settings',
+  'view.layout': 'Layout',
 
   'instances.title': 'Instances',
   'instances.new': '+ New Instance',

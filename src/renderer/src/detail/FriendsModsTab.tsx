@@ -56,11 +56,18 @@ function FriendsModsTab({ server }: Props): React.JSX.Element {
   }, [refresh])
 
   useEffect(() => {
-    // Only Fabric client instances make sense as a mod source for a Fabric
-    // server - a Forge/NeoForge instance's mods/ can't run on this server
-    // at all, so offering it as an import source would just fail confusingly.
-    window.api.listInstances().then((all) => setInstances(all.filter((i) => i.loader === 'fabric')))
-  }, [])
+    // Only same-Minecraft-version Fabric client instances make sense as a mod
+    // source for this Fabric server - a Forge/NeoForge instance's mods/ can't
+    // run on this server at all, and mods built for a different Minecraft
+    // version won't load on the server either even though the copy itself
+    // reports success (see friendsMods.ts:importModsFromInstance), so both
+    // are filtered out here before the user can even pick them.
+    window.api
+      .listInstances()
+      .then((all) =>
+        setInstances(all.filter((i) => i.loader === 'fabric' && i.mcVersion === server.mcVersion))
+      )
+  }, [server.mcVersion])
 
   function toggle(filename: string): void {
     setSelected((prev) => {

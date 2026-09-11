@@ -12,6 +12,8 @@ const pl: Record<TranslationKey, string> = {
   'view.grid': 'Kafelki',
   'view.list': 'Lista',
   'view.default': ' (Domyślne)',
+  'view.settings': 'Ustawienia widoku',
+  'view.layout': 'Układ',
 
   'instances.title': 'Instancje',
   'instances.new': '+ Nowa instancja',
